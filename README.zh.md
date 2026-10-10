@@ -8,9 +8,17 @@
 
 [English](README.md) | [简体中文](README.zh.md)
 
+[![CI](https://github.com/cuihairu/doggo/actions/workflows/ci.yml/badge.svg)](https://github.com/cuihairu/doggo/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/cuihairu/doggo/branch/main/graph/badge.svg)](https://codecov.io/gh/cuihairu/doggo)
 [![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
-[![C#](https://img.shields.io/badge/C%23-13-239120)](https://learn.microsoft.com/dotnet/csharp/)
+[![C#](https://img.shields.io/badge/C%23-14-239120)](https://learn.microsoft.com/dotnet/csharp/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-61DAFB)](https://react.dev/)
+[![Taro](https://img.shields.io/badge/Taro-blue)](https://taro-docs.jd.com/)
+[![AntDesignPro](https://img.shields.io/badge/AntDesignPro-0170FE)](https://pro.ant.design/)
+[![MySQL](https://img.shields.io/badge/MySQL-4479A1)](https://www.mysql.com/)
+[![Redis](https://img.shields.io/badge/Redis-DC382D)](https://redis.io/)
 [![docs](https://img.shields.io/badge/docs-VitePress-646CFF)](docs/)
 
 </div>
@@ -75,7 +83,7 @@ doggo/
 
 ## 项目状态
 
-早期建设阶段,当前以文档与架构设计为主,代码按模块逐步落地。欢迎通过 Issue 与 PR 参与讨论与共建。
+早期建设阶段,当前以文档与架构设计为主,代码按模块逐步落地,任务拆分见 [TODO.md](TODO.md)。欢迎通过 Issue 与 PR 参与讨论与共建。
 
 ## 许可证
 
