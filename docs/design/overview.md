@@ -13,7 +13,8 @@
 | scraper(Selenium 价格爬虫) | vapor(Steam 侧)+ `Doggo.Scraper`(资讯) | 行情收敛到 Steam 侧;资讯爬虫为新增能力 |
 | admin(Java 后台 API) | `Doggo.Api` 的 admin 路由区 | 不再单独起进程 |
 | tracking(广告回传) | 无 | 不在开源版范围 |
-| React 管理后台 | `Doggo.Admin` | 前端框架选型待定 |
+| React 管理后台 | `admin/` 前端 | 客户端框架选型待定 |
+| (开源版新增) | `web/`、`miniapp/`、`mobile/` 客户端 | 共用 `Doggo.Api`,客户端选型待定 |
 | common / dao | `Doggo.Domain` / `Doggo.Infrastructure` | EF Core 替代 MyBatis-Plus |
 
 ## 关键设计决策
@@ -52,6 +53,11 @@ doggo/
 │       ├── Doggo.Worker/      # 定时任务与后台作业
 │       ├── Doggo.Domain/      # 领域模型
 │       └── Doggo.Infrastructure/ # EF Core、Redis、外部集成
+├── web/                   # C 端 Web 用户站(规划)
 ├── admin/                 # 管理后台前端(规划)
+├── miniapp/               # 小程序(规划)
+├── mobile/                # 手机端 App(规划)
 └── deploy/                # Docker Compose、nginx 配置
 ```
+
+各客户端目录的技术选型待定,原则:同一 API 服务(`Doggo.Api`)支撑全部客户端;客户端之间不共享运行时代码,只共享 REST 契约。

@@ -33,7 +33,7 @@ Doggo is an open-source gaming info & community platform focused on **CS2 (Count
 | Scraper / background jobs | .NET Worker Service + Playwright |
 | Steam automation | [vapor](https://github.com/cuihairu/vapor) (SteamKit2) |
 | Storage | MySQL + Redis |
-| Admin console | Vue 3 (planned) |
+| Clients | web / admin / miniapp / mobile (stacks TBD) |
 | Docs | VitePress |
 
 Boundary: vapor handles everything that talks to the Steam network; the CS2 / Dota 2 news scraper is built in this repository.
@@ -63,7 +63,10 @@ The root is organized by application; source code lives under each app directory
 doggo/
 ├── docs/          # VitePress documentation
 ├── server/        # .NET backend solution (sln + projects under src/)
+├── web/           # user-facing web frontend (planned)
 ├── admin/         # admin console frontend (planned)
+├── miniapp/       # WeChat mini program (planned)
+├── mobile/        # mobile app (planned)
 ├── deploy/        # Docker Compose, nginx configs
 ├── LICENSE        # Apache License 2.0
 └── README.md
