@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/public/logo.svg" width="120" alt="Doggo" />
+<img src="docs/public/logo.svg" width="64" height="64" alt="Doggo" />
 
 # Doggo
 
@@ -71,7 +71,7 @@ The root is organized by application; source code lives under each app directory
 ```
 doggo/
 ├── docs/          # VitePress documentation
-├── server/        # .NET backend solution (sln + projects under src/)
+├── server/        # .NET backend solution (Doggo.slnx, projects under src/)
 ├── web/           # user-facing web frontend (React + TypeScript)
 ├── admin/         # admin console frontend (Ant Design Pro)
 ├── miniapp/       # WeChat mini program (Taro + React)

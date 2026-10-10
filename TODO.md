@@ -8,30 +8,33 @@
 - [x] README(中英双语)
 - [x] VitePress 文档站点
 - [x] 功能分析与设计文档
-- [ ] `.editorconfig`(C# + TypeScript 统一代码风格)
-- [ ] `Directory.Build.props`(统一 .NET 版本号、nullable、analyzers)
-- [ ] `server/.gitignore` 复核(已有根级,按需补充)
-- [ ] GitHub Actions CI:server `dotnet build` + `dotnet test` + Codecov 上传 + 文档构建
+- [x] `.editorconfig`(C# + TypeScript 统一代码风格)
+- [x] `Directory.Build.props`(统一 .NET 版本号、nullable、analyzers)
+- [x] gitignore 复核(根级已覆盖 bin/obj,无需补充)
+- [x] GitHub Actions CI:server `dotnet build` + `dotnet test` + Codecov 上传 + 文档构建
 - [x] README 增加 CI 与 Codecov 徽章
-- [ ] 分支保护与 PR 模板(`.github/PULL_REQUEST_TEMPLATE.md`)
+- [x] PR 模板(`.github/PULL_REQUEST_TEMPLATE.md`)
+- [ ] 分支保护(在 GitHub 仓库设置中按需开启)
 
 ### server 解决方案骨架
-- [ ] `server/` 下创建 `Doggo.sln`
-- [ ] `src/Doggo.Domain` 类库(无外部依赖)
-- [ ] `src/Doggo.Infrastructure` 类库(引用 Domain;EF Core + Pomelo + StackExchange.Redis)
-- [ ] `src/Doggo.Api` Web 项目(引用 Infrastructure;Minimal API)
-- [ ] `src/Doggo.Scraper` Worker Service(引用 Infrastructure)
-- [ ] `src/Doggo.Worker` Worker Service(引用 Infrastructure)
-- [ ] 项目间引用关系复核:Api → Infra → Domain,Scraper/Worker → Infra
-- [ ] `dotnet build server/Doggo.sln` 全绿
-- [ ] Api 暴露 `/healthz` 健康检查
-- [ ] 各项目基础 `appsettings.json` + `appsettings.Development.json`
+- [x] `server/` 下创建 `Doggo.slnx`(SDK 10 默认新格式)
+- [x] `src/Doggo.Domain` 类库(无外部依赖)
+- [x] `src/Doggo.Infrastructure` 类库(引用 Domain;EF Core + MySQL + Redis)
+- [x] `src/Doggo.Api` Web 项目(引用 Infrastructure;Minimal API)
+- [x] `src/Doggo.Scraper` Worker Service(引用 Infrastructure)
+- [x] `src/Doggo.Worker` Worker Service(引用 Infrastructure)
+- [x] `tests/Doggo.Domain.Tests` 测试项目(xUnit)
+- [x] 项目间引用关系复核:Api/Scraper/Worker → Infra → Domain
+- [x] `dotnet build server/Doggo.slnx` 全绿
+- [x] Api 暴露 `/healthz` 健康检查(MySQL + Redis 探活)
+- [x] 各项目基础 `appsettings.json` + `appsettings.Development.json`
+- [x] MySQL provider:MySql.EntityFrameworkCore 10.0.9(Pomelo 尚无 EF10 版,注册点已收敛可切换)
 
 ### 本地开发环境
-- [ ] `deploy/docker-compose.yml`(mysql + redis,带健康检查)
-- [ ] `deploy/` 下提供 `.env.example`
-- [ ] EF Core 连接配置与启动迁移验证(对 compose 里的 MySQL)
-- [ ] Redis 连接配置验证
+- [x] `deploy/docker-compose.yml`(mysql + redis,带健康检查)
+- [x] `deploy/` 下提供 `.env.example`
+- [x] EF Core 连接配置与启动迁移验证(InitialCreate 已应用)
+- [x] Redis 连接配置验证
 
 ## M1 领域模型与数据层
 

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/public/logo.svg" width="120" alt="Doggo" />
+<img src="docs/public/logo.svg" width="64" height="64" alt="Doggo" />
 
 # Doggo
 
@@ -71,7 +71,7 @@ pnpm docs:build      # 构建静态页面
 ```
 doggo/
 ├── docs/          # VitePress 文档站点
-├── server/        # .NET 后端解决方案(sln 与项目位于 src/)
+├── server/        # .NET 后端解决方案(Doggo.slnx,项目位于 src/)
 ├── web/           # C 端 Web 用户站(React + TypeScript)
 ├── admin/         # 管理后台前端(Ant Design Pro)
 ├── miniapp/       # 小程序(Taro + React)

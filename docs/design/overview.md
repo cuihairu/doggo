@@ -31,7 +31,7 @@
 | --- | --- | --- |
 | 运行时 | .NET 10 (LTS) | 长期支持,Linux 一等公民 |
 | Web 框架 | ASP.NET Core | 内置 JWT 认证、OpenAPI |
-| ORM | EF Core | 官方支持 MySQL(Pomelo) |
+| ORM | EF Core + MySql.EntityFrameworkCore | Pomelo 尚无 EF Core 10 版本;provider 注册收敛在一处,后续可一行切换 |
 | 缓存 | Redis(StackExchange.Redis) | 与原平台一致的缓存/计数器用途 |
 | 资讯抓取 | HttpClient + AngleSharp / Playwright for .NET | 静态页与动态页分治 |
 | Steam 集成 | vapor(SteamKit2) | 见上 |
@@ -51,13 +51,14 @@
 doggo/
 ├── docs/                  # VitePress 文档站点
 ├── server/                # .NET 后端解决方案
-│   ├── Doggo.sln
-│   └── src/
-│       ├── Doggo.Api/         # REST API 与业务服务
-│       ├── Doggo.Scraper/     # 资讯爬虫(Worker Service)
-│       ├── Doggo.Worker/      # 定时任务与后台作业
-│       ├── Doggo.Domain/      # 领域模型
-│       └── Doggo.Infrastructure/ # EF Core、Redis、外部集成
+│   ├── Doggo.slnx
+│   ├── src/
+│   │   ├── Doggo.Api/         # REST API 与业务服务
+│   │   ├── Doggo.Scraper/     # 资讯爬虫(Worker Service)
+│   │   ├── Doggo.Worker/      # 定时任务与后台作业
+│   │   ├── Doggo.Domain/      # 领域模型
+│   │   └── Doggo.Infrastructure/ # EF Core、Redis、外部集成
+│   └── tests/
 ├── web/                   # C 端 Web 用户站(React + TypeScript)
 ├── admin/                 # 管理后台前端(Ant Design Pro)
 ├── miniapp/               # 小程序(Taro + React + TypeScript)

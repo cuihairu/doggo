@@ -17,11 +17,31 @@
 git clone https://github.com/cuihairu/doggo.git
 cd doggo
 
-# 构建后端解决方案(代码落地后可用)
-dotnet build server/Doggo.sln
+# 构建后端解决方案
+dotnet build server/Doggo.slnx
 
-# 启动基础设施(compose 文件位于 deploy/)
-docker compose -f deploy/docker-compose.yml up -d mysql redis
+# 启动基础设施(MySQL 8.4 + Redis 7,带健康检查)
+cp deploy/.env.example deploy/.env   # 按需修改密码与端口
+docker compose -f deploy/docker-compose.yml up -d
+
+# 安装 EF 工具并应用数据库迁移
+dotnet tool install --global dotnet-ef
+cd server
+dotnet ef database update --project src/Doggo.Infrastructure --startup-project src/Doggo.Api
+```
+
+若主机 3306 / 6379 端口已被占用,在 `deploy/.env` 里改 `MYSQL_PORT` / `REDIS_PORT`,并在启动应用时用环境变量覆盖连接串:
+
+```bash
+ConnectionStrings__Default="Server=localhost;Port=13306;Database=doggo;User=doggo;Password=..."
+ConnectionStrings__Redis="localhost:16379"
+```
+
+### 验证
+
+```bash
+curl http://localhost:<port>/healthz
+# {"status":"ok","database":true,"redis":true}
 ```
 
 ## 文档站点
