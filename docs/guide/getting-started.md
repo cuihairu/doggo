@@ -17,11 +17,11 @@
 git clone https://github.com/cuihairu/doggo.git
 cd doggo
 
-# 构建解决方案(代码落地后可用)
-dotnet build
+# 构建后端解决方案(代码落地后可用)
+dotnet build server/Doggo.sln
 
-# 启动基础设施
-docker compose up -d mysql redis
+# 启动基础设施(compose 文件位于 deploy/)
+docker compose -f deploy/docker-compose.yml up -d mysql redis
 ```
 
 ## 文档站点

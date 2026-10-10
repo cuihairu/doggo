@@ -57,10 +57,14 @@ A good starting point:
 
 ## Repository layout
 
+The root is organized by application; source code lives under each app directory:
+
 ```
 doggo/
 ├── docs/          # VitePress documentation
-├── src/           # .NET source (landing module by module)
+├── server/        # .NET backend solution (sln + projects under src/)
+├── admin/         # admin console frontend (planned)
+├── deploy/        # Docker Compose, nginx configs
 ├── LICENSE        # Apache License 2.0
 └── README.md
 ```

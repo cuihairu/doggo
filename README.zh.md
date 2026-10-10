@@ -57,10 +57,14 @@ pnpm docs:build      # 构建静态页面
 
 ## 仓库结构
 
+根目录按"应用"分层,源码放在各应用目录内:
+
 ```
 doggo/
 ├── docs/          # VitePress 文档站点
-├── src/           # .NET 源码(按模块逐步落地)
+├── server/        # .NET 后端解决方案(sln 与项目位于 src/)
+├── admin/         # 管理后台前端(规划)
+├── deploy/        # Docker Compose、nginx 配置
 ├── LICENSE        # Apache License 2.0
 └── README.md
 ```

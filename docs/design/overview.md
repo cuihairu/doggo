@@ -39,15 +39,19 @@
 
 ## 仓库布局
 
+根目录按"应用"分层,不直接放源码目录:
+
 ```
 doggo/
-├── docs/                  # VitePress 文档
-├── src/
-│   ├── Doggo.Api/         # REST API 与业务服务
-│   ├── Doggo.Scraper/     # 资讯爬虫(Worker Service)
-│   ├── Doggo.Worker/      # 定时任务与后台作业
-│   ├── Doggo.Domain/      # 领域模型
-│   └── Doggo.Infrastructure/ # EF Core、Redis、外部集成
-├── deploy/                # Docker Compose、nginx 配置
-└── README.md
+├── docs/                  # VitePress 文档站点
+├── server/                # .NET 后端解决方案
+│   ├── Doggo.sln
+│   └── src/
+│       ├── Doggo.Api/         # REST API 与业务服务
+│       ├── Doggo.Scraper/     # 资讯爬虫(Worker Service)
+│       ├── Doggo.Worker/      # 定时任务与后台作业
+│       ├── Doggo.Domain/      # 领域模型
+│       └── Doggo.Infrastructure/ # EF Core、Redis、外部集成
+├── admin/                 # 管理后台前端(规划)
+└── deploy/                # Docker Compose、nginx 配置
 ```
