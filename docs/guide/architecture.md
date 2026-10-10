@@ -34,10 +34,10 @@ Doggo 采用 monorepo 组织,按职责拆分为多个服务模块,全部基于 C
 | `Doggo.Scraper` | **资讯爬虫**:抓取 CS2 / Dota 2 官方公告、更新日志、赛事资讯等外部资讯源,清洗、去重、入库 | .NET Worker + HttpClient / Playwright |
 | `Doggo.Worker` | 后台任务调度:爬虫调度、行情同步任务、消息推送 | .NET Worker Service |
 | `Doggo.Core` / `Doggo.Domain` | 领域模型与共享契约:饰品、箱子、资讯、用户、开箱记录 | C# 类库 |
-| `web/` | C 端 Web 用户站(资讯、行情、开箱、订单) | 选型待定(规划) |
-| `admin/` | 管理后台前端 | 选型待定(规划) |
-| `miniapp/` | 小程序 | 选型待定(规划) |
-| `mobile/` | 手机端 App | 选型待定(规划) |
+| `web/` | C 端 Web 用户站(资讯、行情、开箱、订单) | React + TypeScript |
+| `admin/` | 管理后台前端 | Ant Design Pro(React + TypeScript) |
+| `miniapp/` | 小程序 | Taro + React + TypeScript |
+| `mobile/` | 手机端 App | Taro + React + TypeScript |
 | [vapor](https://github.com/cuihairu/vapor)(外部依赖,同一作者) | **Steam 侧能力**:饰品行情与库存数据同步、交易机器人、开箱动作执行。只对接 Steam 网络,不负责外部资讯抓取 | .NET + SteamKit2 |
 
 ## 分工边界:vapor 与资讯爬虫

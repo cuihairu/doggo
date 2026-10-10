@@ -33,7 +33,8 @@ Doggo 是一个聚焦 **CS2(反恐精英 2)** 与 **Dota 2** 的开源游戏资�
 | 爬虫 / 后台任务 | .NET Worker Service + Playwright |
 | Steam 自动化 | [vapor](https://github.com/cuihairu/vapor)(SteamKit2) |
 | 存储 | MySQL + Redis |
-| 客户端 | web / admin / miniapp / mobile(选型待定) |
+| Web / 后台 | React + TypeScript / Ant Design Pro |
+| 小程序 / 手机端 | Taro + React + TypeScript |
 | 文档 | VitePress |
 
 分工边界:vapor 负责与 Steam 网络交互的全部能力;CS2 / Dota 2 资讯爬虫在本仓库内自建。
@@ -63,10 +64,10 @@ pnpm docs:build      # 构建静态页面
 doggo/
 ├── docs/          # VitePress 文档站点
 ├── server/        # .NET 后端解决方案(sln 与项目位于 src/)
-├── web/           # C 端 Web 用户站(规划)
-├── admin/         # 管理后台前端(规划)
-├── miniapp/       # 小程序(规划)
-├── mobile/        # 手机端 App(规划)
+├── web/           # C 端 Web 用户站(React + TypeScript)
+├── admin/         # 管理后台前端(Ant Design Pro)
+├── miniapp/       # 小程序(Taro + React)
+├── mobile/        # 手机端 App(Taro + React)
 ├── deploy/        # Docker Compose、nginx 配置
 ├── LICENSE        # Apache License 2.0
 └── README.md

@@ -13,8 +13,8 @@
 | scraper(Selenium 价格爬虫) | vapor(Steam 侧)+ `Doggo.Scraper`(资讯) | 行情收敛到 Steam 侧;资讯爬虫为新增能力 |
 | admin(Java 后台 API) | `Doggo.Api` 的 admin 路由区 | 不再单独起进程 |
 | tracking(广告回传) | 无 | 不在开源版范围 |
-| React 管理后台 | `admin/` 前端 | 客户端框架选型待定 |
-| (开源版新增) | `web/`、`miniapp/`、`mobile/` 客户端 | 共用 `Doggo.Api`,客户端选型待定 |
+| React 管理后台 | `admin/` 前端 | 沿用 React 生态,选型 Ant Design Pro |
+| (开源版新增) | `web/`、`miniapp/`、`mobile/` 客户端 | 共用 `Doggo.Api`;React + TypeScript,小程序与手机端用 Taro 跨端 |
 | common / dao | `Doggo.Domain` / `Doggo.Infrastructure` | EF Core 替代 MyBatis-Plus |
 
 ## 关键设计决策
@@ -36,6 +36,11 @@
 | 资讯抓取 | HttpClient + AngleSharp / Playwright for .NET | 静态页与动态页分治 |
 | Steam 集成 | vapor(SteamKit2) | 见上 |
 | 调度 | Quartz.NET 或内置 PeriodicTimer | 定时任务与补偿 |
+| 前端语言 | TypeScript | 全部客户端统一 |
+| C 端 Web(`web/`) | React + Vite | 用户站 |
+| 管理后台(`admin/`) | Ant Design Pro(UmiJS) | 中后台成熟方案 |
+| 小程序(`miniapp/`) | Taro + React | 一套代码编译到微信/支付宝等小程序 |
+| 手机端(`mobile/`) | Taro + React | 与小程序共享大部分代码,编译到 React Native / H5 |
 | 文档 | VitePress | 本站点 |
 
 ## 仓库布局
@@ -53,11 +58,11 @@ doggo/
 │       ├── Doggo.Worker/      # 定时任务与后台作业
 │       ├── Doggo.Domain/      # 领域模型
 │       └── Doggo.Infrastructure/ # EF Core、Redis、外部集成
-├── web/                   # C 端 Web 用户站(规划)
-├── admin/                 # 管理后台前端(规划)
-├── miniapp/               # 小程序(规划)
-├── mobile/                # 手机端 App(规划)
+├── web/                   # C 端 Web 用户站(React + TypeScript)
+├── admin/                 # 管理后台前端(Ant Design Pro)
+├── miniapp/               # 小程序(Taro + React + TypeScript)
+├── mobile/                # 手机端 App(Taro + React + TypeScript)
 └── deploy/                # Docker Compose、nginx 配置
 ```
 
-各客户端目录的技术选型待定,原则:同一 API 服务(`Doggo.Api`)支撑全部客户端;客户端之间不共享运行时代码,只共享 REST 契约。
+原则:同一 API 服务(`Doggo.Api`)支撑全部客户端;客户端之间不共享运行时代码,只共享 REST 契约。
