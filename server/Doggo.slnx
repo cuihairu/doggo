@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Doggo.Api/Doggo.Api.csproj" />
+    <Project Path="src/Doggo.Domain/Doggo.Domain.csproj" />
+    <Project Path="src/Doggo.Infrastructure/Doggo.Infrastructure.csproj" />
+    <Project Path="src/Doggo.Scraper/Doggo.Scraper.csproj" />
+    <Project Path="src/Doggo.Worker/Doggo.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Doggo.Domain.Tests/Doggo.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
