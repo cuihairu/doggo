@@ -39,39 +39,40 @@
 ## M1 领域模型与数据层
 
 ### 用户域
-- [ ] UserAccount 实体(注册凭据、昵称、头像、邀请码、状态)
-- [ ] UserSteamProfile / UserTradeUrl / UserSteamBackupCode 实体
-- [ ] UserCoin / UserCoinLog 实体(含批次过期字段)
-- [ ] UserCoupon / Coupon / RedeemCode 实体
-- [ ] UserLoginLog / UserVisit / InviteRewardLog / SignRecord 实体
+- [x] UserAccount 实体(注册凭据、昵称、头像、邀请码、状态)
+- [x] UserSteamProfile / UserTradeUrl / UserSteamBackupCode 实体
+- [x] UserCoin / UserCoinLog 实体(含批次过期字段,UserCoinBatch 按 FIFO 过期)
+- [x] UserCoupon / Coupon / RedeemCode 实体
+- [x] UserLoginLog / UserVisit / InviteRewardLog / SignRecord 实体
 
 ### 商品域
-- [ ] Product 实体(类型、classId、多级价格字段)
-- [ ] CasePlan / CasePlanOption 实体(加价率、返现、数量档位)
-- [ ] PromotionPlan / QuantityOption 实体
-- [ ] CaseContent 实体(七档品质)
-- [ ] Recommend / ExchangeRate 实体
+- [x] Product 实体(类型、classId、多级价格字段)
+- [x] CasePlan / CasePlanOption 实体(加价率、返现、数量档位)
+- [x] PromotionPlan / QuantityOption 实体
+- [x] CaseContent 实体(七档品质)
+- [x] Recommend / ExchangeRate 实体
 
 ### 订单域
-- [ ] UserOrder 实体(入口、价格四件套、抵扣字段、状态、serviceMode)
-- [ ] PaymentRecord / RefundRecord 实体
+- [x] UserOrder 实体(入口、价格四件套、抵扣字段、状态、serviceMode)
+- [x] PaymentRecord / RefundRecord 实体
 
 ### 开箱域
-- [ ] GroupBuying / GroupBuyingSeat 实体(乐观锁版本)
-- [ ] UserPrize / UserPrizeLog 实体(饰品完整字段)
-- [ ] RollRoom / RollRoomConfig / RollRoomParticipant 实体
+- [x] GroupBuying / GroupBuyingSeat 实体(乐观锁版本)
+- [x] UserPrize / UserPrizeLog 实体(饰品完整字段)
+- [x] RollRoom / RollRoomTemplate / RollRoomPrize / RollRoomParticipant 实体
 
 ### 资讯域
-- [ ] NewsSource / NewsItem 实体(指纹去重键)
-- [ ] Article / Notice / Banner / Partner 实体
+- [x] NewsSource / NewsItem 实体(指纹去重键)
+- [x] Article / Notice / Banner / Partner 实体
 
 ### 行情域与系统域
-- [ ] MarketItem / MarketPriceSnapshot / SyncCursor 实体
-- [ ] AdminAccount / Role / Permission / RolePermission 实体
-- [ ] SiteSetting / SupportQrcode / ShortUrl / NotificationChannel 实体
-- [ ] 通用约定落地:应用侧主键生成器(ULID/雪花)
-- [ ] 通用约定落地:软删除过滤器、UTC 时间处理
-- [ ] 首个 EF 迁移生成并在本地库验证建表
+- [x] MarketItem / MarketPriceSnapshot / MarketPriceDaily / SyncCursor 实体
+- [x] AdminAccount / Role / Permission / RolePermission 实体
+- [x] SiteSetting / SupportQrcode / ShortUrl / NotificationChannel 实体
+- [x] 通用约定落地:应用侧主键生成(Guid v7,ValueGeneratedNever)
+- [x] 通用约定落地:软删除过滤器、UTC 时间处理、SaveChanges 审计
+- [x] 首个 EF 迁移生成并在本地库验证建表(56 张表)
+- [x] 数据层行为测试:ID 生成 / 审计时间戳 / 软删除过滤(InMemory)
 
 ## M2 资讯聚合(自建爬虫,第一个垂直切片)
 
