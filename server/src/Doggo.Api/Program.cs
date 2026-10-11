@@ -1,7 +1,10 @@
 using Doggo.Api.Endpoints;
+using Doggo.Domain.Orders;
 using Doggo.Infrastructure;
 using Doggo.Infrastructure.Market;
+using Doggo.Infrastructure.Orders;
 using Doggo.Infrastructure.Persistence;
+using Doggo.Infrastructure.Users;
 using Doggo.Infrastructure.Vapor;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -26,6 +29,11 @@ builder.Services.AddHttpClient<VaporClient>(http =>
     http.Timeout = TimeSpan.FromSeconds(Math.Max(options.TimeoutSeconds, 1));
 });
 builder.Services.AddScoped<MarketStore>();
+builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<TradeUrlService>();
+
+// Payment channels land with the deployment milestone; mock covers development and tests.
+builder.Services.AddSingleton<IPaymentProvider, MockPaymentProvider>();
 
 // Webhook replays are dropped via Redis SET NX; when Redis cannot be reached the factory
 // falls back to process-local claims so webhook handling never hard-fails on Redis.
@@ -55,6 +63,8 @@ app.MapContentEndpoints();
 app.MapMarketEndpoints();
 app.MapProductEndpoints();
 app.MapVaporEndpoints();
+app.MapOrderEndpoints();
+app.MapTradeUrlEndpoints();
 
 app.MapGet("/healthz", async (DoggoDbContext db, IConnectionMultiplexer redis, CancellationToken cancellationToken) =>
 {

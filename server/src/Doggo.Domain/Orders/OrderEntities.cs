@@ -73,6 +73,13 @@ public class UserOrder : Entity
     public ServiceMode ServiceMode { get; set; }
     public FulfillmentType FulfillmentType { get; set; }
     public Guid? TradeUrlId { get; set; }
+
+    /// <summary>Promotion whose limited stock this order claimed (null when bought at base price).</summary>
+    public Guid? PromotionId { get; set; }
+
+    /// <summary>Official Steam trade offer id once vapor accepted the retrieval dispatch.</summary>
+    public string? TradeOfferId { get; set; }
+
     public string? Error { get; set; }
 
     public PaymentProvider PayType { get; set; } = PaymentProvider.None;

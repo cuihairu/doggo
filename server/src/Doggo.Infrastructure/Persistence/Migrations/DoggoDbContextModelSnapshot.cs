@@ -439,7 +439,7 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateOnly>("Date")
+                    b.Property<DateTime>("Date")
                         .HasColumnType("date");
 
                     b.Property<long>("HighCents")
@@ -969,6 +969,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ProductId")
                         .HasColumnType("char(36)");
 
+                    b.Property<Guid?>("PromotionId")
+                        .HasColumnType("char(36)");
+
                     b.Property<long>("RegularPriceCents")
                         .HasColumnType("bigint");
 
@@ -983,6 +986,10 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.Property<long>("TotalPriceCents")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("TradeOfferId")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<Guid?>("TradeUrlId")
                         .HasColumnType("char(36)");
