@@ -1,0 +1,6 @@
+# Security overrides: force vulnerable transitive deps to patched versions.
+# vitepress 1.6.4 (latest 1.x) pins vite ^5.4; the vite advisories are only
+# patched from 6.4.2/6.4.3, so vite is forced up and docs:build is the gate.
+overrides:
+  'vite@<6.4.3': 6.4.3
+  'esbuild@<=0.24.2': 0.25.0
