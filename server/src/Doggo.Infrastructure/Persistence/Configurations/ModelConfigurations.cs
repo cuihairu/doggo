@@ -90,6 +90,8 @@ public class UserPrizeConfiguration : IEntityTypeConfiguration<UserPrize>
     {
         builder.HasIndex(x => x.AssetId);
         builder.HasIndex(x => new { x.UserId, x.OrderId });
+        // One prize per (order, asset) keeps replayed opening results from duplicating rows.
+        builder.HasIndex(x => new { x.OrderId, x.AssetId }).IsUnique();
     }
 }
 

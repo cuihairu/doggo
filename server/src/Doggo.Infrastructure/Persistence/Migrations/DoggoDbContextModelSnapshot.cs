@@ -347,6 +347,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AssetId");
 
+                    b.HasIndex("OrderId", "AssetId")
+                        .IsUnique();
+
                     b.HasIndex("UserId", "OrderId");
 
                     b.ToTable("UserPrizes");

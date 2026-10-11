@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Doggo.Infrastructure.Cases;
 using Doggo.Infrastructure.Vapor;
 using Microsoft.Extensions.Options;
 
@@ -14,13 +15,13 @@ public static class VaporEndpoints
 
     /// <summary>
     /// Receives vapor webhook events: verifies the HMAC signature, drops replays through the
-    /// idempotency store, and logs the event. Handlers for concrete event types (job results,
-    /// price alerts) attach in the milestones that consume them.
+    /// idempotency store, then dispatches to the consuming handlers (case-opening results).
     /// </summary>
     private static async Task<IResult> HandleWebhook(
         HttpRequest request,
         IOptions<VaporOptions> optionsAccessor,
         IWebhookIdempotencyStore idempotency,
+        CaseOpeningWebhookHandler caseOpening,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -84,6 +85,10 @@ public static class VaporEndpoints
         {
             logger.LogDebug("vapor webhook {WebhookId} payload: {Payload}", envelope.Id, payload.GetRawText());
         }
+
+        // Handler failures are logged, not surfaced: the idempotency claim above already
+        // deduped this event, so an error status would only make vapor retry into a no-op.
+        await caseOpening.HandleAsync(envelope, cancellationToken);
 
         return Results.Ok(new { ok = true, duplicate = false });
     }

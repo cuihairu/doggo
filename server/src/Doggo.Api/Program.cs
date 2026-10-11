@@ -1,6 +1,7 @@
 using Doggo.Api.Endpoints;
 using Doggo.Domain.Orders;
 using Doggo.Infrastructure;
+using Doggo.Infrastructure.Cases;
 using Doggo.Infrastructure.Market;
 using Doggo.Infrastructure.Orders;
 using Doggo.Infrastructure.Persistence;
@@ -31,6 +32,8 @@ builder.Services.AddHttpClient<VaporClient>(http =>
 builder.Services.AddScoped<MarketStore>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<TradeUrlService>();
+builder.Services.AddScoped<GroupBuyingService>();
+builder.Services.AddScoped<CaseOpeningWebhookHandler>();
 
 // Payment channels land with the deployment milestone; mock covers development and tests.
 builder.Services.AddSingleton<IPaymentProvider, MockPaymentProvider>();
@@ -65,6 +68,7 @@ app.MapProductEndpoints();
 app.MapVaporEndpoints();
 app.MapOrderEndpoints();
 app.MapTradeUrlEndpoints();
+app.MapCaseEndpoints();
 
 app.MapGet("/healthz", async (DoggoDbContext db, IConnectionMultiplexer redis, CancellationToken cancellationToken) =>
 {
