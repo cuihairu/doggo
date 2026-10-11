@@ -1,7 +1,7 @@
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components'
 import { request } from '@umijs/max'
-import { useRef } from 'react'
-import { message, Switch, Tabs, Tag } from 'antd'
+import { useEffect, useRef, useState } from 'react'
+import { Button, Drawer, message, Switch, Tabs, Table, Tag } from 'antd'
 
 interface ProductRow {
   id: string
@@ -12,6 +12,39 @@ interface ProductRow {
   referencePriceCents: number
   status: number
   sortOrder: number
+}
+
+interface PlanOption {
+  id: string
+  quantity: number
+  minQuantity: number
+  priceCents: number
+  upliftBps: number
+  enabled: boolean
+}
+
+interface PlanRow {
+  id: string
+  title: string
+  minQuantity: number
+  maxQuantity: number
+  canUseCoupon: boolean
+  canUseCoin: boolean
+  cashbackBps: number
+  enabled: boolean
+  options: PlanOption[]
+}
+
+interface QuantityOption {
+  id: string
+  quantity: number
+  priceCents: number
+  alarmThreshold: number
+}
+
+interface PlanDetail {
+  plans: PlanRow[]
+  quantityOptions: QuantityOption[]
 }
 
 interface PromotionRow {
@@ -40,8 +73,80 @@ const STATUS_LABEL: Record<number, string> = {
   3: '上架',
 }
 
+function PlanDrawer({ product, onClose }: { product: ProductRow | null; onClose: () => void }) {
+  const [detail, setDetail] = useState<PlanDetail | null>(null)
+
+  useEffect(() => {
+    setDetail(null)
+    if (product) {
+      request<PlanDetail>(`/api/admin/products/${product.id}/plans`)
+        .then(setDetail)
+        .catch(() => setDetail({ plans: [], quantityOptions: [] }))
+    }
+  }, [product])
+
+  return (
+    <Drawer title={product ? `套餐与选项：${product.name}` : ''} width={720} open={product !== null} onClose={onClose}>
+      {!detail ? (
+        <p>加载中…</p>
+      ) : (
+        <>
+          <Table<PlanRow>
+            rowKey="id"
+            size="small"
+            pagination={false}
+            dataSource={detail.plans}
+            columns={[
+              { title: '套餐', dataIndex: 'title' },
+              { title: '数量范围', width: 90, render: (_, r) => `${r.minQuantity}-${r.maxQuantity}` },
+              { title: '返现 (bps)', dataIndex: 'cashbackBps', width: 90 },
+              { title: '可用券', dataIndex: 'canUseCoupon', width: 70, render: (v) => (v ? '是' : '否') },
+              { title: '可用币', dataIndex: 'canUseCoin', width: 70, render: (v) => (v ? '是' : '否') },
+              {
+                title: '状态',
+                dataIndex: 'enabled',
+                width: 70,
+                render: (v) => (v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
+              },
+            ]}
+            expandable={{
+              expandedRowRender: (plan) => (
+                <Table<PlanOption>
+                  rowKey="id"
+                  size="small"
+                  pagination={false}
+                  dataSource={plan.options}
+                  columns={[
+                    { title: '数量', dataIndex: 'quantity', width: 80 },
+                    { title: '最小数量', dataIndex: 'minQuantity', width: 90 },
+                    { title: '价格 (元)', dataIndex: 'priceCents', render: (v) => (Number(v) / 100).toFixed(2) },
+                    { title: '加价 (bps)', dataIndex: 'upliftBps', width: 90 },
+                  ]}
+                />
+              ),
+            }}
+          />
+          <Table<QuantityOption>
+            rowKey="id"
+            size="small"
+            pagination={false}
+            style={{ marginTop: 16 }}
+            dataSource={detail.quantityOptions}
+            columns={[
+              { title: '数量档', dataIndex: 'quantity', width: 100 },
+              { title: '价格 (元)', dataIndex: 'priceCents', render: (v) => (Number(v) / 100).toFixed(2) },
+              { title: '告警阈值', dataIndex: 'alarmThreshold', width: 100 },
+            ]}
+          />
+        </>
+      )}
+    </Drawer>
+  )
+}
+
 function ProductTable() {
   const actionRef = useRef<ActionType>()
+  const [planProduct, setPlanProduct] = useState<ProductRow | null>(null)
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<ProductRow>[] = [
@@ -56,33 +161,41 @@ function ProductTable() {
       render: (_, row) => STATUS_LABEL[row.status] ?? row.status,
     },
     {
-      title: '上架',
-      width: 80,
-      render: (_, row) => (
+      title: '操作',
+      valueType: 'option',
+      width: 130,
+      render: (_, row) => [
+        <Button key="plans" size="small" onClick={() => setPlanProduct(row)}>
+          套餐
+        </Button>,
         <Switch
+          key="shelf"
           checked={row.status === 3}
           onChange={async (checked) => {
             await request(`/api/admin/products/${row.id}/shelf`, { method: 'PUT', data: { onShelf: checked } })
             message.success(checked ? '已上架' : '已下架')
             reload()
           }}
-        />
-      ),
+        />,
+      ],
     },
   ]
 
   return (
-    <ProTable<ProductRow>
-      rowKey="id"
-      actionRef={actionRef}
-      columns={columns}
-      request={async () => {
-        const rows = await request<ProductRow[]>('/api/admin/products').catch(() => [])
-        return { data: rows, total: rows.length, success: true }
-      }}
-      search={false}
-      pagination={{ pageSize: 20 }}
-    />
+    <>
+      <ProTable<ProductRow>
+        rowKey="id"
+        actionRef={actionRef}
+        columns={columns}
+        request={async () => {
+          const rows = await request<ProductRow[]>('/api/admin/products').catch(() => [])
+          return { data: rows, total: rows.length, success: true }
+        }}
+        search={false}
+        pagination={{ pageSize: 20 }}
+      />
+      <PlanDrawer product={planProduct} onClose={() => setPlanProduct(null)} />
+    </>
   )
 }
 

@@ -365,6 +365,48 @@ public static class AdminEndpoints
             return Results.Ok(new { rate.Id, rate.CurrencyCode, rate.Rate, rate.Source });
         });
 
+        // ---- product plans: read-only view of scraper-imported plans, options, quantity tiers ----
+        admin.MapGet("/products/{id:guid}/plans", async (Guid id, DoggoDbContext db, CancellationToken cancellationToken) =>
+        {
+            var plans = await db.CasePlans.AsNoTracking()
+                .Where(p => p.ProductId == id)
+                .OrderBy(p => p.Id)
+                .ToListAsync(cancellationToken);
+            var planIds = plans.Select(p => p.Id).ToList();
+            var options = await db.CasePlanOptions.AsNoTracking()
+                .Where(o => planIds.Contains(o.PlanId))
+                .ToListAsync(cancellationToken);
+            var quantities = await db.QuantityOptions.AsNoTracking()
+                .Where(q => q.ProductId == id)
+                .OrderBy(q => q.Quantity)
+                .ToListAsync(cancellationToken);
+
+            return Results.Ok(new
+            {
+                plans = plans.Select(p => new
+                {
+                    p.Id,
+                    p.Title,
+                    p.MinQuantity,
+                    p.MaxQuantity,
+                    p.CanUseCoupon,
+                    p.CanUseCoin,
+                    p.CashbackBps,
+                    p.Enabled,
+                    options = options.Where(o => o.PlanId == p.Id).Select(o => new
+                    {
+                        o.Id,
+                        o.Quantity,
+                        o.MinQuantity,
+                        o.PriceCents,
+                        o.UpliftBps,
+                        o.Enabled
+                    })
+                }),
+                quantityOptions = quantities.Select(q => new { q.Id, q.Quantity, q.PriceCents, q.AlarmThreshold })
+            });
+        });
+
         // ---- orders: prize view ----
         admin.MapGet("/orders/{id:guid}/prizes", async (Guid id, DoggoDbContext db, CancellationToken cancellationToken) =>
             Results.Ok(await db.UserPrizes.AsNoTracking()
