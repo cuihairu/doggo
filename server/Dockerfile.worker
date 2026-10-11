@@ -1,0 +1,23 @@
+# Background worker images (Doggo.Scraper / Doggo.Worker) from one template.
+# Build from the server/ directory:
+#   docker build -t doggo-scraper --build-arg PROJECT=Doggo.Scraper -f Dockerfile.worker .
+#   docker build -t doggo-worker  --build-arg PROJECT=Doggo.Worker  -f Dockerfile.worker .
+# syntax=docker/dockerfile:1
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG PROJECT=Doggo.Scraper
+WORKDIR /src
+COPY Directory.Build.props ./
+COPY src/Doggo.Domain/Doggo.Domain.csproj src/Doggo.Domain/
+COPY src/Doggo.Infrastructure/Doggo.Infrastructure.csproj src/Doggo.Infrastructure/
+COPY src/${PROJECT}/${PROJECT}.csproj src/${PROJECT}/
+RUN dotnet restore src/${PROJECT}/${PROJECT}.csproj
+COPY src/ src/
+RUN dotnet publish src/${PROJECT}/${PROJECT}.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+ARG PROJECT=Doggo.Scraper
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV PROJECT=${PROJECT}
+ENTRYPOINT dotnet ${PROJECT}.dll
