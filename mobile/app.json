@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Doggo",
+    "slug": "doggo-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "io.github.cuihairu.doggo"
+    }
+  }
+}

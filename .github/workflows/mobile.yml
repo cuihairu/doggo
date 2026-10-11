@@ -1,0 +1,119 @@
+name: Mobile build
+
+on:
+  schedule:
+    # 02:37 Asia/Shanghai, after the daily build
+    - cron: '37 18 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-build
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: mobile/pnpm-lock.yaml
+
+      - name: Install deps
+        working-directory: mobile
+        run: pnpm install --frozen-lockfile
+
+      - name: Bundle JS
+        working-directory: mobile
+        run: pnpm build:rn
+
+      - name: Generate android project
+        working-directory: mobile
+        run: npx expo prebuild -p android --no-install
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: doggo-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: apk
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: doggo-apk
+          path: apk
+
+      - name: Start API stack
+        working-directory: deploy
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          MYSQL_PASSWORD: ci-doggo-password
+          AUTH_SECRET_KEY: ci-acceptance-secret-key-0123456789abcdef0123456789abcdef
+          API_PORT: '5077'
+        run: |
+          docker compose -f docker-compose.prod.yml up -d --build mysql redis migrator api
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5077/healthz > /dev/null; then
+              echo "api healthy"
+              break
+            fi
+            sleep 5
+          done
+          curl -fsS http://127.0.0.1:5077/healthz
+
+      - name: Seed acceptance data
+        working-directory: deploy
+        env:
+          MYSQL_PASSWORD: ci-doggo-password
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T mysql mysql -u doggo -p"$MYSQL_PASSWORD" doggo <<'SQL'
+          INSERT INTO Products (Id, Type, Name, ClassId, IconUrl, PurchasePriceCents, ReferencePriceCents, AdjustPriceCents, FinalPriceCents, RegularPriceCents, Status, PlanFlags, BuyNotice, SortOrder, DeletedAtUtc, CreatedAtUtc, UpdatedAtUtc)
+          VALUES (UUID(), 0, 'CI 验收箱', 'ci-case-001', '', 500, 600, 0, 600, 800, 3, '', NULL, 0, NULL, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
+          INSERT INTO NewsItems (Id, SourceId, Game, Title, Summary, ContentHtml, Url, UrlHash, Category, Tags, Author, CoverUrl, ViewCount, PublishedAtUtc, DeletedAtUtc, CreatedAtUtc, UpdatedAtUtc)
+          VALUES (UUID(), UUID(), 0, 'CI 冒烟资讯:服务已就绪', 'CI seed summary', '<p>CI seed content</p>', 'https://example.com/ci-1', 'ci-hash-1', '公告', '', 'CI', NULL, 1, UTC_TIMESTAMP(6), NULL, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
+          SQL
+
+      - name: Register acceptance user
+        run: |
+          curl -fsS -X POST http://127.0.0.1:5077/api/auth/register \
+            -H 'Content-Type: application/json' \
+            -d '{"account":"ciuser","password":"Passw0rd123","nickname":"CI"}'
+
+      - name: Run emulator acceptance
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          APK: apk/app-release.apk
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          script: bash .github/scripts/mobile-acceptance.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: doggo-acceptance
+          path: acceptance/
+          if-no-files-found: error
