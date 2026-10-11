@@ -1,4 +1,5 @@
 using Doggo.Domain.Orders;
+using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Orders;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -28,13 +29,21 @@ public static class OrderEndpoints
                     request.FulfillmentType,
                     request.PayType,
                     request.CoinDeduction,
-                    request.CouponDeductionCents), cancellationToken);
+                    request.UserCouponId), cancellationToken);
 
                 return Results.Created($"/api/orders/{result.OrderId}", result);
             }
             catch (OrderNotFoundException ex)
             {
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
+            }
+            catch (CouponValidationException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+            catch (CoinValidationException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
             catch (OrderValidationException ex)
             {
@@ -71,6 +80,14 @@ public static class OrderEndpoints
             catch (OrderNotFoundException ex)
             {
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
+            }
+            catch (CouponValidationException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+            catch (CoinValidationException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
             catch (OrderValidationException ex)
             {
@@ -186,7 +203,7 @@ public sealed record CreateOrderRequest(
     FulfillmentType FulfillmentType,
     PaymentProvider PayType,
     long CoinDeduction = 0,
-    long CouponDeductionCents = 0);
+    Guid? UserCouponId = null);
 
 public sealed record RefundRequest(string Reason);
 

@@ -25,6 +25,7 @@ public class DoggoDbContext(DbContextOptions<DoggoDbContext> options) : DbContex
     public DbSet<UserCoinLog> UserCoinLogs => Set<UserCoinLog>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<UserCoupon> UserCoupons => Set<UserCoupon>();
+    public DbSet<CouponProduct> CouponProducts => Set<CouponProduct>();
     public DbSet<RedeemCode> RedeemCodes => Set<RedeemCode>();
     public DbSet<UserRedeemRecord> UserRedeemRecords => Set<UserRedeemRecord>();
     public DbSet<UserLoginLog> UserLoginLogs => Set<UserLoginLog>();

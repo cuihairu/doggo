@@ -1777,6 +1777,31 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.ToTable("Coupons");
                 });
 
+            modelBuilder.Entity("Doggo.Domain.Users.CouponProduct", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("CouponId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CouponId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("CouponProducts");
+                });
+
             modelBuilder.Entity("Doggo.Domain.Users.InviteRewardLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1886,7 +1911,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "CycleId")
+                    b.HasIndex("UserId", "CycleId");
+
+                    b.HasIndex("UserId", "SignedDate")
                         .IsUnique();
 
                     b.ToTable("SignRecords");
@@ -2154,6 +2181,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                         .HasColumnType("char(36)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RedeemCodeId", "UserId")
+                        .IsUnique();
 
                     b.ToTable("UserRedeemRecords");
                 });

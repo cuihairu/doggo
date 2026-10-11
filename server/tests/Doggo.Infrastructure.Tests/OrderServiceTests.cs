@@ -4,6 +4,7 @@ using System.Text.Json;
 using Doggo.Domain.Orders;
 using Doggo.Domain.Products;
 using Doggo.Domain.Users;
+using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Orders;
 using Doggo.Infrastructure.Persistence;
 using Doggo.Infrastructure.Vapor;
@@ -53,7 +54,9 @@ public class OrderServiceTests
             JobTimeoutSeconds = 5
         }));
 
-        return (new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), client, NullLogger<OrderService>.Instance), handler);
+        var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
+        var coupons = new CouponService(db, ledger, NullLogger<CouponService>.Instance);
+        return (new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), client, coupons, ledger, NullLogger<OrderService>.Instance), handler);
     }
 
     private static HttpResponseMessage Response(HttpStatusCode code, string json) =>
@@ -218,9 +221,25 @@ public class OrderServiceTests
         var (orders, _) = CreateService(db);
         var product = await SeedProductAsync(db, finalPriceCents: 1000);
 
+        // Real ledger: 500 coins on the balance, one 200-cents-amount-off coupon claimed.
+        var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
+        var coupons = new CouponService(db, ledger, NullLogger<CouponService>.Instance);
+        await ledger.GrantAsync(UserId, 500, "promo", null);
+        var coupon = await db.Coupons.AddAsync(new Coupon
+        {
+            Id = Guid.CreateVersion7(),
+            Title = "Minus 2 yuan",
+            Type = CouponType.AmountOff,
+            AmountOffCents = 200,
+            MinOrderCents = 0,
+            Scope = CouponScope.All
+        });
+        await db.SaveChangesAsync();
+        var claimed = await coupons.ClaimCouponAsync(UserId, coupon.Entity.Id);
+
         var result = await orders.CreateOrderAsync(new CreateOrderCommand(
             UserId, product.Id, null, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Coin,
-            CoinDeduction: 500, CouponDeductionCents: 200));
+            CoinDeduction: 500, UserCouponId: claimed.Id));
 
         Assert.Equal(1000, result.TotalPriceCents);
         Assert.Equal(300, result.TotalCostCents);
@@ -228,6 +247,69 @@ public class OrderServiceTests
         var order = await db.UserOrders.SingleAsync();
         Assert.Equal(500, order.CoinDeduction);
         Assert.Equal(200, order.CouponDeductionCents);
+        // The spend drains the whole balance FIFO; the coupon instance is used now.
+        Assert.Equal(0, (await db.UserCoins.SingleAsync()).Balance);
+        Assert.Equal(UserCouponStatus.Used, (await db.UserCoupons.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Cancel_gives_the_coupon_and_coins_back()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 1000);
+
+        var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
+        var coupons = new CouponService(db, ledger, NullLogger<CouponService>.Instance);
+        await ledger.GrantAsync(UserId, 500, "promo", null);
+        var coupon = await db.Coupons.AddAsync(new Coupon
+        {
+            Id = Guid.CreateVersion7(),
+            Title = "Minus 2 yuan",
+            Type = CouponType.AmountOff,
+            AmountOffCents = 200,
+            MinOrderCents = 0,
+            Scope = CouponScope.All
+        });
+        await db.SaveChangesAsync();
+        var claimed = await coupons.ClaimCouponAsync(UserId, coupon.Entity.Id);
+
+        var result = await orders.CreateOrderAsync(new CreateOrderCommand(
+            UserId, product.Id, null, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Coin,
+            CoinDeduction: 500, UserCouponId: claimed.Id));
+
+        await orders.CancelUnpaidAsync(result.OrderId, "test cancel");
+
+        Assert.Equal(500, (await db.UserCoins.SingleAsync()).Balance);
+        var restored = await db.UserCoupons.SingleAsync();
+        Assert.Equal(UserCouponStatus.Unused, restored.Status);
+        Assert.Null(restored.UsedOrderId);
+    }
+
+    [Fact]
+    public async Task Create_rejects_a_coupon_from_another_user()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 1000);
+
+        var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
+        var coupons = new CouponService(db, ledger, NullLogger<CouponService>.Instance);
+        var coupon = await db.Coupons.AddAsync(new Coupon
+        {
+            Id = Guid.CreateVersion7(),
+            Title = "Minus 2 yuan",
+            Type = CouponType.AmountOff,
+            AmountOffCents = 200,
+            MinOrderCents = 0,
+            Scope = CouponScope.All
+        });
+        await db.SaveChangesAsync();
+        var claimed = await coupons.ClaimCouponAsync(Guid.CreateVersion7(), coupon.Entity.Id);
+
+        await Assert.ThrowsAsync<CouponValidationException>(() => orders.CreateOrderAsync(new CreateOrderCommand(
+            UserId, product.Id, null, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Alipay,
+            UserCouponId: claimed.Id)));
     }
 
     [Fact]
@@ -658,7 +740,8 @@ public class OrderServiceTests
         using var db = CreateDb();
         var (orders, _) = CreateService(db, VaporStub());
         var unconfigured = new VaporClient(new HttpClient(new StubHandler { Responder = VaporStub() }) { BaseAddress = new Uri("http://vapor.test/") }, Options.Create(new VaporOptions()));
-        var plain = new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), unconfigured, NullLogger<OrderService>.Instance);
+        var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
+        var plain = new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), unconfigured, new CouponService(db, ledger, NullLogger<CouponService>.Instance), ledger, NullLogger<OrderService>.Instance);
 
         var product = await SeedProductAsync(db);
         var link = await SeedTradeUrlAsync(db);

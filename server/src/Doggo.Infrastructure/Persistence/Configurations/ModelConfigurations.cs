@@ -45,10 +45,28 @@ public class RedeemCodeConfiguration : IEntityTypeConfiguration<RedeemCode>
     public void Configure(EntityTypeBuilder<RedeemCode> builder) => builder.HasIndex(x => x.Code).IsUnique();
 }
 
+public class UserRedeemRecordConfiguration : IEntityTypeConfiguration<UserRedeemRecord>
+{
+    public void Configure(EntityTypeBuilder<UserRedeemRecord> builder) =>
+        // A user redeems a code once even if the code allows many redemptions overall.
+        builder.HasIndex(x => new { x.RedeemCodeId, x.UserId }).IsUnique();
+}
+
 public class SignRecordConfiguration : IEntityTypeConfiguration<SignRecord>
 {
-    public void Configure(EntityTypeBuilder<SignRecord> builder) =>
-        builder.HasIndex(x => new { x.UserId, x.CycleId }).IsUnique();
+    public void Configure(EntityTypeBuilder<SignRecord> builder)
+    {
+        // One sign row per user per day; the cycle is derived, not unique (a week holds
+        // several days).
+        builder.HasIndex(x => new { x.UserId, x.SignedDate }).IsUnique();
+        builder.HasIndex(x => new { x.UserId, x.CycleId });
+    }
+}
+
+public class CouponProductConfiguration : IEntityTypeConfiguration<CouponProduct>
+{
+    public void Configure(EntityTypeBuilder<CouponProduct> builder) =>
+        builder.HasIndex(x => new { x.CouponId, x.ProductId }).IsUnique();
 }
 
 public class ProductConfiguration : IEntityTypeConfiguration<Product>

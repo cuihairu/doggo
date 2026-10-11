@@ -154,6 +154,13 @@ public class UserCoupon : Entity
     public DateTime? ValidToUtc { get; set; }
 }
 
+/// <summary>Product a scope=Products coupon can be applied to.</summary>
+public class CouponProduct : Entity
+{
+    public Guid CouponId { get; set; }
+    public Guid ProductId { get; set; }
+}
+
 public class RedeemCode : Entity
 {
     public RedeemCodeType Type { get; set; }

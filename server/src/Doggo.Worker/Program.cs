@@ -37,6 +37,7 @@ builder.Services.AddScoped<MarketStore>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<RollService>();
 builder.Services.AddScoped<CoinService>();
+builder.Services.AddScoped<CouponService>();
 builder.Services.AddSingleton<IPaymentProvider, MockPaymentProvider>();
 builder.Services.AddHostedService<MarketSyncWorker>();
 builder.Services.AddHostedService<OrderTimeoutWorker>();

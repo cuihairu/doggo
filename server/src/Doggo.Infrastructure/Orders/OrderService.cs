@@ -29,7 +29,7 @@ public sealed record CreateOrderCommand(
     FulfillmentType FulfillmentType,
     PaymentProvider PayType,
     long CoinDeduction = 0,
-    long CouponDeductionCents = 0);
+    Guid? UserCouponId = null);
 
 public sealed record CreateOrderResult(
     Guid OrderId,
@@ -54,6 +54,8 @@ public sealed partial class OrderService(
     IOptions<OrderOptions> options,
     IPaymentProvider payment,
     VaporClient vapor,
+    Marketing.CouponService coupons,
+    Marketing.CoinService coins,
     ILogger<OrderService> logger)
 {
     private readonly OrderOptions _options = options.Value;
@@ -93,8 +95,6 @@ public sealed partial class OrderService(
             total = promotion.DiscountPriceCents * quantity;
         }
 
-        var deductions = Math.Max(command.CoinDeduction, 0) + Math.Max(command.CouponDeductionCents, 0);
-        var cost = Math.Max(total - deductions, 0);
         var cashback = PriceCalculator.CashbackCents(total, plan?.CashbackBps ?? 0);
 
         var order = new UserOrder
@@ -109,9 +109,7 @@ public sealed partial class OrderService(
             RegularPriceCents = product.RegularPriceCents,
             PriceCents = breakdown.UnitPriceCents,
             TotalPriceCents = total,
-            TotalCostCents = cost,
-            CoinDeduction = command.CoinDeduction,
-            CouponDeductionCents = command.CouponDeductionCents,
+            TotalCostCents = total,
             CashbackCents = cashback,
             Status = OrderStatus.PendingPayment,
             ServiceMode = command.ServiceMode,
@@ -119,12 +117,38 @@ public sealed partial class OrderService(
             PayType = command.PayType,
             PayDeadlineUtc = now.AddSeconds(Math.Max(_options.PayTimeoutSeconds, 1))
         };
-
         db.UserOrders.Add(order);
+
+        // The coupon is consumed first so an invalid coupon never burns coins; a coin spend
+        // that then fails gives the coupon back before the rejection surfaces.
+        if (command.UserCouponId is { } userCouponId)
+        {
+            order.CouponDeductionCents = await coupons.ApplyCouponAsync(
+                command.UserId, userCouponId, command.ProductId, total, order.Id, cancellationToken);
+        }
+
+        if (command.CoinDeduction > 0)
+        {
+            try
+            {
+                // SpendAsync returns the remaining balance; the deduction is the requested amount.
+                await coins.SpendAsync(
+                    command.UserId, command.CoinDeduction, "order", order.Id.ToString(), cancellationToken);
+                order.CoinDeduction = command.CoinDeduction;
+            }
+            catch
+            {
+                await coupons.RestoreCouponAsync(order.Id, cancellationToken);
+                throw;
+            }
+        }
+
+        order.TotalCostCents = Math.Max(total - order.CoinDeduction - order.CouponDeductionCents, 0);
+
         await db.SaveChangesAsync(cancellationToken);
 
         LogOrderCreated(logger, order.OrderNo, command.UserId, promotion is not null);
-        return new CreateOrderResult(order.Id, order.OrderNo, total, cost, cashback, promotion is not null, order.PayDeadlineUtc!.Value);
+        return new CreateOrderResult(order.Id, order.OrderNo, total, order.TotalCostCents, cashback, promotion is not null, order.PayDeadlineUtc!.Value);
     }
 
     /// <summary>Asks the payment channel for a pay URL; only unpaid orders qualify.</summary>
@@ -212,6 +236,7 @@ public sealed partial class OrderService(
         await db.SaveChangesAsync(cancellationToken);
 
         await RestorePromotionAsync(order.PromotionId, cancellationToken);
+        await RestoreDeductionsAsync(order, "order_cancel", cancellationToken);
         return true;
     }
 
@@ -282,8 +307,30 @@ public sealed partial class OrderService(
         });
         await db.SaveChangesAsync(cancellationToken);
 
+        await RestoreDeductionsAsync(order, "order_refund", cancellationToken);
         LogRefunded(logger, order.OrderNo, reason);
         return true;
+    }
+
+    /// <summary>
+    /// Gives a consumed coupon and the spent coins back after a cancel or refund. Failures
+    /// here must not fail the cancel/refund itself: the ledger movement is best effort and a
+    /// missed restore can be replayed safely (both restores are idempotent).
+    /// </summary>
+    private async Task RestoreDeductionsAsync(UserOrder order, string reason, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await coupons.RestoreCouponAsync(order.Id, cancellationToken);
+            if (order.CoinDeduction > 0)
+            {
+                await coins.RefundAsync(order.UserId, order.CoinDeduction, reason, order.Id.ToString(), cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogRestoreFailed(logger, ex, order.OrderNo, reason);
+        }
     }
 
     /// <summary>Auto-refunds orders stuck after settlement or awaiting retrieval too long.</summary>
@@ -628,6 +675,9 @@ public sealed partial class OrderService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "order {OrderNo} refunded: {Reason}")]
     private static partial void LogRefunded(ILogger logger, string orderNo, string reason);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "deduction restore failed for order {OrderNo} ({Reason})")]
+    private static partial void LogRestoreFailed(ILogger logger, Exception ex, string orderNo, string reason);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "{Count} stuck orders refunded")]
     private static partial void LogStuckRefunded(ILogger logger, int count);
