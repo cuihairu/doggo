@@ -11,8 +11,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip when the repo has been idle for 48 hours
+        id: check
+        run: |
+          # Manual runs always build; scheduled runs only build on recent activity.
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          last_commit=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          age_hours=$(( (now - last_commit) / 3600 ))
+          echo "last commit ${age_hours}h ago"
+
+          if [ "$age_hours" -ge 48 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
   server:
     runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -46,6 +77,8 @@ jobs:
 
   docs:
     runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
 
     steps:
       - uses: actions/checkout@v4
