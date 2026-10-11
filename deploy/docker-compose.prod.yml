@@ -54,7 +54,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-doggo};User=${MYSQL_USER:-doggo};Password=${MYSQL_PASSWORD}"
-      Redis__ConnectionString: "redis:6379"
+      ConnectionStrings__Redis: "redis:6379"
       Auth__SecretKey: ${AUTH_SECRET_KEY:?AUTH_SECRET_KEY is required}
       Vapor__BaseUrl: ${VAPOR_BASE_URL:-}
       Vapor__ApiKey: ${VAPOR_API_KEY:-}
@@ -82,7 +82,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-doggo};User=${MYSQL_USER:-doggo};Password=${MYSQL_PASSWORD}"
-      Redis__ConnectionString: "redis:6379"
+      ConnectionStrings__Redis: "redis:6379"
     depends_on:
       migrator:
         condition: service_completed_successfully
@@ -97,7 +97,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-doggo};User=${MYSQL_USER:-doggo};Password=${MYSQL_PASSWORD}"
-      Redis__ConnectionString: "redis:6379"
+      ConnectionStrings__Redis: "redis:6379"
     depends_on:
       migrator:
         condition: service_completed_successfully

@@ -7,7 +7,9 @@
   "scripts": {
     "dev:rn": "taro build --type rn --watch",
     "build:rn": "taro build --type rn",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@doggo/shared": "link:../shared",

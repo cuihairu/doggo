@@ -209,7 +209,7 @@
 ### mobile/(Taro + React + TypeScript)
 - [x] Taro RN 端初始化,与 miniapp 共享层抽包(`shared/` 源码包供两端复用,miniapp re-export 零改页面;`mobile/` metro bundle 构建通过)
 - [x] 核心页面适配(RN 差异处理)(账密登录替代 wx.login、RN 原生组件+暗色主题、订单页本地单号查询;metro bundle 含全部 9 页)
-- [ ] 打包流水线(Android APK 优先)
+- [x] 打包流水线(Android APK 优先)(mobile.yml:pnpm install → taro build:rn → expo prebuild → gradlew assembleRelease;run 38163196751 出 app-release.apk;踩坑三条:expo 从项目根解析 @react-native/assets-registry/expo-asset 需升为直接依赖、babel-preset-taro rn 链三个 babel 插件同因、模板 splashscreen.xml 引用的 color/splashscreen_background 需 app.json splash 配置注入)
 
 ## M8 部署与运维
 
