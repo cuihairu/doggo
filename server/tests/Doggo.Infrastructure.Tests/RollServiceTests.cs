@@ -2,6 +2,7 @@ using Doggo.Domain.Cases;
 using Doggo.Domain.Orders;
 using Doggo.Domain.Users;
 using Doggo.Infrastructure.Cases;
+using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,7 +20,7 @@ public class RollServiceTests
             .Options);
 
     private static RollService CreateService(DoggoDbContext db) =>
-        new(db, NullLogger<RollService>.Instance);
+        new(db, new CoinService(db, NullLogger<CoinService>.Instance), NullLogger<RollService>.Instance);
 
     private static async Task<RollRoomTemplate> SeedTemplateAsync(
         DoggoDbContext db, RollRuleType rule = RollRuleType.LoginEntry, bool enabled = true)

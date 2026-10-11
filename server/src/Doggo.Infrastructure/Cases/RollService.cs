@@ -2,6 +2,7 @@ using Doggo.Domain.Cases;
 using Doggo.Domain.Orders;
 using Doggo.Domain.Products;
 using Doggo.Domain.Users;
+using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -48,7 +49,7 @@ public sealed record RollPrizeView(Guid Id, RollPrizeType Type, string Title, st
 /// from the same template. Prize weights decide which prize is won; the winner participant
 /// is drawn uniformly.
 /// </summary>
-public sealed partial class RollService(DoggoDbContext db, ILogger<RollService> logger)
+public sealed partial class RollService(DoggoDbContext db, CoinService coins, ILogger<RollService> logger)
 {
     public async Task<CreateRoomResult> CreateRoomFromTemplateAsync(Guid templateId, CancellationToken cancellationToken = default)
     {
@@ -403,34 +404,8 @@ public sealed partial class RollService(DoggoDbContext db, ILogger<RollService> 
         await db.RollRoomParticipants.AsNoTracking()
             .FirstOrDefaultAsync(p => p.RoomId == roomId && p.WonPrizeId != null, cancellationToken);
 
-    private async Task GrantCoinsAsync(Guid userId, long amount, Guid roomId, CancellationToken cancellationToken)
-    {
-        var account = await db.UserCoins.FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
-        if (account is null)
-        {
-            account = new UserCoin { UserId = userId, Balance = 0 };
-            db.UserCoins.Add(account);
-        }
-
-        account.Balance += amount;
-        db.UserCoinBatches.Add(new UserCoinBatch
-        {
-            UserId = userId,
-            OriginalAmount = amount,
-            RemainingAmount = amount,
-            SourceType = "roll_room",
-            SourceRef = roomId.ToString()
-        });
-        db.UserCoinLogs.Add(new UserCoinLog
-        {
-            UserId = userId,
-            Type = CoinLogType.Grant,
-            Delta = amount,
-            BalanceAfter = account.Balance,
-            RefType = "roll_room",
-            RefId = roomId.ToString()
-        });
-    }
+    private Task<long> GrantCoinsAsync(Guid userId, long amount, Guid roomId, CancellationToken cancellationToken) =>
+        coins.GrantAsync(userId, amount, "roll_room", roomId.ToString(), expiresAtUtc: null, cancellationToken);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "roll room {Title} opened, ends at {EndAtUtc}")]
     private partial void LogRoomCreated(string title, DateTime endAtUtc);

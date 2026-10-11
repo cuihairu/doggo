@@ -5,6 +5,7 @@ using Doggo.Infrastructure;
 using Doggo.Infrastructure.Auth;
 using Doggo.Infrastructure.Cases;
 using Doggo.Infrastructure.Market;
+using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Orders;
 using Doggo.Infrastructure.Persistence;
 using Doggo.Infrastructure.Users;
@@ -59,6 +60,7 @@ builder.Services.AddScoped<TradeUrlService>();
 builder.Services.AddScoped<GroupBuyingService>();
 builder.Services.AddScoped<PrizeService>();
 builder.Services.AddScoped<RollService>();
+builder.Services.AddScoped<CoinService>();
 builder.Services.AddScoped<CaseOpeningWebhookHandler>();
 
 // Payment channels land with the deployment milestone; mock covers development and tests.
@@ -93,6 +95,7 @@ app.UseMiddleware<VisitLogMiddleware>();
 
 app.MapNewsEndpoints();
 app.MapAuthEndpoints();
+app.MapCoinEndpoints();
 app.MapContentEndpoints();
 app.MapMarketEndpoints();
 app.MapProductEndpoints();
