@@ -1,0 +1,48 @@
+{
+  "name": "doggo-miniapp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Doggo WeChat miniapp (Taro + React)",
+  "templateInfo": {
+    "name": "default",
+    "typescript": true,
+    "css": "sass"
+  },
+  "scripts": {
+    "dev": "taro build --type weapp --watch",
+    "build": "taro build --type weapp",
+    "typecheck": "tsc --noEmit"
+  },
+  "browserslist": [
+    "last 3 versions",
+    "Android >= 4.1",
+    "ios >= 8"
+  ],
+  "dependencies": {
+    "@babel/runtime": "^7.24.0",
+    "@tarojs/components": "4.3.0",
+    "@tarojs/helper": "4.3.0",
+    "@tarojs/plugin-framework-react": "4.3.0",
+    "@tarojs/plugin-platform-weapp": "4.3.0",
+    "@tarojs/react": "4.3.0",
+    "@tarojs/runtime": "4.3.0",
+    "@tarojs/shared": "4.3.0",
+    "@tarojs/taro": "4.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/plugin-proposal-decorators": "^8.0.2",
+    "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
+    "@babel/preset-react": "^8.0.1",
+    "@tarojs/cli": "4.3.0",
+    "@tarojs/webpack5-runner": "4.3.0",
+    "@types/react": "^18.3.0",
+    "@types/webpack-env": "^1.18.0",
+    "babel-preset-taro": "4.3.0",
+    "sass": "^1.77.0",
+    "typescript": "^5.5.0",
+    "webpack": "5.94.0"
+  }
+}

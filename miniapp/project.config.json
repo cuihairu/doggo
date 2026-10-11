@@ -1,0 +1,16 @@
+{
+  "appid": "touristappid",
+  "projectname": "doggo-miniapp",
+  "description": "Doggo CS2/Dota2 平台小程序",
+  "miniprogramRoot": "dist/",
+  "compileType": "miniprogram",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "packNpmManually": false
+  },
+  "libVersion": "3.4.10"
+}
