@@ -64,7 +64,9 @@ async function rawRequest<T>(path: string, options: RequestOptions): Promise<T> 
     url: `${apiBase}${path}`,
     method: options.method ?? 'GET',
     data: options.data as never,
-    header: headers
+    header: headers,
+    // Weak-network guard: fail fast instead of hanging forever.
+    timeout: 15000
   })
 
   if (response.statusCode >= 200 && response.statusCode < 300) {

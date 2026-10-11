@@ -207,7 +207,7 @@
 - [x] 提审合规自查(类目、隐私协议)(见 `docs/guide/miniapp-compliance.md`;主体资质与正式域名属外部依赖)
 
 ### mobile/(Taro + React + TypeScript)
-- [ ] Taro RN 端初始化,与 miniapp 共享层抽包
+- [x] Taro RN 端初始化,与 miniapp 共享层抽包(`shared/` 源码包供两端复用,miniapp re-export 零改页面;`mobile/` metro bundle 构建通过)
 - [ ] 核心页面适配(RN 差异处理)
 - [ ] 打包流水线(Android APK 优先)
 
