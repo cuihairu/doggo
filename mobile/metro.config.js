@@ -27,6 +27,17 @@ const config = {
   }
 }
 
+// expo export:embed (the gradle JS bundle step) requires hashed asset names,
+// which come from the expo-asset plugin. The plain RN config does not enable
+// it, so only add it when running under expo's export pipeline.
+if (process.argv.some((a) => String(a).includes('export:embed'))) {
+  config.transformer = config.transformer || {}
+  config.transformer.assetPlugins = [
+    ...(config.transformer.assetPlugins || []),
+    require.resolve('expo-asset/tools/hashAssetFiles')
+  ]
+}
+
 module.exports = (async function () {
   return mergeConfig(getDefaultConfig(__dirname), await getMetroConfig(), config)
 })()

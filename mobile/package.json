@@ -12,6 +12,7 @@
   "dependencies": {
     "@doggo/shared": "link:../shared",
     "@react-native-async-storage/async-storage": "1.21.0",
+    "@react-native/assets-registry": "0.73.1",
     "@react-native/metro-config": "0.73.5",
     "@tarojs/components-rn": "4.3.0",
     "@tarojs/helper": "4.3.0",
@@ -23,6 +24,7 @@
     "@tarojs/taro": "4.3.0",
     "@tarojs/taro-rn": "4.3.0",
     "expo": "~50.0.2",
+    "expo-asset": "9.0.2",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-native": "0.73.6",
