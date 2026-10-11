@@ -1,0 +1,6 @@
+# Security overrides for the RN dependency tree (see root pnpm-workspace.yaml).
+overrides:
+  'esbuild@<=0.24.2': 0.25.0
+  'postcss@<8.5.23': 8.5.23
+  'node-fetch@<2.6.7': 2.6.7
+  'serialize-javascript@<7.0.5': 7.0.5
