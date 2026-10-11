@@ -49,7 +49,7 @@ shot 08-login 5
 # Fill account/password and submit.
 adb shell input tap 540 610
 sleep 1
-adb shell input text "ciuser"
+adb shell input text "13800000001"
 adb shell input tap 540 760
 sleep 1
 adb shell input text "Passw0rd123"
@@ -63,6 +63,17 @@ adb shell input keyevent 4
 shot 11-product-again 3
 adb shell input tap 540 700
 shot 12-opening 10
+
+# The mock payment channel settles orders through its callback endpoint.
+# Post it here so the order page shows a paid state — the app itself keeps
+# no mock logic: pay returns the cashier URL and the provider calls back.
+ORDER_ROW=$(docker exec deploy-mysql-1 mysql -N -u doggo -pci-doggo-password doggo \
+  -e "SELECT CONCAT(Id, ' ', TotalCostCents) FROM UserOrders ORDER BY CreatedAtUtc DESC LIMIT 1")
+OID=$(echo "$ORDER_ROW" | awk '{print $1}')
+AMT=$(echo "$ORDER_ROW" | awk '{print $2}')
+curl -fsS -X POST http://127.0.0.1:5077/api/payments/callback \
+  -H 'Content-Type: application/json' \
+  -d "{\"orderId\":\"$OID\",\"amountCents\":$AMT,\"success\":true}"
 
 # Home → orders: the paid order must show up.
 adb shell input keyevent 4

@@ -150,7 +150,9 @@ export interface OrderView {
 
 /** Case entry, self-open, spot, WeChat pay — the standard single-open. */
 export function createOrder(userId: string, productId: string, planId?: string, optionId?: string) {
-  return api<OrderView>('/api/orders', {
+  // The create endpoint returns { orderId, ... } while the detail endpoint
+  // returns { id, ... }; normalize so callers can use order.id either way.
+  return api<OrderView & { orderId?: string }>('/api/orders', {
     method: 'POST',
     data: {
       userId,
@@ -162,7 +164,7 @@ export function createOrder(userId: string, productId: string, planId?: string, 
       fulfillmentType: 1,
       payType: 2
     }
-  })
+  }).then((order) => ({ ...order, id: order.orderId ?? order.id }))
 }
 
 export function fetchOrder(id: string) {

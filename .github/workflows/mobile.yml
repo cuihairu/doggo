@@ -100,7 +100,7 @@ jobs:
         run: |
           curl -fsS -X POST http://127.0.0.1:5077/api/auth/register \
             -H 'Content-Type: application/json' \
-            -d '{"account":"ciuser","password":"Passw0rd123","nickname":"CI"}'
+            -d '{"account":"13800000001","password":"Passw0rd123","nickname":"CI"}'
 
       - name: Run emulator acceptance
         uses: reactivecircus/android-emulator-runner@v2
