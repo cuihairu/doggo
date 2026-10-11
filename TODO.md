@@ -225,9 +225,9 @@
 
 ## 持续事项
 
-- [ ] 每个里程碑完成后同步更新 docs(vitepress)与 README
-- [ ] 核心业务逻辑(状态机、价格计算、AliasMethod、积分账本)保持 ≥80% 单测覆盖
-- [ ] 敏感配置(数据库、vapor API Key、JWT 密钥)只走环境变量,不落仓库
+- [x] 每个里程碑完成后同步更新 docs(vitepress)与 README(features.md 状态列已对齐实现;新增手机端/部署两节;README 补小程序与当前进度)
+- [x] 核心业务逻辑(状态机、价格计算、AliasMethod、积分账本)保持 ≥80% 单测覆盖(实测合并覆盖率:Domain 87.5%,Infrastructure 剔除迁移生成码后 90.7%;OrderService 94.8%/RollService 89.0%/CoinService 95.0%,daily.yml 持续采集)
+- [x] 敏感配置(数据库、vapor API Key、JWT 密钥)只走环境变量,不落仓库(全仓扫描无真实密钥,appsettings 仅占位默认值,deploy/.env 已忽略,compose/.env.example 为模板)
 
 ## M9 手机版本（2026-10-11 用户令：「再加一个需求，创建手机版本」）
 

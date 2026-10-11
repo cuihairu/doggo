@@ -32,6 +32,7 @@ Doggo is an open-source gaming info & community platform focused on **CS2 (Count
 - 🎁 **Case opening** — case opening built on real Steam drops, with inventory management and opening records
 - 🤖 **Steam automation** — market sync, inventory and trading on the Steam side, integrated via [vapor](https://github.com/cuihairu/vapor)
 - 🛠️ **Admin console** — operations UI for users, products, cases, content, orders and statistics
+- 📱 **WeChat miniapp** — news, market, case opening, orders and user center on Taro
 
 ## Tech stack
 
@@ -83,7 +84,7 @@ doggo/
 
 ## Status
 
-Early stage — documentation and architecture come first, code follows module by module. See [TODO.md](TODO.md) for the task breakdown. Discussions and contributions are welcome via Issues and Pull Requests.
+The server (news, market, orders, cases, auth with Steam and WeChat login), admin console, WeChat miniapp and the Docker deploy stack are implemented; 152 of 159 checklist items in [TODO.md](TODO.md) are done, the rest are the mobile app milestone. Tests run on every push (see `.github/workflows/ci.yml`) and nightly images publish to GHCR. Discussions and contributions are welcome via Issues and Pull Requests.
 
 ## License
 
