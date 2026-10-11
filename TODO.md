@@ -113,12 +113,12 @@
 ## M4 商品与订单
 
 ### 商品 API
-- [ ] `GET /api/products`(箱子/钥匙列表、排序)
-- [ ] `GET /api/products/{id}`(详情 + 套餐选项 + 内容物展示)
-- [ ] `GET /api/products/{id}/skus`(按履约方式的库存与价格)
-- [ ] `GET /api/promotions`(限量促销)
-- [ ] `GET /api/recommends`(推荐位)
-- [ ] 价格计算服务:采购价/参考价/修正价/加价率/数量档位阶梯
+- [x] `GET /api/products`(箱子/钥匙列表、排序)
+- [x] `GET /api/products/{id}`(详情 + 套餐选项 + 内容物展示)
+- [x] `GET /api/products/{id}/skus`(按履约方式的库存与价格)
+- [x] `GET /api/promotions`(限量促销)
+- [x] `GET /api/recommends`(推荐位)
+- [x] 价格计算服务:采购价/参考价/修正价/加价率/数量档位阶梯
 
 ### 订单状态机
 - [ ] 下单服务(装配价格、占库存/座位、支付期限)

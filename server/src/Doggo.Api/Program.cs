@@ -53,6 +53,7 @@ if (app.Environment.IsDevelopment())
 app.MapNewsEndpoints();
 app.MapContentEndpoints();
 app.MapMarketEndpoints();
+app.MapProductEndpoints();
 app.MapVaporEndpoints();
 
 app.MapGet("/healthz", async (DoggoDbContext db, IConnectionMultiplexer redis, CancellationToken cancellationToken) =>
