@@ -33,6 +33,7 @@ builder.Services.AddScoped<MarketStore>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<TradeUrlService>();
 builder.Services.AddScoped<GroupBuyingService>();
+builder.Services.AddScoped<PrizeService>();
 builder.Services.AddScoped<CaseOpeningWebhookHandler>();
 
 // Payment channels land with the deployment milestone; mock covers development and tests.
@@ -69,6 +70,7 @@ app.MapVaporEndpoints();
 app.MapOrderEndpoints();
 app.MapTradeUrlEndpoints();
 app.MapCaseEndpoints();
+app.MapPrizeEndpoints();
 
 app.MapGet("/healthz", async (DoggoDbContext db, IConnectionMultiplexer redis, CancellationToken cancellationToken) =>
 {
