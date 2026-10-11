@@ -31,6 +31,7 @@ public class DoggoDbContext(DbContextOptions<DoggoDbContext> options) : DbContex
     public DbSet<UserVisitLog> UserVisitLogs => Set<UserVisitLog>();
     public DbSet<InviteRewardLog> InviteRewardLogs => Set<InviteRewardLog>();
     public DbSet<SignRecord> SignRecords => Set<SignRecord>();
+    public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
 
     public DbSet<Product> Products => Set<Product>();
     public DbSet<CasePlan> CasePlans => Set<CasePlan>();

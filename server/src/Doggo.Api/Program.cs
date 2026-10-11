@@ -1,20 +1,43 @@
+using Doggo.Api;
 using Doggo.Api.Endpoints;
 using Doggo.Domain.Orders;
 using Doggo.Infrastructure;
+using Doggo.Infrastructure.Auth;
 using Doggo.Infrastructure.Cases;
 using Doggo.Infrastructure.Market;
 using Doggo.Infrastructure.Orders;
 using Doggo.Infrastructure.Persistence;
 using Doggo.Infrastructure.Users;
 using Doggo.Infrastructure.Vapor;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddDoggoInfrastructure(builder.Configuration);
+
+builder.Services.AddOptions<AuthOptions>().Bind(builder.Configuration.GetSection(AuthOptions.SectionName));
+// Singleton: issuance and validation must share one signing key, including the ephemeral
+// per-boot fallback when no Auth:SecretKey is configured.
+builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddAuthorization();
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer();
+// Bind bearer options to the singleton TokenService so issuance and validation share one
+// signing key, including the ephemeral per-boot fallback when no Auth:SecretKey is set.
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<TokenService>((options, tokens) =>
+    {
+        // Keep "sub" as-is instead of remapping to ClaimTypes.NameIdentifier.
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = tokens.ValidationParameters;
+    });
 
 builder.Services.AddOptions<VaporOptions>().Bind(builder.Configuration.GetSection(VaporOptions.SectionName));
 builder.Services.AddHttpClient<VaporClient>(http =>
@@ -63,7 +86,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseMiddleware<VisitLogMiddleware>();
+
 app.MapNewsEndpoints();
+app.MapAuthEndpoints();
 app.MapContentEndpoints();
 app.MapMarketEndpoints();
 app.MapProductEndpoints();

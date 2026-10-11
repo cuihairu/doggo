@@ -183,6 +183,21 @@ public class UserLoginLog : Entity
     public bool Success { get; set; }
 }
 
+/// <summary>
+/// Rotating refresh token; only the SHA-256 hash of the token is stored so a database
+/// leak cannot replay sessions. Revoking a token ends its family.
+/// </summary>
+public class UserRefreshToken : Entity
+{
+    public Guid UserId { get; set; }
+    public string TokenHash { get; set; } = string.Empty;
+    public DateTime ExpiresAtUtc { get; set; }
+    public DateTime? RevokedAtUtc { get; set; }
+    public Guid? ReplacedByTokenId { get; set; }
+    public string? ReplacedByTokenHash { get; set; }
+    public DateTime? LastSeenAtUtc { get; set; }
+}
+
 public class UserVisitLog : Entity
 {
     public DateOnly Date { get; set; }

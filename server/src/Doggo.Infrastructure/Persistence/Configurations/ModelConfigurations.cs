@@ -20,6 +20,15 @@ public class UserAccountConfiguration : IEntityTypeConfiguration<UserAccount>
     }
 }
 
+public class UserRefreshTokenConfiguration : IEntityTypeConfiguration<UserRefreshToken>
+{
+    public void Configure(EntityTypeBuilder<UserRefreshToken> builder)
+    {
+        builder.HasIndex(x => x.TokenHash).IsUnique();
+        builder.HasIndex(x => x.UserId);
+    }
+}
+
 public class UserCoinConfiguration : IEntityTypeConfiguration<UserCoin>
 {
     public void Configure(EntityTypeBuilder<UserCoin> builder) => builder.HasIndex(x => x.UserId).IsUnique();
