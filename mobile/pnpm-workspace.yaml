@@ -1,6 +1,23 @@
 # Security overrides for the RN dependency tree (see root pnpm-workspace.yaml).
+# are NOT overridden: their patched majors are incompatible with these CJS
+# consumers, so those alerts are dismissed instead. tar 6.2.1 comes from
+# @expo/cli, fast-xml-parser 4.5.7 from the RN CLI, image-size 1.2.1 from
+# the @tarojs/taro-rn asset pipeline (its v2 fix drops the default export).
 overrides:
   'esbuild@<=0.24.2': 0.25.0
   'postcss@<8.5.23': 8.5.23
   'node-fetch@<2.6.7': 2.6.7
   'serialize-javascript@<7.0.5': 7.0.5
+  'got@<11.8.5': 11.8.5
+  'semver@>=7.0.0 <7.5.2': 7.5.2
+  'braces@<3.0.3': 3.0.3
+  'micromatch@<4.0.8': 4.0.8
+  'send@<0.19.0': 0.19.0
+  'rollup@>=2.0.0 <2.80.0': 2.80.0
+  'glob@>=10.2.0 <10.5.0': 10.5.0
+  '@xmldom/xmldom@>=0.5.0 <0.8.15': 0.8.15
+  'uuid@<11.1.1': 11.1.1
+  'decode-uri-component@<=0.4.2': 0.5.0
+  'adm-zip@<0.6.1': 0.6.1
+  'http-cache-semantics@<=4.2.0': 4.3.0
+  'swiper@>=6.5.1 <12.1.2': 12.1.2
