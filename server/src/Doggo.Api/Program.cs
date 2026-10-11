@@ -25,6 +25,7 @@ builder.Services.AddOptions<AuthOptions>().Bind(builder.Configuration.GetSection
 // per-boot fallback when no Auth:SecretKey is configured.
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddHttpClient<SteamOpenIdService>();
 builder.Services.AddAuthorization();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

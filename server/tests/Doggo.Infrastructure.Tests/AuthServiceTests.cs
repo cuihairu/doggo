@@ -258,6 +258,27 @@ public class AuthServiceTests
         await Assert.ThrowsAsync<AuthException>(() => service.GetProfileAsync(Guid.CreateVersion7()));
     }
 
+    [Fact]
+    public async Task BindSteam_BindsOnce_RejectsAnotherOwner()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+        var first = await RegisterAsync(service, "13800000011");
+        var second = await RegisterAsync(service, "13800000012");
+
+        var bound = await service.BindSteamAsync(first.UserId, "76561198000000001");
+        Assert.Equal(first.UserId, bound.UserId);
+
+        // Idempotent for the same user.
+        var again = await service.BindSteamAsync(first.UserId, "76561198000000001");
+        Assert.Equal(bound.Id, again.Id);
+        Assert.Equal(1, await db.UserSteamProfiles.CountAsync());
+
+        // Another user cannot take an already-bound steamid.
+        await Assert.ThrowsAsync<AuthValidationException>(() =>
+            service.BindSteamAsync(second.UserId, "76561198000000001"));
+    }
+
     private static string Hash(string token) =>
         Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
 }

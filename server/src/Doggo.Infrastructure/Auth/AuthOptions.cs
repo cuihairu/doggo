@@ -8,6 +8,10 @@ public sealed class AuthOptions
     public const string SectionName = "Auth";
 
     public string SecretKey { get; set; } = string.Empty;
+
+    /// <summary>Public origin of the Api, used as the OpenID realm and callback base.</summary>
+    public string PublicBaseUrl { get; set; } = string.Empty;
+
     public string Issuer { get; set; } = "doggo";
     public string Audience { get; set; } = "doggo-api";
     public int AccessTokenMinutes { get; set; } = 30;

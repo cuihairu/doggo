@@ -236,6 +236,37 @@ public sealed partial class AuthService(
             user.CreatedAtUtc);
     }
 
+    /// <summary>Links a verified Steam identity to the account; one steamid binds once.</summary>
+    public async Task<UserSteamProfile> BindSteamAsync(Guid userId, string steamId, CancellationToken cancellationToken = default)
+    {
+        var existing = await db.UserSteamProfiles
+            .FirstOrDefaultAsync(p => p.SteamId == steamId, cancellationToken);
+        if (existing is not null)
+        {
+            if (existing.UserId != userId)
+            {
+                throw new AuthValidationException("This Steam account is already bound to another user.");
+            }
+
+            return existing; // idempotent rebind
+        }
+
+        var profile = new UserSteamProfile
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = userId,
+            SteamId = steamId
+        };
+        db.UserSteamProfiles.Add(profile);
+        await db.SaveChangesAsync(cancellationToken);
+        LogSteamBound(userId, steamId);
+        return profile;
+    }
+
+    public async Task<UserSteamProfile?> GetSteamProfileAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        await db.UserSteamProfiles.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
+
     private (string AccessToken, DateTime ExpiresAtUtc, string RefreshToken) IssueTokens(Guid userId)
     {
         var (accessToken, expiresAt) = tokens.CreateAccessToken(userId);
@@ -320,4 +351,7 @@ public sealed partial class AuthService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "user {UserId} logged out")]
     private partial void LogLogout(Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "user {UserId} bound steam id {SteamId}")]
+    private partial void LogSteamBound(Guid userId, string steamId);
 }

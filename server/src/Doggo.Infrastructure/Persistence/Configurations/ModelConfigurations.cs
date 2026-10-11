@@ -29,6 +29,12 @@ public class UserRefreshTokenConfiguration : IEntityTypeConfiguration<UserRefres
     }
 }
 
+public class UserSteamProfileConfiguration : IEntityTypeConfiguration<UserSteamProfile>
+{
+    public void Configure(EntityTypeBuilder<UserSteamProfile> builder) =>
+        builder.HasIndex(x => x.SteamId).IsUnique();
+}
+
 public class UserCoinConfiguration : IEntityTypeConfiguration<UserCoin>
 {
     public void Configure(EntityTypeBuilder<UserCoin> builder) => builder.HasIndex(x => x.UserId).IsUnique();

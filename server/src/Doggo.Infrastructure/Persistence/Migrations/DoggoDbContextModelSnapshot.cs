@@ -2258,6 +2258,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SteamId")
+                        .IsUnique();
+
                     b.ToTable("UserSteamProfiles");
                 });
 

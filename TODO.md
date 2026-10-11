@@ -162,7 +162,7 @@
 ### 认证
 - [x] 注册/登录(账号密码 + JWT 签发)
 - [x] 刷新 token / 登出
-- [ ] Steam OpenID 登录绑定
+- [x] Steam OpenID 登录绑定(绑定成功路径依赖真实 Steam 账号登录,拒绝路径已对 steamcommunity 实测)
 - [x] 登录日志与访问日志中间件
 
 ### 积分与优惠

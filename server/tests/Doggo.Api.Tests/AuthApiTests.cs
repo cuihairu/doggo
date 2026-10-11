@@ -114,6 +114,25 @@ public class AuthApiTests(ApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
+    public async Task Steam_bind_requires_a_token_and_a_configured_base_url()
+    {
+        var client = Factory.CreateClient();
+
+        // No token: 401 before anything else.
+        var unauthorized = await client.GetAsync("/api/auth/steam/login");
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+
+        // Token but no Auth:PublicBaseUrl in the test factory: the bind cannot start.
+        var authed = await AuthorizedClientAsync();
+        var noBaseUrl = await authed.GetAsync("/api/auth/steam/login");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, noBaseUrl.StatusCode);
+
+        // A garbage callback is rejected without touching Steam.
+        var badCallback = await client.GetAsync("/api/auth/steam/callback?openid.claimed_id=nonsense");
+        Assert.Equal(HttpStatusCode.Unauthorized, badCallback.StatusCode);
+    }
+
+    [Fact]
     public async Task Requests_are_written_to_the_visit_log()
     {
         var client = await AuthorizedClientAsync();
