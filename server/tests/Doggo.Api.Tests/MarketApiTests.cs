@@ -1,0 +1,133 @@
+using System.Text.Json;
+using Doggo.Domain.Market;
+using Doggo.Domain.News;
+using Doggo.Infrastructure.Persistence;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Doggo.Api.Tests;
+
+public class MarketApiTests(ApiFactory factory) : ApiTestBase(factory)
+{
+    private async Task<MarketItem> SeedAsync(decimal priceCents = 1500, GameKind game = GameKind.Cs2, string hashName = "Snakebite Case")
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+
+        var item = new MarketItem
+        {
+            // Pre-assign: ValueGeneratedNever leaves adds on a temporary default key otherwise.
+            Id = Guid.CreateVersion7(),
+            ClassId = "493",
+            MarketHashName = hashName,
+            ItemType = MarketItemType.Other,
+            Game = game,
+            IconUrl = ""
+        };
+        db.MarketItems.Add(item);
+        db.MarketPriceSnapshots.Add(new MarketPriceSnapshot
+        {
+            MarketItemId = item.Id,
+            PriceCents = (long)priceCents,
+            Currency = "CNY",
+            CapturedAtUtc = DateTime.UtcNow.AddMinutes(-5)
+        });
+        db.MarketPriceDailies.Add(new MarketPriceDaily
+        {
+            MarketItemId = item.Id,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
+            OpenCents = 1400,
+            HighCents = 1600,
+            LowCents = 1350,
+            CloseCents = (long)priceCents
+        });
+        await db.SaveChangesAsync();
+        return item;
+    }
+
+    private async Task SeedRatesAsync()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        db.ExchangeRates.Add(new Doggo.Domain.Products.ExchangeRate
+        {
+            CurrencyCode = "USD",
+            Rate = 7.15m,
+            Source = "manual"
+        });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task List_returns_items_with_latest_price()
+    {
+        var seeded = await SeedAsync(priceCents: 1500);
+
+        var client = Factory.CreateClient();
+        var json = await client.GetStringAsync("/api/market/items");
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(1, document.RootElement.GetProperty("total").GetInt32());
+        var item = document.RootElement.GetProperty("items").EnumerateArray().Single();
+        Assert.Equal(seeded.Id, item.GetProperty("id").GetGuid());
+        Assert.Equal("Snakebite Case", item.GetProperty("marketHashName").GetString());
+        Assert.Equal(1500, item.GetProperty("latestPriceCents").GetInt64());
+        Assert.Equal("CNY", item.GetProperty("currency").GetString());
+    }
+
+    [Fact]
+    public async Task List_search_filters_by_hash_name()
+    {
+        await SeedAsync(hashName: "Snakebite Case");
+        await SeedAsync(priceCents: 900, game: GameKind.Dota2, hashName: "Treasure of the Dawn");
+
+        var client = Factory.CreateClient();
+
+        var hit = JsonDocument.Parse(await client.GetStringAsync("/api/market/items?q=snakebite"));
+        Assert.Equal(1, hit.RootElement.GetProperty("total").GetInt32());
+
+        var miss = JsonDocument.Parse(await client.GetStringAsync("/api/market/items?q=nonexistent-item"));
+        Assert.Equal(0, miss.RootElement.GetProperty("total").GetInt32());
+
+        var gameFilter = JsonDocument.Parse(await client.GetStringAsync("/api/market/items?game=Dota2"));
+        Assert.Equal(1, gameFilter.RootElement.GetProperty("total").GetInt32());
+    }
+
+    [Fact]
+    public async Task Prices_returns_daily_series()
+    {
+        var seeded = await SeedAsync(priceCents: 1500);
+
+        var client = Factory.CreateClient();
+        var json = await client.GetStringAsync($"/api/market/items/{seeded.Id}/prices");
+        using var document = JsonDocument.Parse(json);
+
+        var point = document.RootElement.GetProperty("points").EnumerateArray().Single();
+        Assert.Equal(1400, point.GetProperty("openCents").GetInt64());
+        Assert.Equal(1600, point.GetProperty("highCents").GetInt64());
+        Assert.Equal(1350, point.GetProperty("lowCents").GetInt64());
+        Assert.Equal(1500, point.GetProperty("closeCents").GetInt64());
+    }
+
+    [Fact]
+    public async Task Prices_for_unknown_item_is_not_found()
+    {
+        var client = Factory.CreateClient();
+        using var response = await client.GetAsync($"/api/market/items/{Guid.NewGuid()}/prices");
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Exchange_rates_lists_seeded_rows()
+    {
+        await SeedRatesAsync();
+
+        var client = Factory.CreateClient();
+        var json = await client.GetStringAsync("/api/exchange-rates");
+        using var document = JsonDocument.Parse(json);
+
+        var rate = document.RootElement.GetProperty("items").EnumerateArray().Single();
+        Assert.Equal("USD", rate.GetProperty("currencyCode").GetString());
+        Assert.Equal(7.15m, rate.GetProperty("rate").GetDecimal());
+        Assert.Equal("manual", rate.GetProperty("source").GetString());
+    }
+}

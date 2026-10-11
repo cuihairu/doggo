@@ -4,23 +4,36 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Doggo.Api.Tests;
 
 /// <summary>
 /// Boots the real Api host with the MySQL context swapped for the EF InMemory provider.
-/// Redis stays unresolved unless a test hits /healthz, which none do.
+/// Redis stays unresolved unless a test hits /healthz or the webhook idempotency store,
+/// which falls back to in-memory claims when Redis is unreachable.
 /// </summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory : WebApplicationFactory<Program>
 {
     // Unique per factory instance: xunit creates one fixture per test class, and the EF
     // InMemory store is global per name, so a shared name would let classes wipe each other.
     private readonly string _databaseName = $"doggo-api-tests-{Guid.NewGuid():N}";
 
+    /// <summary>Extra in-memory config; derived fixtures add settings such as Vapor:WebhookSecret.</summary>
+    protected virtual IDictionary<string, string?> ExtraConfiguration => new Dictionary<string, string?>();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+
+        builder.ConfigureAppConfiguration((_, configuration) =>
+        {
+            if (ExtraConfiguration.Count > 0)
+            {
+                configuration.AddInMemoryCollection(ExtraConfiguration);
+            }
+        });
 
         builder.ConfigureTestServices(services =>
         {
@@ -36,6 +49,15 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.AddDbContext<DoggoDbContext>(options => options.UseInMemoryDatabase(_databaseName));
         });
     }
+}
+
+/// <summary>ApiFactory with a webhook secret, so vapor webhook endpoints accept signed requests.</summary>
+public sealed class VaporWebhookApiFactory : ApiFactory
+{
+    protected override IDictionary<string, string?> ExtraConfiguration => new Dictionary<string, string?>
+    {
+        ["Vapor:WebhookSecret"] = "test-webhook-secret"
+    };
 }
 
 public abstract class ApiTestBase : IClassFixture<ApiFactory>, IAsyncLifetime

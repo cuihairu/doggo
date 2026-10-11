@@ -391,8 +391,8 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("ClassId")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime(6)");
@@ -402,23 +402,27 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("IconUrl")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
+                        .HasMaxLength(2048)
+                        .HasColumnType("varchar(2048)");
 
                     b.Property<int>("ItemType")
                         .HasColumnType("int");
 
                     b.Property<string>("MarketHashName")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ClassId")
+                    b.HasIndex("Game", "ClassId")
+                        .IsUnique()
+                        .HasFilter("`ClassId` <> ''");
+
+                    b.HasIndex("Game", "MarketHashName")
                         .IsUnique();
 
                     b.ToTable("MarketItems");

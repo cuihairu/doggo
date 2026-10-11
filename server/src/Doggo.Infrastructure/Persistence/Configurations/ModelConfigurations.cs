@@ -128,7 +128,18 @@ public class ArticleConfiguration : IEntityTypeConfiguration<Article>
 
 public class MarketItemConfiguration : IEntityTypeConfiguration<MarketItem>
 {
-    public void Configure(EntityTypeBuilder<MarketItem> builder) => builder.HasIndex(x => x.ClassId).IsUnique();
+    public void Configure(EntityTypeBuilder<MarketItem> builder)
+    {
+        // Steam class ids are per-app, so uniqueness is (game, class id). Aggregates without a
+        // class id are excluded from this index so several of them can coexist.
+        builder.HasIndex(x => new { x.Game, x.ClassId })
+            .IsUnique()
+            .HasFilter("`ClassId` <> ''");
+        builder.HasIndex(x => new { x.Game, x.MarketHashName }).IsUnique();
+        builder.Property(x => x.MarketHashName).HasMaxLength(256);
+        builder.Property(x => x.ClassId).HasMaxLength(64);
+        builder.Property(x => x.IconUrl).HasMaxLength(2048);
+    }
 }
 
 public class MarketPriceSnapshotConfiguration : IEntityTypeConfiguration<MarketPriceSnapshot>
@@ -139,8 +150,18 @@ public class MarketPriceSnapshotConfiguration : IEntityTypeConfiguration<MarketP
 
 public class MarketPriceDailyConfiguration : IEntityTypeConfiguration<MarketPriceDaily>
 {
-    public void Configure(EntityTypeBuilder<MarketPriceDaily> builder) =>
+    public void Configure(EntityTypeBuilder<MarketPriceDaily> builder)
+    {
         builder.HasIndex(x => new { x.MarketItemId, x.Date }).IsUnique();
+
+        // MySql.EntityFrameworkCore materializes DATE columns as DateTime and chokes on
+        // DateOnly, so convert explicitly and keep the date column type.
+        builder.Property(x => x.Date)
+            .HasConversion(
+                date => date.ToDateTime(TimeOnly.MinValue),
+                dateTime => DateOnly.FromDateTime(dateTime))
+            .HasColumnType("date");
+    }
 }
 
 public class SyncCursorConfiguration : IEntityTypeConfiguration<SyncCursor>

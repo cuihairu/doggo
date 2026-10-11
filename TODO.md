@@ -100,15 +100,15 @@
 
 ## M3 行情同步(vapor 集成)
 
-- [ ] vapor 客户端封装:`Doggo.Infrastructure/Vapor`(REST 调用 + API Key 配置)
-- [ ] Webhook 接收端点(验签、幂等)
-- [ ] MarketItem 资料同步任务(classId、市场名、图标)
-- [ ] MarketPriceSnapshot 价格快照同步任务
-- [ ] 按日聚合任务(快照 → 日线,供趋势图)
-- [ ] `GET /api/market/items`(饰品/箱子列表、搜索)
-- [ ] `GET /api/market/items/{id}/prices`(历史价格序列)
-- [ ] 汇率接口:`GET /api/exchange-rates`
-- [ ] vapor 不可用时的降级策略(读最近快照、任务退避)
+- [x] vapor 客户端封装:`Doggo.Infrastructure/Vapor`(REST 调用 + API Key 配置)
+- [x] Webhook 接收端点(验签、幂等)
+- [x] MarketItem 资料同步任务(classId、市场名、图标)
+- [x] MarketPriceSnapshot 价格快照同步任务
+- [x] 按日聚合任务(快照 → 日线,供趋势图)
+- [x] `GET /api/market/items`(饰品/箱子列表、搜索)
+- [x] `GET /api/market/items/{id}/prices`(历史价格序列)
+- [x] 汇率接口:`GET /api/exchange-rates`
+- [x] vapor 不可用时的降级策略(读最近快照、任务退避)
 
 ## M4 商品与订单
 
