@@ -10,7 +10,8 @@
       "resizeMode": "contain"
     },
     "android": {
-      "package": "io.github.cuihairu.doggo"
+      "package": "io.github.cuihairu.doggo",
+      "usesCleartextTraffic": true
     }
   }
 }

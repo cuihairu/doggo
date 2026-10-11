@@ -18,6 +18,10 @@ export default defineConfig({
   compiler: 'webpack5',
   cache: { enable: false },
   rn: {
+    // AppRegistry name inside the JS bundle must match the expo-generated
+    // MainActivity getMainComponentName ("main") or launch dies with
+    // "Invariant Violation: main has not been registered".
+    appName: 'main',
     designWidth: 750,
     deviceRatio: {
       640: 2.34 / 2,
