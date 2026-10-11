@@ -114,6 +114,7 @@ jobs:
           # crashing system_server a few minutes after boot on CI runners.
           target: aosp_atd
           arch: x86_64
+          profile: pixel_3
           disable-animations: true
           script: bash .github/scripts/mobile-acceptance.sh
 

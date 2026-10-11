@@ -94,7 +94,9 @@ done
 adb shell pm list packages | grep -q "$PKG" || { echo "package missing"; exit 1; }
 
 adb shell input keyevent KEYCODE_WAKEUP
-adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1
+adb shell am start -W -n "$PKG/.MainActivity"
+sleep 2
+adb shell dumpsys window 2>/dev/null | grep mCurrentFocus || true
 assert_text "商品开箱"
 shot 01-home 3
 
