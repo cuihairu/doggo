@@ -1,15 +1,19 @@
 import { defineConfig } from 'vitepress'
 
+// Served from a project page: https://cuihairu.github.io/doggo/
+const base = '/doggo/'
+
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   lang: 'zh-CN',
   title: 'Doggo',
+  base,
   description:
     '开源游戏资讯与社区平台 —— CS2 / Dota 2 资讯聚合、饰品行情、开箱模拟,基于 .NET 构建',
-  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]],
+  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }]],
 
   themeConfig: {
-    logo: '/logo.svg',
+    logo: `${base}logo.svg`,
     nav: [
       { text: '指南', link: '/guide/introduction', activeMatch: '/guide/' },
       { text: '设计', link: '/design/overview', activeMatch: '/design/' }

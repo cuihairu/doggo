@@ -1,0 +1,72 @@
+name: Daily build
+
+on:
+  schedule:
+    # 02:23 Asia/Shanghai
+    - cron: '23 18 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: daily-build
+  cancel-in-progress: false
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build server/Doggo.slnx
+
+      - name: Test
+        run: dotnet test server/Doggo.slnx --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
+
+      - name: Publish API
+        run: dotnet publish server/src/Doggo.Api --configuration Release --no-restore --no-build -o artifacts/Doggo.Api
+
+      - name: Publish scraper
+        run: dotnet publish server/src/Doggo.Scraper --configuration Release --no-restore --no-build -o artifacts/Doggo.Scraper
+
+      - name: Package
+        run: |
+          tar -czf doggo-publish-${{ github.sha }}.tar.gz -C artifacts .
+
+      - name: Upload publish artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: doggo-publish
+          path: doggo-publish-*.tar.gz
+          retention-days: 14
+
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build docs
+        run: pnpm docs:build
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: doggo-docs
+          path: docs/.vitepress/dist
+          retention-days: 14
