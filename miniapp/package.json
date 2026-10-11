@@ -2,6 +2,7 @@
   "name": "doggo-miniapp",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.22.0",
   "description": "Doggo WeChat miniapp (Taro + React)",
   "templateInfo": {
     "name": "default",
