@@ -15,6 +15,7 @@ public class UserAccountConfiguration : IEntityTypeConfiguration<UserAccount>
     public void Configure(EntityTypeBuilder<UserAccount> builder)
     {
         builder.HasIndex(x => x.InviteCode).IsUnique();
+        builder.HasIndex(x => x.WechatOpenId).IsUnique();
         builder.HasIndex(x => x.Phone);
         builder.HasIndex(x => x.Email);
     }

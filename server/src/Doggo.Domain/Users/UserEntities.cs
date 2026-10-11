@@ -69,6 +69,9 @@ public class UserAccount : Entity, ISoftDeletable
 
     /// <summary>Back-office operators; grants the admin role claim and /api/admin access.</summary>
     public bool IsAdmin { get; set; }
+
+    /// <summary>WeChat miniapp openid from code2session; set on first wx.login, null for account signups.</summary>
+    public string? WechatOpenId { get; set; }
     public bool RealNameVerified { get; set; }
     public DateTime? RealNameVerifiedAtUtc { get; set; }
     public DateTime? LastLoginAtUtc { get; set; }

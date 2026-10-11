@@ -1981,6 +1981,10 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("WechatOpenId")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email");
@@ -1989,6 +1993,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("Phone");
+
+                    b.HasIndex("WechatOpenId")
+                        .IsUnique();
 
                     b.ToTable("UserAccounts");
                 });

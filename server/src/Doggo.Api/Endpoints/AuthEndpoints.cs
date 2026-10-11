@@ -66,6 +66,39 @@ public static class AuthEndpoints
             }
         });
 
+        group.MapPost("/wechat", async (
+            [FromBody] WechatLoginRequest request,
+            HttpContext context,
+            [FromServices] AuthService auth,
+            CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                return Results.Ok(await auth.LoginWithWechatAsync(
+                    request.Code,
+                    request.Nickname,
+                    context.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
+                    context.Request.Headers.UserAgent.ToString(),
+                    cancellationToken));
+            }
+            catch (AuthValidationException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+            catch (WechatLoginNotConfiguredException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+            catch (WechatLoginException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status401Unauthorized);
+            }
+            catch (AuthException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status401Unauthorized);
+            }
+        });
+
         group.MapPost("/refresh", async (
             [FromBody] RefreshRequest request,
             [FromServices] AuthService auth,
@@ -170,5 +203,7 @@ public static class AuthEndpoints
 public sealed record RegisterRequest(string Account, string Password, string? Nickname, string? InviteCode);
 
 public sealed record LoginRequest(string Account, string Password);
+
+public sealed record WechatLoginRequest(string Code, string? Nickname);
 
 public sealed record RefreshRequest(string RefreshToken);

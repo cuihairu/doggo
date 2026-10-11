@@ -27,6 +27,8 @@ builder.Services.AddOptions<AuthOptions>().Bind(builder.Configuration.GetSection
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddHttpClient<SteamOpenIdService>();
+builder.Services.Configure<WechatOptions>(builder.Configuration.GetSection(WechatOptions.SectionName));
+builder.Services.AddHttpClient<IWechatSessionClient, HttpWechatSessionClient>();
 builder.Services.AddAuthorization(options =>
 {
     // Back-office surface; the role claim is minted into the token when IsAdmin is set.

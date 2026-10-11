@@ -17,17 +17,28 @@ public class AuthServiceTests
             .UseInMemoryDatabase($"auth-tests-{Guid.NewGuid():N}")
             .Options);
 
-    private static AuthService CreateService(DoggoDbContext db)
+    private sealed class StubWechatClient(WechatSession? session) : IWechatSessionClient
     {
-        var options = Options.Create(new AuthOptions
-        {
-            SecretKey = "unit-test-signing-secret-that-is-long-enough",
-            Issuer = "doggo-test",
-            Audience = "doggo-api-test",
-            AccessTokenMinutes = 30,
-            RefreshTokenDays = 14
-        });
-        return new AuthService(db, options, new TokenService(options), NullLogger<AuthService>.Instance);
+        public Task<WechatSession> ExchangeAsync(string code, CancellationToken cancellationToken = default) =>
+            session is null
+                ? throw new WechatLoginNotConfiguredException("WeChat login is not configured on this server.")
+                : Task.FromResult(session);
+    }
+
+    private static AuthOptions CreateAuthOptions() => new()
+    {
+        SecretKey = "unit-test-signing-secret-that-is-long-enough",
+        Issuer = "doggo-test",
+        Audience = "doggo-api-test",
+        AccessTokenMinutes = 30,
+        RefreshTokenDays = 14
+    };
+
+    private static AuthService CreateService(DoggoDbContext db, WechatSession? session = null)
+    {
+        var options = Options.Create(CreateAuthOptions());
+        var wechat = new StubWechatClient(session ?? new WechatSession("oX-1-test-openid", null, "sk"));
+        return new AuthService(db, options, new TokenService(options), wechat, NullLogger<AuthService>.Instance);
     }
 
     private static Task<AuthResult> RegisterAsync(
@@ -277,6 +288,46 @@ public class AuthServiceTests
         // Another user cannot take an already-bound steamid.
         await Assert.ThrowsAsync<AuthValidationException>(() =>
             service.BindSteamAsync(second.UserId, "76561198000000001"));
+    }
+
+    [Fact]
+    public async Task WechatLogin_CreatesTheAccountOnceAndReturnsTokens()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+
+        var first = await service.LoginWithWechatAsync("wx-code-1", "wx-player", "127.0.0.1", "taro");
+        Assert.False(string.IsNullOrEmpty(first.AccessToken));
+        Assert.False(string.IsNullOrEmpty(first.RefreshToken));
+
+        var account = await db.UserAccounts.SingleAsync();
+        Assert.Equal("oX-1-test-openid", account.WechatOpenId);
+        Assert.Equal("wx-player", account.Nickname);
+        Assert.False(string.IsNullOrEmpty(account.InviteCode));
+        // Miniapp accounts get a random unusable password, so account login cannot work for them.
+        Assert.False(string.IsNullOrEmpty(account.PasswordHash));
+
+        // The same openid is the same account; a new openid is a new account.
+        var again = await service.LoginWithWechatAsync("wx-code-2", null, "127.0.0.1", "taro");
+        Assert.Equal(first.UserId, again.UserId);
+        Assert.Equal(1, await db.UserAccounts.CountAsync());
+        Assert.Equal(2, await db.UserLoginLogs.CountAsync(l => l.UserId == first.UserId));
+    }
+
+    [Fact]
+    public async Task WechatLogin_RejectsAnEmptyCodeAndAnUnconfiguredServer()
+    {
+        await using var db = CreateDb();
+        await Assert.ThrowsAsync<AuthValidationException>(
+            () => CreateService(db).LoginWithWechatAsync(" ", null, "127.0.0.1", "taro"));
+
+        await using var unconfigured = CreateDb();
+        var options = Options.Create(CreateAuthOptions());
+        var service = new AuthService(
+            unconfigured, options, new TokenService(options),
+            new StubWechatClient(null), NullLogger<AuthService>.Instance);
+        await Assert.ThrowsAsync<WechatLoginNotConfiguredException>(
+            () => service.LoginWithWechatAsync("wx-code", null, "127.0.0.1", "taro"));
     }
 
     private static string Hash(string token) =>

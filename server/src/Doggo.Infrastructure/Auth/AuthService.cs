@@ -56,6 +56,7 @@ public sealed partial class AuthService(
     DoggoDbContext db,
     IOptions<AuthOptions> optionsFactory,
     TokenService tokens,
+    IWechatSessionClient wechat,
     ILogger<AuthService> logger)
 {
     private readonly AuthOptions _options = optionsFactory.Value;
@@ -156,6 +157,62 @@ public sealed partial class AuthService(
         var (accessToken, expiresAt, refreshToken) = IssueTokens(user.Id, user.IsAdmin);
         db.UserRefreshTokens.Add(RefreshTokenRow(user.Id, refreshToken));
         await WriteLoginLogAsync(user.Id, account, ip, userAgent, success: true, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        LogLogin(user.Nickname);
+        return new AuthResult(user.Id, user.Nickname, accessToken, expiresAt, refreshToken);
+    }
+
+    /// <summary>
+    /// wx.login flow: the code comes from the miniapp, the openid from WeChat, and the account is
+    /// created on first login. The openid never matches a phone/email credential, so no password
+    /// account can be hijacked through this path.
+    /// </summary>
+    public async Task<AuthResult> LoginWithWechatAsync(
+        string code,
+        string? nickname,
+        string ip,
+        string userAgent,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new AuthValidationException("Login code is required.");
+        }
+
+        var session = await wechat.ExchangeAsync(code.Trim(), cancellationToken);
+
+        var user = await db.UserAccounts
+            .FirstOrDefaultAsync(u => u.WechatOpenId == session.OpenId, cancellationToken);
+        if (user is null)
+        {
+            Span<byte> bytes = stackalloc byte[16];
+            RandomNumberGenerator.Fill(bytes);
+            user = new UserAccount
+            {
+                Id = Guid.CreateVersion7(),
+                WechatOpenId = session.OpenId,
+                // Random unusable password so account+password login cannot work for miniapp users.
+                PasswordHash = _hasher.HashPassword(null!, Convert.ToBase64String(bytes)),
+                Nickname = string.IsNullOrWhiteSpace(nickname)
+                    ? $"wx-{session.OpenId[..Math.Min(6, session.OpenId.Length)]}"
+                    : nickname!.Trim(),
+                InviteCode = await NewInviteCodeAsync(cancellationToken),
+                Status = UserStatus.Active
+            };
+            db.UserAccounts.Add(user);
+            db.UserRefreshTokens.Add(RefreshTokenRow(user.Id, NewRefreshToken().Raw));
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        else if (user.Status == UserStatus.Disabled)
+        {
+            throw new AuthException("This account is disabled.");
+        }
+
+        var (accessToken, expiresAt, refreshToken) = IssueTokens(user.Id, user.IsAdmin);
+        user.LastLoginAtUtc = DateTime.UtcNow;
+        db.UserRefreshTokens.Add(RefreshTokenRow(user.Id, refreshToken));
+        await WriteLoginLogAsync(user.Id, $"wechat:{session.OpenId}", ip, userAgent, success: true, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         LogLogin(user.Nickname);
