@@ -109,10 +109,11 @@ jobs:
         env:
           APK: apk/app-release.apk
         with:
-          api-level: 30
-          # The ATD image is the lean CI variant; google_apis images keep
-          # crashing system_server a few minutes after boot on CI runners.
-          target: aosp_atd
+          api-level: 33
+          # google_apis renders for real (screenshots); the aosp_atd image used
+          # earlier is stable but has no rendering pipeline, so screencap stays
+          # black there and cannot serve as acceptance evidence.
+          target: google_apis
           arch: x86_64
           profile: pixel_3
           disable-animations: true

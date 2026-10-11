@@ -16,9 +16,17 @@ shot() {
   adb exec-out screencap -p > "$SHOTS/$1.png"
 }
 
+# JS-side errors surface on the ReactNativeJS logcat tag; keep them as evidence.
+rnlog() {
+  adb logcat -d -s ReactNativeJS:* > "$SHOTS/$1-rn.log" 2>/dev/null || true
+}
+
 dump() {
   adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 || return 1
-  adb shell cat /sdcard/ui.xml
+  local out
+  out=$(adb shell cat /sdcard/ui.xml 2>/dev/null) || return 1
+  # A failed or racing dump yields an empty hierarchy; treat it as no data.
+  case "$out" in *"<hierarchy"*) printf '%s' "$out" ;; *) return 1 ;; esac
 }
 
 # First bounds pair in the dump whose node text equals $1 (or contains $1 when
@@ -43,21 +51,21 @@ tap_at() { # [x1,y1][x2,y2] -> tap the center
 
 tap_text() { # exact text match
   local b="" i
-  for i in 1 2 3 4 5; do
+  for i in 1 2 3 4 5 6 7 8; do
     b=$(find_bounds "$1") && [ -n "$b" ] && break
     sleep 2
   done
-  [ -n "$b" ] || { echo "node not found: text=$1"; dump > "$SHOTS/ui-missing.xml" || true; exit 1; }
+  [ -n "$b" ] || { echo "node not found: text=$1"; dump > "$SHOTS/ui-missing.xml" || true; rnlog "ui-missing"; exit 1; }
   tap_at "$b"
 }
 
 tap_contains() { # substring text match
   local b="" i
-  for i in 1 2 3 4 5; do
+  for i in 1 2 3 4 5 6 7 8; do
     b=$(find_bounds "$1" contains) && [ -n "$b" ] && break
     sleep 2
   done
-  [ -n "$b" ] || { echo "node not found: text~$1"; dump > "$SHOTS/ui-missing.xml" || true; exit 1; }
+  [ -n "$b" ] || { echo "node not found: text~$1"; dump > "$SHOTS/ui-missing.xml" || true; rnlog "ui-missing"; exit 1; }
   tap_at "$b"
 }
 
@@ -72,13 +80,15 @@ tap_edit() { # tap the $1-th (0-based) EditText on screen
 
 assert_text() { # screen must show a node whose text contains $1
   local i
-  for i in 1 2 3 4 5 6; do
+  for i in 1 2 3 4 5 6 7 8 9 10; do
     if dump | grep -q "text=\"[^\"]*$1"; then return 0; fi
     sleep 3
   done
   dump > "$SHOTS/assert-fail-$1.xml" || true
   adb exec-out screencap -p > "$SHOTS/assert-fail-$1.png" || true
   adb logcat -d > "$SHOTS/assert-fail-logcat.txt" 2>/dev/null || true
+  rnlog "assert-fail-$1"
+  docker logs --tail 200 deploy-api-1 > "$SHOTS/assert-fail-api.log" 2>&1 || true
   echo "assert failed: $1"
   exit 1
 }
@@ -152,7 +162,12 @@ ORDER_ROW=$(docker exec deploy-mysql-1 mysql -N -u doggo -pci-doggo-password dog
   -e "SELECT CONCAT(Id, ' ', TotalCostCents) FROM UserOrders ORDER BY CreatedAtUtc DESC LIMIT 1" 2>/dev/null)
 OID=$(echo "$ORDER_ROW" | awk '{print $1}')
 AMT=$(echo "$ORDER_ROW" | awk '{print $2}')
-[ -n "$OID" ] || { echo "no order row found"; exit 1; }
+[ -n "$OID" ] || {
+  echo "no order row found"
+  rnlog "no-order"
+  docker logs --tail 200 deploy-api-1 > "$SHOTS/no-order-api.log" 2>&1 || true
+  exit 1
+}
 curl -fsS -X POST http://127.0.0.1:5077/api/payments/callback \
   -H 'Content-Type: application/json' \
   -d "{\"orderId\":\"$OID\",\"amountCents\":$AMT,\"success\":true}"
