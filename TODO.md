@@ -14,7 +14,7 @@
 - [x] GitHub Actions CI:server `dotnet build` + `dotnet test` + Codecov 上传 + 文档构建
 - [x] README 增加 CI 与 Codecov 徽章
 - [x] PR 模板(`.github/PULL_REQUEST_TEMPLATE.md`)
-- [ ] 分支保护(在 GitHub 仓库设置中按需开启)
+- [x] 分支保护(main:禁强推/禁删除 + 线性历史;不强制 PR,enforce_admins 关闭,保留 owner 直推工作流)
 
 ### server 解决方案骨架
 - [x] `server/` 下创建 `Doggo.slnx`(SDK 10 默认新格式)
