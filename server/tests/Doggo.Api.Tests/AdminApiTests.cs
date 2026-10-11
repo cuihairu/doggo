@@ -72,4 +72,58 @@ public class AdminApiTests(ApiFactory factory) : ApiTestBase(factory)
         var orders = await client.GetAsync("/api/admin/orders?page=1");
         Assert.Equal(HttpStatusCode.OK, orders.StatusCode);
     }
+
+    [Fact]
+    public async Task Admin_management_surfaces_respond()
+    {
+        await RegisterAsync("13900000023");
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            var account = await db.UserAccounts.SingleAsync(u => u.Phone == "13900000023");
+            account.IsAdmin = true;
+            await db.SaveChangesAsync();
+        }
+        var client = await LoginClientAsync("13900000023");
+
+        foreach (var path in new[]
+                 {
+                     "/api/admin/news-sources",
+                     "/api/admin/news-items?page=1",
+                     "/api/admin/notices",
+                     "/api/admin/promotions",
+                     "/api/admin/exchange-rates",
+                     "/api/admin/stats/trend?days=7",
+                     "/api/admin/stats/top-products?top=5",
+                     "/api/admin/users?page=1",
+                     "/api/admin/roll/rooms?page=1",
+                     "/api/roll/templates"
+                 })
+        {
+            var response = await client.GetAsync(path);
+            Assert.True(response.IsSuccessStatusCode, $"{path} -> {(int)response.StatusCode}");
+        }
+
+        // Notices round-trip: create then delete.
+        var created = await client.PostAsync("/api/admin/notices", new StringContent(
+            JsonSerializer.Serialize(new { title = "t", content = "c" }),
+            Encoding.UTF8,
+            "application/json"));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var noticeId = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString();
+        var deleted = await client.DeleteAsync($"/api/admin/notices/{noticeId}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+
+        // User sub-resources: coin ledger and login history of the admin itself.
+        var meId = string.Empty;
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            meId = (await db.UserAccounts.SingleAsync(u => u.Phone == "13900000023")).Id.ToString();
+        }
+        var coinLogs = await client.GetAsync($"/api/admin/users/{meId}/coin-logs?page=1");
+        Assert.Equal(HttpStatusCode.OK, coinLogs.StatusCode);
+        var loginLogs = await client.GetAsync($"/api/admin/users/{meId}/login-logs?page=1");
+        Assert.Equal(HttpStatusCode.OK, loginLogs.StatusCode);
+    }
 }

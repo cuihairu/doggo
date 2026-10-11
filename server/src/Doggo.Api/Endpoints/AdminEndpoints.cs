@@ -1,3 +1,4 @@
+using Doggo.Domain.Cases;
 using Doggo.Domain.News;
 using Doggo.Domain.Orders;
 using Doggo.Domain.Products;
@@ -231,6 +232,269 @@ public static class AdminEndpoints
             return Results.Ok(new { template.Id, template.Enabled });
         });
 
+        // ---- news: scraper sources and fetched items ----
+        admin.MapGet("/news-sources", async (DoggoDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.NewsSources.AsNoTracking()
+                .OrderBy(s => s.Name)
+                .ToListAsync(cancellationToken)));
+
+        admin.MapPut("/news-sources/{id:guid}/enabled", async (
+            Guid id,
+            [FromBody] EnabledRequest request,
+            DoggoDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var source = await db.NewsSources.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+            if (source is null)
+            {
+                return Results.Problem("News source was not found.", statusCode: StatusCodes.Status404NotFound);
+            }
+
+            source.Enabled = request.Enabled;
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.Ok(new { source.Id, source.Enabled });
+        });
+
+        admin.MapGet("/news-items", async (
+            DoggoDbContext db,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default) =>
+        {
+            var query = db.NewsItems.AsNoTracking().OrderByDescending(n => n.PublishedAtUtc);
+            var total = await query.CountAsync(cancellationToken);
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+            return Results.Ok(new { total, page, pageSize, items });
+        });
+
+        // ---- notices ----
+        admin.MapGet("/notices", async (DoggoDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.Notices.AsNoTracking().OrderByDescending(n => n.StartAtUtc).ToListAsync(cancellationToken)));
+
+        admin.MapPost("/notices", async ([FromBody] NoticeUpsert request, DoggoDbContext db, CancellationToken cancellationToken) =>
+        {
+            var notice = new Notice
+            {
+                Id = Guid.CreateVersion7(),
+                Title = request.Title,
+                Content = request.Content,
+                Enabled = true,
+                StartAtUtc = request.StartAtUtc,
+                EndAtUtc = request.EndAtUtc
+            };
+            db.Notices.Add(notice);
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.Created($"/api/admin/notices/{notice.Id}", notice);
+        });
+
+        admin.MapDelete("/notices/{id:guid}", async (Guid id, DoggoDbContext db, CancellationToken cancellationToken) =>
+        {
+            var notice = await db.Notices.FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
+            if (notice is null)
+            {
+                return Results.Problem("Notice was not found.", statusCode: StatusCodes.Status404NotFound);
+            }
+
+            db.Notices.Remove(notice);
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.NoContent();
+        });
+
+        // ---- promotions: list with product name + enable toggle ----
+        admin.MapGet("/promotions", async (DoggoDbContext db, CancellationToken cancellationToken) =>
+        {
+            var promotions = await db.PromotionPlans.AsNoTracking().OrderByDescending(p => p.Enabled).ToListAsync(cancellationToken);
+            var productIds = promotions.Select(p => p.ProductId).Distinct().ToList();
+            var names = await db.Products.AsNoTracking()
+                .Where(p => productIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p.Name, cancellationToken);
+            return Results.Ok(promotions.Select(p => new
+            {
+                p.Id,
+                p.ProductId,
+                ProductName = names.GetValueOrDefault(p.ProductId, string.Empty),
+                p.DiscountPriceCents,
+                p.Stock,
+                p.PerUserLimit,
+                p.DailyReset,
+                p.StartAtUtc,
+                p.EndAtUtc,
+                p.Enabled
+            }));
+        });
+
+        admin.MapPut("/promotions/{id:guid}/enabled", async (
+            Guid id,
+            [FromBody] EnabledRequest request,
+            DoggoDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var promotion = await db.PromotionPlans.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            if (promotion is null)
+            {
+                return Results.Problem("Promotion was not found.", statusCode: StatusCodes.Status404NotFound);
+            }
+
+            promotion.Enabled = request.Enabled;
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.Ok(new { promotion.Id, promotion.Enabled });
+        });
+
+        // ---- exchange rates: view + manual correction ----
+        admin.MapGet("/exchange-rates", async (DoggoDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.ExchangeRates.AsNoTracking().OrderBy(r => r.CurrencyCode).ToListAsync(cancellationToken)));
+
+        admin.MapPut("/exchange-rates/{id:guid}", async (
+            Guid id,
+            [FromBody] RateUpdateRequest request,
+            DoggoDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var rate = await db.ExchangeRates.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+            if (rate is null)
+            {
+                return Results.Problem("Exchange rate was not found.", statusCode: StatusCodes.Status404NotFound);
+            }
+
+            rate.Rate = request.Rate;
+            rate.Source = "admin";
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.Ok(new { rate.Id, rate.CurrencyCode, rate.Rate, rate.Source });
+        });
+
+        // ---- orders: prize view ----
+        admin.MapGet("/orders/{id:guid}/prizes", async (Guid id, DoggoDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.UserPrizes.AsNoTracking()
+                .Where(p => p.OrderId == id)
+                .OrderBy(p => p.Id)
+                .ToListAsync(cancellationToken)));
+
+        // ---- users: coin ledger and login history ----
+        admin.MapGet("/users/{id:guid}/coin-logs", async (
+            Guid id,
+            DoggoDbContext db,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default) =>
+        {
+            var query = db.UserCoinLogs.AsNoTracking().Where(l => l.UserId == id).OrderByDescending(l => l.Id);
+            var total = await query.CountAsync(cancellationToken);
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+            return Results.Ok(new { total, page, pageSize, items });
+        });
+
+        admin.MapGet("/users/{id:guid}/login-logs", async (
+            Guid id,
+            DoggoDbContext db,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default) =>
+        {
+            var account = await db.UserAccounts.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+            if (account is null)
+            {
+                return Results.Problem("User was not found.", statusCode: StatusCodes.Status404NotFound);
+            }
+
+            var query = db.UserLoginLogs.AsNoTracking()
+                .Where(l => l.UserId == id || l.Account == account.Phone || l.Account == account.Email);
+            var total = await query.CountAsync(cancellationToken);
+            var items = await query
+                .OrderByDescending(l => l.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+            return Results.Ok(new { total, page, pageSize, items });
+        });
+
+        // ---- roll rooms: list with prizes ----
+        admin.MapGet("/roll/rooms", async (
+            DoggoDbContext db,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default) =>
+        {
+            var query = db.RollRooms.AsNoTracking().OrderByDescending(r => r.StartAtUtc ?? r.EndAtUtc);
+            var total = await query.CountAsync(cancellationToken);
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+            return Results.Ok(new { total, page, pageSize, items });
+        });
+
+        admin.MapGet("/roll/rooms/{id:guid}/prizes", async (Guid id, DoggoDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.RollRoomPrizes.AsNoTracking()
+                .Where(p => p.RoomId == id)
+                .OrderBy(p => p.Id)
+                .ToListAsync(cancellationToken)));
+
+        // ---- stats: daily trend and product ranking ----
+        admin.MapGet("/stats/trend", async (
+            DoggoDbContext db,
+            [FromQuery] int days = 14,
+            CancellationToken cancellationToken = default) =>
+        {
+            var since = DateTime.UtcNow.Date.AddDays(-(Math.Clamp(days, 1, 90) - 1));
+            var orders = await db.UserOrders.AsNoTracking()
+                .Where(o => o.CreatedAtUtc >= since)
+                .Select(o => new { o.CreatedAtUtc, o.TotalCostCents })
+                .ToListAsync(cancellationToken);
+            var users = await db.UserAccounts.AsNoTracking()
+                .Where(u => u.CreatedAtUtc >= since)
+                .Select(u => u.CreatedAtUtc)
+                .ToListAsync(cancellationToken);
+
+            var trend = new List<object>();
+            for (var day = since; day <= DateTime.UtcNow.Date; day = day.AddDays(1))
+            {
+                var d = day;
+                trend.Add(new
+                {
+                    date = d.ToString("yyyy-MM-dd"),
+                    newUsers = users.Count(u => u.Date == d),
+                    orders = orders.Count(o => o.CreatedAtUtc.Date == d),
+                    revenueCents = orders.Where(o => o.CreatedAtUtc.Date == d).Sum(o => o.TotalCostCents)
+                });
+            }
+
+            return Results.Ok(trend);
+        });
+
+        admin.MapGet("/stats/top-products", async (
+            DoggoDbContext db,
+            [FromQuery] int top = 10,
+            CancellationToken cancellationToken = default) =>
+        {
+            var rows = await db.UserOrders.AsNoTracking()
+                .Where(o => o.Status != OrderStatus.PendingPayment && o.Status != OrderStatus.Cancelled)
+                .GroupBy(o => o.ProductId)
+                .Select(g => new { ProductId = g.Key, OrderCount = g.Count(), RevenueCents = g.Sum(o => o.TotalCostCents) })
+                .ToListAsync(cancellationToken);
+
+            var ids = rows.Select(r => r.ProductId).ToList();
+            var names = await db.Products.AsNoTracking()
+                .Where(p => ids.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p.Name, cancellationToken);
+
+            return Results.Ok(rows
+                .OrderByDescending(r => r.RevenueCents)
+                .Take(Math.Clamp(top, 1, 50))
+                .Select(r => new
+                {
+                    productId = r.ProductId,
+                    productName = names.GetValueOrDefault(r.ProductId, string.Empty),
+                    orderCount = r.OrderCount,
+                    revenueCents = r.RevenueCents
+                }));
+        });
+
         return app;
     }
 }
@@ -249,3 +513,9 @@ public sealed record AdminUserView(
 public sealed record UserStatusRequest(bool Disabled);
 
 public sealed record TemplateEnabledRequest(bool Enabled);
+
+public sealed record EnabledRequest(bool Enabled);
+
+public sealed record NoticeUpsert(string Title, string Content, DateTime? StartAtUtc, DateTime? EndAtUtc);
+
+public sealed record RateUpdateRequest(decimal Rate);
