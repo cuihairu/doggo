@@ -1,0 +1,11 @@
+{
+  "name": "@doggo/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Doggo API layer shared by the Taro miniapp and the Taro RN app",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "peerDependencies": {
+    "@tarojs/taro": ">=4.2"
+  }
+}

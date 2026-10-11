@@ -13,7 +13,8 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@tarojs/taro": ["node_modules/@tarojs/taro"]
     },
     "typeRoots": ["node_modules/@types"],
     "types": ["webpack-env"]
