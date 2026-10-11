@@ -196,7 +196,7 @@
 - [x] 用户管理:账号、流水、登录日志(禁用开关 + 金币流水/登录日志抽屉)
 - [x] roll 房管理:模板、房间、奖品配置(模板启停、房间列表、奖品池查看;奖品由房间创建流产生)
 - [x] 数据统计:面板、走势、排行(计数卡 + 近 14 天走势 + 商品营收排行)
-- [ ] 系统设置:站点配置、权限、IP 白名单(按设计走环境变量与 nginx,不设在线修改入口;权限即 IsAdmin 标记,见用户管理)
+- [x] 系统设置:站点配置、权限、IP 白名单(按设计落地:配置走 deploy/.env + compose 环境变量;权限即 IsAdmin 标记见用户管理;IP 白名单在 deploy/nginx/doggo.conf.template 的 admin 段,不设在线修改入口)
 
 ### miniapp/(Taro + React + TypeScript)
 - [x] Taro 脚手架初始化(微信小程序)(Taro 4.3 + React 18,webpack 锁 5.94.0,`taro build --type weapp` 通过)
@@ -213,15 +213,15 @@
 
 ## M8 部署与运维
 
-- [ ] `server/src/Doggo.Api` Dockerfile
-- [ ] Scraper / Worker Dockerfile
-- [ ] `web/` 构建产物 nginx 容器或静态部署
-- [ ] `admin/` 构建产物部署配置
-- [ ] `deploy/docker-compose.prod.yml`(全栈编排)
-- [ ] nginx 配置模板(域名、HTTPS、反代 Api)
-- [ ] GitHub Actions 发布流水线(镜像构建 + 部署)
-- [ ] 部署文档(docs/guide/deployment.md)
-- [ ] 备份策略文档(MySQL 备份脚本 + 说明)
+- [x] `server/src/Doggo.Api` Dockerfile(多阶段 + migrator target,镜像实测可启动)
+- [x] Scraper / Worker Dockerfile(一个 `Dockerfile.worker` 以 `PROJECT` 参数出两个镜像)
+- [x] `web/` 构建产物 nginx 容器或静态部署(web/Dockerfile,SPA fallback + /api 反代)
+- [x] `admin/` 构建产物部署配置(admin/Dockerfile + nginx.conf)
+- [x] `deploy/docker-compose.prod.yml`(8 服务全栈,migrator 先行;本机全栈实跑五项验收通过)
+- [x] nginx 配置模板(deploy/nginx/doggo.conf.template,域名/HTTPS/反代/admin IP 白名单)
+- [x] GitHub Actions 发布流水线(并入 daily.yml:GHCR nightly 镜像 + DEPLOY_ENABLED 门控部署;不发正式版)
+- [x] 部署文档(docs/guide/deployment.md)
+- [x] 备份策略文档(deploy/backup/backup-mysql.sh,7 日备 + 8 周备)
 
 ## 持续事项
 
