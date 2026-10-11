@@ -112,7 +112,7 @@ public sealed partial class AuthService(
         };
         db.UserAccounts.Add(user);
 
-        var (accessToken, expiresAt, refreshToken) = IssueTokens(user.Id);
+        var (accessToken, expiresAt, refreshToken) = IssueTokens(user.Id, user.IsAdmin);
         db.UserRefreshTokens.Add(RefreshTokenRow(user.Id, refreshToken));
         db.UserLoginLogs.Add(new UserLoginLog
         {
@@ -153,7 +153,7 @@ public sealed partial class AuthService(
         }
 
         user.LastLoginAtUtc = DateTime.UtcNow;
-        var (accessToken, expiresAt, refreshToken) = IssueTokens(user.Id);
+        var (accessToken, expiresAt, refreshToken) = IssueTokens(user.Id, user.IsAdmin);
         db.UserRefreshTokens.Add(RefreshTokenRow(user.Id, refreshToken));
         await WriteLoginLogAsync(user.Id, account, ip, userAgent, success: true, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
@@ -198,7 +198,9 @@ public sealed partial class AuthService(
         });
         await db.SaveChangesAsync(cancellationToken);
 
-        var (accessToken, expiresAt) = tokens.CreateAccessToken(row.UserId);
+        var account = await db.UserAccounts.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == row.UserId, cancellationToken);
+        var (accessToken, expiresAt) = tokens.CreateAccessToken(row.UserId, account?.IsAdmin ?? false);
         return new RefreshedResult(accessToken, expiresAt, newRaw);
     }
 
@@ -267,9 +269,9 @@ public sealed partial class AuthService(
         await db.UserSteamProfiles.AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
 
-    private (string AccessToken, DateTime ExpiresAtUtc, string RefreshToken) IssueTokens(Guid userId)
+    private (string AccessToken, DateTime ExpiresAtUtc, string RefreshToken) IssueTokens(Guid userId, bool isAdmin)
     {
-        var (accessToken, expiresAt) = tokens.CreateAccessToken(userId);
+        var (accessToken, expiresAt) = tokens.CreateAccessToken(userId, isAdmin);
         var (raw, _) = NewRefreshToken();
         return (accessToken, expiresAt, raw);
     }

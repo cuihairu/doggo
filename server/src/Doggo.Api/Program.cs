@@ -27,7 +27,11 @@ builder.Services.AddOptions<AuthOptions>().Bind(builder.Configuration.GetSection
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddHttpClient<SteamOpenIdService>();
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Back-office surface; the role claim is minted into the token when IsAdmin is set.
+    options.AddPolicy("Admin", policy => policy.RequireClaim("role", "admin"));
+});
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer();
@@ -103,6 +107,7 @@ app.MapAuthEndpoints();
 app.MapCoinEndpoints();
 app.MapCouponEndpoints();
 app.MapSignEndpoints();
+app.MapAdminEndpoints();
 app.MapContentEndpoints();
 app.MapMarketEndpoints();
 app.MapProductEndpoints();

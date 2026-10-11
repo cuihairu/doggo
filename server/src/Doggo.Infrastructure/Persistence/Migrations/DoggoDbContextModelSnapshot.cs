@@ -1948,6 +1948,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("InvitedByUserId")
                         .HasColumnType("char(36)");
 
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<DateTime?>("LastLoginAtUtc")
                         .HasColumnType("datetime(6)");
 

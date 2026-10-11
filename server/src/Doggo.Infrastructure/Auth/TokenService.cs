@@ -31,12 +31,18 @@ public sealed class TokenService
 
     public TimeSpan AccessTokenLifetime => TimeSpan.FromMinutes(Math.Max(_options.AccessTokenMinutes, 1));
 
-    public (string AccessToken, DateTime ExpiresAtUtc) CreateAccessToken(Guid userId)
+    public (string AccessToken, DateTime ExpiresAtUtc) CreateAccessToken(Guid userId, bool isAdmin = false)
     {
         var expiresAt = DateTime.UtcNow.Add(AccessTokenLifetime);
+        var claims = new List<Claim> { new("sub", userId.ToString()) };
+        if (isAdmin)
+        {
+            claims.Add(new Claim("role", "admin"));
+        }
+
         var token = new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity([new Claim("sub", userId.ToString())], "Bearer"),
+            Subject = new ClaimsIdentity(claims, "Bearer"),
             IssuedAt = DateTime.UtcNow,
             Expires = expiresAt,
             Issuer = _options.Issuer,
