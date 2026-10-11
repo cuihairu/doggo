@@ -103,3 +103,91 @@ jobs:
           name: doggo-docs
           path: docs/.vitepress/dist
           retention-days: 14
+
+  # Container images to GHCR under rolling nightly tags. Versioned releases
+  # are a separate, manual, user-triggered step — never automated here.
+  images:
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            context: server
+            dockerfile: server/Dockerfile
+            target: app
+            build-args: ""
+          - name: scraper
+            context: server
+            dockerfile: server/Dockerfile.worker
+            target: ""
+            build-args: PROJECT=Doggo.Scraper
+          - name: worker
+            context: server
+            dockerfile: server/Dockerfile.worker
+            target: ""
+            build-args: PROJECT=Doggo.Worker
+          - name: web
+            context: web
+            dockerfile: web/Dockerfile
+            target: ""
+            build-args: ""
+          - name: admin
+            context: admin
+            dockerfile: admin/Dockerfile
+            target: ""
+            build-args: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image name
+        id: meta
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "image=ghcr.io/${owner}/doggo-${{ matrix.name }}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:nightly
+            ${{ steps.meta.outputs.image }}:sha-${{ github.sha }}
+          build-args: ${{ matrix.build-args }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
+
+  # Opt-in nightly rollout. Requires repo variable DEPLOY_ENABLED=true and the
+  # DEPLOY_SSH_HOST / DEPLOY_SSH_USER / DEPLOY_SSH_KEY secrets.
+  deploy:
+    runs-on: ubuntu-latest
+    needs: images
+    if: vars.DEPLOY_ENABLED == 'true'
+    environment: production
+    steps:
+      - name: Roll out nightly stack
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/doggo
+            docker compose -f deploy/docker-compose.prod.yml pull
+            docker compose -f deploy/docker-compose.prod.yml up -d
+            docker image prune -f
