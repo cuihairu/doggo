@@ -199,12 +199,12 @@
 - [ ] 系统设置:站点配置、权限、IP 白名单(按设计走环境变量与 nginx,不设在线修改入口;权限即 IsAdmin 标记,见用户管理)
 
 ### miniapp/(Taro + React + TypeScript)
-- [ ] Taro 脚手架初始化(微信小程序)
-- [ ] 登录(wx.login 换 JWT)
-- [ ] 资讯/行情核心页
-- [ ] 商品与开箱结果页
-- [ ] 用户中心页
-- [ ] 提审合规自查(类目、隐私协议)
+- [x] Taro 脚手架初始化(微信小程序)(Taro 4.3 + React 18,webpack 锁 5.94.0,`taro build --type weapp` 通过)
+- [x] 登录(wx.login 换 JWT)(对接 `POST /api/auth/wechat`;真机/devtools 联调需正式 AppID/Secret,外部依赖)
+- [x] 资讯/行情核心页(首页资讯流 + 行情页 K 线走势)
+- [x] 商品与开箱结果页(商品列表/详情下单 + 我的奖品)
+- [x] 用户中心页(资料/金币/优惠券/每周签到)
+- [x] 提审合规自查(类目、隐私协议)(见 `docs/guide/miniapp-compliance.md`;主体资质与正式域名属外部依赖)
 
 ### mobile/(Taro + React + TypeScript)
 - [ ] Taro RN 端初始化,与 miniapp 共享层抽包

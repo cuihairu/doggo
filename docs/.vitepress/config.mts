@@ -26,7 +26,8 @@ export default defineConfig({
             { text: '项目简介', link: '/guide/introduction' },
             { text: '功能总览', link: '/guide/features' },
             { text: '系统架构', link: '/guide/architecture' },
-            { text: '快速开始', link: '/guide/getting-started' }
+            { text: '快速开始', link: '/guide/getting-started' },
+            { text: '小程序提审合规自查', link: '/guide/miniapp-compliance' }
           ]
         }
       ],
