@@ -76,8 +76,9 @@ assert_text() { # screen must show a node whose text contains $1
     if dump | grep -q "text=\"[^\"]*$1"; then return 0; fi
     sleep 3
   done
-  dump > "$SHOTS/assert-fail.xml" || true
+  dump > "$SHOTS/assert-fail-$1.xml" || true
   adb exec-out screencap -p > "$SHOTS/assert-fail-$1.png" || true
+  adb logcat -d > "$SHOTS/assert-fail-logcat.txt" 2>/dev/null || true
   echo "assert failed: $1"
   exit 1
 }
