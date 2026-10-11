@@ -1,0 +1,127 @@
+# Full production stack. Copy .env.example to .env, fill in the secrets, then:
+#   docker compose -f deploy/docker-compose.prod.yml up -d
+# Required env (see .env.example): MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD,
+# AUTH_SECRET_KEY. Optional: WEB_PORT, ADMIN_PORT, API_PORT, WECHAT_APP_ID,
+# WECHAT_APP_SECRET.
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-doggo}
+      MYSQL_USER: ${MYSQL_USER:-doggo}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # One-shot schema migration; the API waits for it to finish.
+  migrator:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+      target: migrator
+    environment:
+      ConnectionStrings__Default: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-doggo};User=${MYSQL_USER:-doggo};Password=${MYSQL_PASSWORD}"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+      target: app
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-doggo};User=${MYSQL_USER:-doggo};Password=${MYSQL_PASSWORD}"
+      Redis__ConnectionString: "redis:6379"
+      Auth__SecretKey: ${AUTH_SECRET_KEY:?AUTH_SECRET_KEY is required}
+      Vapor__BaseUrl: ${VAPOR_BASE_URL:-}
+      Vapor__ApiKey: ${VAPOR_API_KEY:-}
+      Vapor__WebhookSecret: ${VAPOR_WEBHOOK_SECRET:-}
+      Vapor__DefaultTarget: ${VAPOR_DEFAULT_TARGET:-}
+      WeChat__AppId: ${WECHAT_APP_ID:-}
+      WeChat__AppSecret: ${WECHAT_APP_SECRET:-}
+    ports:
+      - "${API_PORT:-8082}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+
+  scraper:
+    build:
+      context: ../server
+      dockerfile: Dockerfile.worker
+      args:
+        PROJECT: Doggo.Scraper
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-doggo};User=${MYSQL_USER:-doggo};Password=${MYSQL_PASSWORD}"
+      Redis__ConnectionString: "redis:6379"
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+
+  worker:
+    build:
+      context: ../server
+      dockerfile: Dockerfile.worker
+      args:
+        PROJECT: Doggo.Worker
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-doggo};User=${MYSQL_USER:-doggo};Password=${MYSQL_PASSWORD}"
+      Redis__ConnectionString: "redis:6379"
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - api
+
+  admin:
+    build:
+      context: ../admin
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-8081}:80"
+    depends_on:
+      - api
+
+volumes:
+  mysql-data:
+  redis-data:

@@ -1,0 +1,113 @@
+# Host nginx gateway in front of the compose stack (docker-compose.prod.yml).
+# Copy to /etc/nginx/sites-available/doggo.conf, replace the placeholders:
+#   DOGGO_DOMAIN      main site domain, e.g. doggo.example.com
+#   ADMIN_DOMAIN      admin console domain, e.g. admin.example.com
+#   ADMIN_ALLOW_IP    admin office/VPN addresses, one allow line each
+#   CERT_PATH         TLS certificate directory (certbot: /etc/letsencrypt)
+# and reload nginx: nginx -t && systemctl reload nginx
+#
+# Upstream ports are the compose defaults: web 8080, admin 8081, api 8082.
+
+upstream doggo_web {
+    server 127.0.0.1:8080;
+    keepalive 16;
+}
+
+upstream doggo_admin {
+    server 127.0.0.1:8081;
+    keepalive 8;
+}
+
+upstream doggo_api {
+    server 127.0.0.1:8082;
+    keepalive 16;
+}
+
+# HTTP -> HTTPS
+server {
+    listen 80;
+    listen [::]:80;
+    server_name DOGGO_DOMAIN ADMIN_DOMAIN;
+    return 301 https://$host$request_uri;
+}
+
+# Main site: web frontend + API on one origin.
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name DOGGO_DOMAIN;
+
+    ssl_certificate     CERT_PATH/fullchain.pem;
+    ssl_certificate_key CERT_PATH/privkey.pem;
+
+    # TLS hardening baseline
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    client_max_body_size 10m;
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # Vapor webhooks are the only unauthenticated API caller; nothing else
+    # on the API needs to be reachable except through the web origin.
+    location /api/ {
+        proxy_pass http://doggo_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    location / {
+        proxy_pass http://doggo_web;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# Admin console: separate origin, IP allowlist in front of login.
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ADMIN_DOMAIN;
+
+    ssl_certificate     CERT_PATH/fullchain.pem;
+    ssl_certificate_key CERT_PATH/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # IP whitelist — fill in real addresses before exposing the console.
+    # allow 203.0.113.10;
+    # allow 198.51.100.0/24;
+    # deny all;
+
+    location /api/admin/ {
+        # Second gate: the management API itself stays allowlist-only even if
+        # a future page is added outside ADMIN_DOMAIN.
+        # allow 203.0.113.10;
+        # deny all;
+        proxy_pass http://doggo_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/ {
+        proxy_pass http://doggo_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://doggo_admin;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
