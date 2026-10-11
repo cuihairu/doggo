@@ -77,26 +77,26 @@
 ## M2 资讯聚合(自建爬虫,第一个垂直切片)
 
 ### 爬虫管道
-- [ ] Doggo.Scraper 通用抓取框架:调度(PeriodicTimer/Quartz)+ 站点注册表
-- [ ] HttpClient 抓取 + AngleSharp 解析的基础 SourceAdapter 抽象
-- [ ] 动态页 Playwright for .NET 的 SourceAdapter 实现
-- [ ] 条目清洗:HTML 白名单过滤、图片代理或转存策略
-- [ ] 指纹去重(标题+正文哈希)落库前判重
-- [ ] 失败重试与站点级熔断(连续失败暂停)
-- [ ] SyncCursor 游标记录(增量拉取)
+- [x] Doggo.Scraper 通用抓取框架:调度(PeriodicTimer/Quartz)+ 站点注册表
+- [x] HttpClient 抓取 + AngleSharp 解析的基础 SourceAdapter 抽象
+- [x] 动态页 Playwright for .NET 的 SourceAdapter 实现
+- [x] 条目清洗:HTML 白名单过滤、图片代理或转存策略
+- [x] 指纹去重(标题+正文哈希)落库前判重
+- [x] 失败重试与站点级熔断(连续失败暂停)
+- [x] SyncCursor 游标记录(增量拉取)
 
 ### 数据源接入
-- [ ] CS2 官方公告源(Steam News RSS / 官方博客)
-- [ ] CS2 更新日志源
-- [ ] Dota 2 官方公告源
-- [ ] Dota 2 更新与版本改动源
-- [ ] 赛事资讯源(至少一个)
+- [x] CS2 官方公告源(Steam News RSS / 官方博客)
+- [x] CS2 更新日志源
+- [x] Dota 2 官方公告源
+- [x] Dota 2 更新与版本改动源
+- [x] 赛事资讯源(至少一个)
 
 ### 资讯 API
-- [ ] `GET /api/news`(分页、游戏/分类/标签过滤)
-- [ ] `GET /api/news/{id}`(详情,阅读计数)
-- [ ] 运营内容接口:`GET /api/notices`、`GET /api/banners`、`GET /api/articles/{id}`
-- [ ] 集成测试:抓取→清洗→去重→落库→API 输出
+- [x] `GET /api/news`(分页、游戏/分类/标签过滤)
+- [x] `GET /api/news/{id}`(详情,阅读计数)
+- [x] 运营内容接口:`GET /api/notices`、`GET /api/banners`、`GET /api/articles/{id}`
+- [x] 集成测试:抓取→清洗→去重→落库→API 输出
 
 ## M3 行情同步(vapor 集成)
 
