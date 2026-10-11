@@ -6,6 +6,13 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <!-- EF 10 split Relational out of the core package; pin it to the same version so
+         MySql.EntityFrameworkCore (which pins its own older EF) cannot drag a mismatch in. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.9" />
     <PackageReference Include="StackExchange.Redis" Version="3.4.0" />
   </ItemGroup>

@@ -676,8 +676,8 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Url")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
+                        .HasMaxLength(2048)
+                        .HasColumnType("varchar(2048)");
 
                     b.Property<string>("UrlHash")
                         .IsRequired()
@@ -704,7 +704,7 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("ConfigJson")
                         .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("ConsecutiveFailures")
                         .HasColumnType("int");
@@ -737,8 +737,8 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Url")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
+                        .HasMaxLength(2048)
+                        .HasColumnType("varchar(2048)");
 
                     b.HasKey("Id");
 

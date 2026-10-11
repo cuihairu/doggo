@@ -10,7 +10,7 @@ namespace Doggo.Domain.Tests;
 /// </summary>
 public class PersistenceBehaviorTests
 {
-    private DoggoDbContext CreateContext()
+    private static DoggoDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<DoggoDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())

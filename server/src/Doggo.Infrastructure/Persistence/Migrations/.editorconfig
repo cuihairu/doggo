@@ -1,0 +1,5 @@
+root = false
+
+[*.cs]
+# EF migrations are generated code
+dotnet_diagnostic.CA1861.severity = none

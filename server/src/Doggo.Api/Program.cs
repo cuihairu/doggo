@@ -1,3 +1,4 @@
+using Doggo.Api.Endpoints;
 using Doggo.Infrastructure;
 using Doggo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,9 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.MapNewsEndpoints();
+app.MapContentEndpoints();
 
 app.MapGet("/healthz", async (DoggoDbContext db, IConnectionMultiplexer redis, CancellationToken cancellationToken) =>
 {

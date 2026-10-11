@@ -36,6 +36,7 @@ csharp_prefer_braces = true:suggestion
 csharp_style_namespace_declarations = file_scoped:suggestion
 csharp_style_prefer_primary_constructors = true:suggestion
 dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none
 
 # RBAC classes intentionally end with "Permission"
 dotnet_diagnostic.CA1711.severity = none

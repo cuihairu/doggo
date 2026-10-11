@@ -101,7 +101,12 @@ public class RollRoomParticipantConfiguration : IEntityTypeConfiguration<RollRoo
 
 public class NewsSourceConfiguration : IEntityTypeConfiguration<NewsSource>
 {
-    public void Configure(EntityTypeBuilder<NewsSource> builder) => builder.HasIndex(x => x.Name).IsUnique();
+    public void Configure(EntityTypeBuilder<NewsSource> builder)
+    {
+        builder.HasIndex(x => x.Name).IsUnique();
+        builder.Property(x => x.Url).HasMaxLength(2048);
+        builder.Property(x => x.ConfigJson).HasColumnType("longtext");
+    }
 }
 
 public class NewsItemConfiguration : IEntityTypeConfiguration<NewsItem>
@@ -111,6 +116,7 @@ public class NewsItemConfiguration : IEntityTypeConfiguration<NewsItem>
         builder.HasIndex(x => x.UrlHash).IsUnique();
         builder.HasIndex(x => new { x.Game, x.PublishedAtUtc });
         builder.Property(x => x.ContentHtml).HasColumnType("longtext");
+        builder.Property(x => x.Url).HasMaxLength(2048);
     }
 }
 

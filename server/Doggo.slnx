@@ -7,6 +7,8 @@
     <Project Path="src/Doggo.Worker/Doggo.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Doggo.Api.Tests/Doggo.Api.Tests.csproj" />
     <Project Path="tests/Doggo.Domain.Tests/Doggo.Domain.Tests.csproj" />
+    <Project Path="tests/Doggo.Scraper.Tests/Doggo.Scraper.Tests.csproj" />
   </Folder>
 </Solution>
