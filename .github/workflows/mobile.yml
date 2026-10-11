@@ -110,10 +110,10 @@ jobs:
           APK: apk/app-release.apk
         with:
           api-level: 30
-          target: google_apis
+          # The ATD image is the lean CI variant; google_apis images keep
+          # crashing system_server a few minutes after boot on CI runners.
+          target: aosp_atd
           arch: x86_64
-          # The newest emulator breaks system services on api-30 images in CI.
-          emulator-build: '7425822'
           disable-animations: true
           script: bash .github/scripts/mobile-acceptance.sh
 
