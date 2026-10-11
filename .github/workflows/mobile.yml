@@ -14,6 +14,11 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # The acceptance emulator reaches the API through adb reverse, so the
+      # bundle talks to device-local 127.0.0.1 instead of the 10.0.2.2 NAT
+      # alias. Read by config/index.ts at bundle time.
+      TARO_APP_API_BASE: http://127.0.0.1:5077
 
     steps:
       - uses: actions/checkout@v4

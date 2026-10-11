@@ -12,6 +12,11 @@ export default defineConfig({
   },
   sourceRoot: 'src',
   outputRoot: 'dist',
+  // Baked into the bundle as process.env.TARO_APP_* (rn-supporter getEnv).
+  // CI overrides the value at the job level to go through adb reverse.
+  env: {
+    TARO_APP_API_BASE: JSON.stringify(process.env.TARO_APP_API_BASE ?? 'http://10.0.2.2:5077')
+  },
   plugins: [],
   defineConstants: {},
   framework: 'react',

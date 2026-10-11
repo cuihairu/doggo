@@ -22,11 +22,18 @@ rnlog() {
 }
 
 dump() {
-  adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 || return 1
-  local out
-  out=$(adb shell cat /sdcard/ui.xml 2>/dev/null) || return 1
-  # A failed or racing dump yields an empty hierarchy; treat it as no data.
-  case "$out" in *"<hierarchy"*) printf '%s' "$out" ;; *) return 1 ;; esac
+  local out i
+  for i in 1 2 3; do
+    adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 || { sleep 6; continue; }
+    out=$(adb shell cat /sdcard/ui.xml 2>/dev/null) || { sleep 6; continue; }
+    # An empty hierarchy means the accessibility tree was not ready; back off
+    # and try again — consecutive dumps need a cooldown after the first one.
+    case "$out" in
+      *"<node "*text=*) printf '%s' "$out"; return 0 ;;
+    esac
+    sleep 6
+  done
+  return 1
 }
 
 # First bounds pair in the dump whose node text equals $1 (or contains $1 when
@@ -51,9 +58,9 @@ tap_at() { # [x1,y1][x2,y2] -> tap the center
 
 tap_text() { # exact text match
   local b="" i
-  for i in 1 2 3 4 5 6 7 8; do
+  for i in 1 2 3 4 5 6; do
     b=$(find_bounds "$1") && [ -n "$b" ] && break
-    sleep 2
+    sleep 6
   done
   [ -n "$b" ] || { echo "node not found: text=$1"; dump > "$SHOTS/ui-missing.xml" || true; rnlog "ui-missing"; exit 1; }
   tap_at "$b"
@@ -61,9 +68,9 @@ tap_text() { # exact text match
 
 tap_contains() { # substring text match
   local b="" i
-  for i in 1 2 3 4 5 6 7 8; do
+  for i in 1 2 3 4 5 6; do
     b=$(find_bounds "$1" contains) && [ -n "$b" ] && break
-    sleep 2
+    sleep 6
   done
   [ -n "$b" ] || { echo "node not found: text~$1"; dump > "$SHOTS/ui-missing.xml" || true; rnlog "ui-missing"; exit 1; }
   tap_at "$b"
@@ -102,6 +109,13 @@ for i in 1 2 3 4 5 6 7 8; do
 done
 [ "$installed" = 1 ] || { echo "install failed"; exit 1; }
 adb shell pm list packages | grep -q "$PKG" || { echo "package missing"; exit 1; }
+
+# Preflight: the API must still be healthy on the host. The app bundle in CI
+# targets http://127.0.0.1:5077, which adb reverse maps to the host port — no
+# dependence on the emulator NAT (10.0.2.2).
+curl -fsS http://127.0.0.1:5077/healthz || { echo "api unhealthy from host"; exit 1; }
+adb reverse tcp:5077 tcp:5077
+adb reverse --list | grep -q 5077 || { echo "adb reverse failed"; exit 1; }
 
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell am start -W -n "$PKG/.MainActivity"
