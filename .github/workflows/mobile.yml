@@ -87,7 +87,9 @@ jobs:
       - name: Seed acceptance data
         working-directory: deploy
         env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
           MYSQL_PASSWORD: ci-doggo-password
+          AUTH_SECRET_KEY: ci-acceptance-secret-key-0123456789abcdef0123456789abcdef
         run: |
           docker compose -f docker-compose.prod.yml exec -T mysql mysql -u doggo -p"$MYSQL_PASSWORD" doggo <<'SQL'
           INSERT INTO Products (Id, Type, Name, ClassId, IconUrl, PurchasePriceCents, ReferencePriceCents, AdjustPriceCents, FinalPriceCents, RegularPriceCents, Status, PlanFlags, BuyNotice, SortOrder, DeletedAtUtc, CreatedAtUtc, UpdatedAtUtc)
