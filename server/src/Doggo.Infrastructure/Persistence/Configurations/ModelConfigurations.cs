@@ -60,6 +60,19 @@ public class SignRecordConfiguration : IEntityTypeConfiguration<SignRecord>
         // several days).
         builder.HasIndex(x => new { x.UserId, x.SignedDate }).IsUnique();
         builder.HasIndex(x => new { x.UserId, x.CycleId });
+
+        // MySql.EntityFrameworkCore materializes DATE columns as DateTime and chokes on
+        // DateOnly, so convert explicitly and keep the date column type.
+        builder.Property(x => x.CycleId)
+            .HasConversion(
+                date => date.ToDateTime(TimeOnly.MinValue),
+                dateTime => DateOnly.FromDateTime(dateTime))
+            .HasColumnType("date");
+        builder.Property(x => x.SignedDate)
+            .HasConversion(
+                date => date.ToDateTime(TimeOnly.MinValue),
+                dateTime => DateOnly.FromDateTime(dateTime))
+            .HasColumnType("date");
     }
 }
 

@@ -62,6 +62,10 @@ builder.Services.AddScoped<PrizeService>();
 builder.Services.AddScoped<RollService>();
 builder.Services.AddScoped<CoinService>();
 builder.Services.AddScoped<CouponService>();
+builder.Services.AddScoped<InviteService>();
+builder.Services.AddScoped<SignService>();
+builder.Services.AddOptions<InviteOptions>().Bind(builder.Configuration.GetSection(InviteOptions.SectionName));
+builder.Services.AddOptions<SignOptions>().Bind(builder.Configuration.GetSection(SignOptions.SectionName));
 builder.Services.AddScoped<CaseOpeningWebhookHandler>();
 
 // Payment channels land with the deployment milestone; mock covers development and tests.
@@ -98,6 +102,7 @@ app.MapNewsEndpoints();
 app.MapAuthEndpoints();
 app.MapCoinEndpoints();
 app.MapCouponEndpoints();
+app.MapSignEndpoints();
 app.MapContentEndpoints();
 app.MapMarketEndpoints();
 app.MapProductEndpoints();

@@ -56,7 +56,7 @@ public class OrderServiceTests
 
         var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
         var coupons = new CouponService(db, ledger, NullLogger<CouponService>.Instance);
-        return (new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), client, coupons, ledger, NullLogger<OrderService>.Instance), handler);
+        return (new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), client, coupons, ledger, new InviteService(db, ledger, Options.Create(new InviteOptions()), NullLogger<InviteService>.Instance), NullLogger<OrderService>.Instance), handler);
     }
 
     private static HttpResponseMessage Response(HttpStatusCode code, string json) =>
@@ -741,7 +741,7 @@ public class OrderServiceTests
         var (orders, _) = CreateService(db, VaporStub());
         var unconfigured = new VaporClient(new HttpClient(new StubHandler { Responder = VaporStub() }) { BaseAddress = new Uri("http://vapor.test/") }, Options.Create(new VaporOptions()));
         var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
-        var plain = new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), unconfigured, new CouponService(db, ledger, NullLogger<CouponService>.Instance), ledger, NullLogger<OrderService>.Instance);
+        var plain = new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), unconfigured, new CouponService(db, ledger, NullLogger<CouponService>.Instance), ledger, new InviteService(db, ledger, Options.Create(new InviteOptions()), NullLogger<InviteService>.Instance), NullLogger<OrderService>.Instance);
 
         var product = await SeedProductAsync(db);
         var link = await SeedTradeUrlAsync(db);

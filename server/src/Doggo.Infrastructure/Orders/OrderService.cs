@@ -4,6 +4,7 @@ using Doggo.Domain.Orders;
 using Doggo.Domain.Products;
 using Doggo.Domain.Users;
 using Doggo.Infrastructure.Persistence;
+using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Vapor;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -56,6 +57,7 @@ public sealed partial class OrderService(
     VaporClient vapor,
     Marketing.CouponService coupons,
     Marketing.CoinService coins,
+    Marketing.InviteService invites,
     ILogger<OrderService> logger)
 {
     private readonly OrderOptions _options = options.Value;
@@ -462,6 +464,9 @@ public sealed partial class OrderService(
         order.Error = null;
         await db.SaveChangesAsync(cancellationToken);
 
+        // The invitee's first completed order pays the inviter; the service keeps its own
+        // once-per-invitee guard so this call is safe to repeat.
+        await invites.GrantRewardAsync(order.UserId, order.Id, cancellationToken);
         LogOrderCompleted(logger, order.OrderNo, offerId);
         return true;
     }

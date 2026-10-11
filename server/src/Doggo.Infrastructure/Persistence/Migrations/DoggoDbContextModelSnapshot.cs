@@ -1893,14 +1893,14 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateOnly>("CycleId")
+                    b.Property<DateTime>("CycleId")
                         .HasColumnType("date");
 
                     b.Property<string>("MakeupOrderNo")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<DateOnly>("SignedDate")
+                    b.Property<DateTime>("SignedDate")
                         .HasColumnType("date");
 
                     b.Property<DateTime>("UpdatedAtUtc")
