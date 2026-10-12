@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import {
   fetchCoinBalance, fetchMyCoupons, fetchProfile, fetchSignCycle,
   logout, signToday, ApiError, getAccessToken, Profile
@@ -34,13 +34,22 @@ export default function UserPage() {
         setError(e instanceof ApiError ? e.message : '加载失败')
       })
     fetchCoinBalance().then((b) => setCoins(b.balance)).catch(() => {})
-    fetchMyCoupons().then((rows) => setCoupons(rows.filter((c) => c.status === 1))).catch(() => {})
+    // Unused = 0 / Used = 1 / Expired = 2 — "available" means unused and unexpired.
+    fetchMyCoupons()
+      .then((rows) => setCoupons(rows.filter((c) => c.status === 0 && (!c.validToUtc || new Date(c.validToUtc) > new Date()))))
+      .catch(() => {})
     fetchSignCycle().then((cycle) => setSigned(cycle.todaySigned)).catch(() => {})
   }, [])
 
   useEffect(() => {
     load()
   }, [load])
+
+  // The page stays mounted across navigateTo round-trips (e.g. claiming a
+  // coupon on the product page); refresh so coins and coupons don't go stale.
+  useDidShow(() => {
+    load()
+  })
 
   async function doSign() {
     setSignBusy(true)
