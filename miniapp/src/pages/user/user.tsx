@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Button, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {
   fetchCoinBalance, fetchMyCoupons, fetchProfile, fetchSignCycle,
-  logout, redeemCode, Profile, signToday
+  fetchTradeUrls, addTradeUrl, logout, redeemCode, Profile, signToday, TradeUrlEntry
 } from '../../api/endpoints'
 import { ApiError, getAccessToken } from '../../api/client'
 
@@ -23,6 +23,8 @@ export default function UserPage() {
   const [coupons, setCoupons] = useState<CouponLite[]>([])
   const [signed, setSigned] = useState<boolean | null>(null)
   const [redeemInput, setRedeemInput] = useState('')
+  const [tradeUrls, setTradeUrls] = useState<TradeUrlEntry[]>([])
+  const [tradeInput, setTradeInput] = useState('')
   const [error, setError] = useState('')
 
   const load = useCallback(() => {
@@ -33,6 +35,7 @@ export default function UserPage() {
     fetchProfile().then((p) => {
       setProfile(p)
       setError('')
+      fetchTradeUrls(p.id).then(setTradeUrls).catch(() => {})
     }).catch((e) => setError(e instanceof ApiError ? e.message : '加载失败'))
     fetchCoinBalance().then((b) => setCoins(b.balance)).catch(() => {})
     // Unused = 0 / Used = 1 / Expired = 2 — "available" means unused and unexpired.
@@ -75,6 +78,19 @@ export default function UserPage() {
     }
   }
 
+  async function doAddTradeUrl() {
+    const url = tradeInput.trim()
+    if (!url || !profile) return
+    try {
+      await addTradeUrl(profile.id, url)
+      setTradeInput('')
+      setTradeUrls(await fetchTradeUrls(profile.id))
+      Taro.showToast({ title: '已保存', icon: 'success' })
+    } catch (e) {
+      Taro.showToast({ title: e instanceof ApiError ? e.message : '保存失败', icon: 'none' })
+    }
+  }
+
   if (error === '未登录') {
     return (
       <View className="card">
@@ -101,6 +117,26 @@ export default function UserPage() {
         </View>
         <Button size="mini" className="btn-primary" disabled={signed === true} onClick={doSign}>
           {signed === true ? '今日已签到' : '每日签到'}
+        </Button>
+      </View>
+
+      <View className="card">
+        <Text style={{ fontWeight: 700 }}>Steam 交易链接</Text>
+        {tradeUrls.map((link) => (
+          <View key={link.id} className="row" style={{ justifyContent: 'space-between', marginTop: '10rpx' }}>
+            <Text style={{ flex: 1 }} numberOfLines={1}>{link.isPreferred ? '★ ' : ''}{link.url}</Text>
+            <Text className="muted">{link.status === 1 ? '已验证' : link.status === 2 ? '无效' : '未验证'}</Text>
+          </View>
+        ))}
+        {tradeUrls.length === 0 && <Text className="muted">尚未绑定，饰品取回前需要</Text>}
+        <Input
+          placeholder="粘贴 Steam 交易链接"
+          value={tradeInput}
+          onInput={(e) => setTradeInput(e.detail.value)}
+          style={{ border: '1rpx solid #eee', borderRadius: '8rpx', padding: '12rpx', margin: '20rpx 0' }}
+        />
+        <Button size="mini" className="btn-primary" disabled={!tradeInput.trim()} onClick={doAddTradeUrl}>
+          保存
         </Button>
       </View>
 
