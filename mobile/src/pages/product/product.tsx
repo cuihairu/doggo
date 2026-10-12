@@ -54,7 +54,7 @@ export default function ProductPage() {
     kvSet('doggo.lastOrderId', id)
   }
 
-  async function buy(planId?: string, optionId?: string, allowCoupon = true) {
+  async function buy(planId?: string, optionId?: string, allowCoupon = true, quantity = 1) {
     if (!getAccessToken()) {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       Taro.navigateTo({ url: '/pages/login/login' })
@@ -68,7 +68,7 @@ export default function ProductPage() {
       // selection must be undefined, not '' — the API binds Guid? and an
       // empty string fails deserialization.
       const useCoupon = allowCoupon && couponId ? couponId : undefined
-      const order = await createOrder(profile.id, detail!.id, planId, optionId, useCoupon)
+      const order = await createOrder(profile.id, detail!.id, planId, optionId, useCoupon, quantity)
       await payOrder(order.id)
       rememberOrder(order.id)
       if (useCoupon) {
@@ -137,7 +137,27 @@ export default function ProductPage() {
 
         {(detail.plans ?? []).length === 0 && (
           <Card>
-            <Btn busy={busy} onPress={() => buy()}>单开 ¥{yuan(detail.finalPriceCents)}</Btn>
+            {(detail.quantityTiers ?? []).length > 0 && (
+              <Text style={[styles.section, { color: t.text }]}>数量档</Text>
+            )}
+            <View style={styles.wrap}>
+              <Btn busy={busy} style={styles.optionBtn} onPress={() => buy()}>
+                单开 ¥{yuan(detail.finalPriceCents)}
+              </Btn>
+              {(detail.quantityTiers ?? []).map((tier) => (
+                <Btn
+                  key={tier.quantity}
+                  busy={busy}
+                  style={styles.optionBtn}
+                  onPress={() => buy(undefined, undefined, true, tier.quantity)}
+                >
+                  {tier.quantity}个 ¥{yuan(tier.priceCents * tier.quantity)}
+                </Btn>
+              ))}
+            </View>
+            {(detail.quantityTiers ?? []).length > 0 && (
+              <Muted>达到档位数量整单按档位单价计</Muted>
+            )}
           </Card>
         )}
 

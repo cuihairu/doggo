@@ -150,8 +150,10 @@ export interface OrderView {
 
 /** Case entry, self-open, spot, WeChat pay — the standard single-open.
  * userCouponId selects a UserCoupon (the /api/coupons/mine row id) whose
- * discount the server applies and validates authoritatively. */
-export function createOrder(userId: string, productId: string, planId?: string, optionId?: string, userCouponId?: string) {
+ * discount the server applies and validates authoritatively. quantity only
+ * applies to plain buys without a plan option; the server prices it through
+ * the product's quantity-tier ladder. */
+export function createOrder(userId: string, productId: string, planId?: string, optionId?: string, userCouponId?: string, quantity = 1) {
   // The create endpoint returns { orderId, ... } while the detail endpoint
   // returns { id, ... }; normalize so callers can use order.id either way.
   return api<OrderView & { orderId?: string }>('/api/orders', {
@@ -165,7 +167,8 @@ export function createOrder(userId: string, productId: string, planId?: string, 
       serviceMode: 0,
       fulfillmentType: 1,
       payType: 2,
-      userCouponId: userCouponId || null
+      userCouponId: userCouponId || null,
+      quantity: Math.max(Math.trunc(quantity) || 1, 1)
     }
   }).then((order) => ({ ...order, id: order.orderId ?? order.id }))
 }
