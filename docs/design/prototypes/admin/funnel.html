@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="brand">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 · admin 漏斗分析 — doggo</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+</head>
+<body>
+<div class="admin">
+  <aside class="admin-side">
+    <a class="brand" href="../index.html" style="padding:14px 18px;display:flex;"><span class="brand-mark"></span>doggo admin</a>
+    <a href="dashboard.html"><i class="ico sm ico-grid"></i>仪表盘</a>
+    <a href="products.html"><i class="ico sm ico-box"></i>商品</a>
+    <a href="orders.html"><i class="ico sm ico-bag"></i>订单</a>
+    <a href="#"><i class="ico sm ico-user"></i>用户</a>
+    <a href="funnel.html" class="on"><i class="ico sm ico-chart"></i>漏斗分析</a>
+    <a href="#"><i class="ico sm ico-doc"></i>资讯</a>
+    <a href="settings.html"><i class="ico sm ico-gear"></i>设置</a>
+  </aside>
+  <div class="admin-main">
+    <header class="row between" style="padding:12px 4px;">
+      <div class="row" style="gap:10px;"><b>漏斗分析</b><span class="badge mut">浏览 → 下单意向 → 创建订单 → 支付</span></div>
+      <span class="row"><select class="theme-switch" aria-label="主题"></select><a class="mini" href="../index.html">索引</a></span>
+    </header>
+
+    <div class="proto-note">实现依据：docs/design/analytics-funnel-design.md（事件表 AnalyticsEvent + 聚合表 FunnelDailyStat + GET /api/admin/funnel）。doggo 无购物车，「下单意向」= 详情页选套餐/数量后点购买。</div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="row" style="gap:8px;">
+          <span class="field" style="margin:0;"><select><option>近 7 天</option><option>近 14 天</option><option>近 30 天</option><option>自定义</option></select></span>
+          <span class="field" style="margin:0;"><select><option>全部端</option><option>web</option><option>小程序</option><option>mobile</option></select></span>
+          <span class="field" style="margin:0;"><select><option>全部渠道</option><option>自然流量</option><option>邀请链接</option><option>运营活动</option></select></span>
+        </span>
+        <span class="mini muted">数据为 T-1 聚合 · 迟到事件滚动重算 7 天</span>
+      </div>
+
+      <div class="funnel" style="margin:10px 0;">
+        <div class="funnel-step"><span class="funnel-name">浏览商品<br><i class="mini muted">page_view</i></span><div class="funnel-bar"><i style="width:100%;"></i></div><span class="funnel-meta"><b>8,940</b><span class="muted">进入 100%</span></span></div>
+        <div class="funnel-step"><span class="funnel-name">下单意向<br><i class="mini muted">checkout_intent</i></span><div class="funnel-bar"><i style="width:38%;"></i></div><span class="funnel-meta"><b>3,397</b><span class="muted">38.0% · 流失 62.0%</span></span></div>
+        <div class="funnel-step"><span class="funnel-name">创建订单<br><i class="mini muted">order_created</i></span><div class="funnel-bar"><i style="width:17%;"></i></div><span class="funnel-meta"><b>1,520</b><span class="muted">44.7% · 流失 55.3%</span></span></div>
+        <div class="funnel-step"><span class="funnel-name">支付成功<br><i class="mini muted">order_paid</i></span><div class="funnel-bar"><i style="width:11%;"></i></div><span class="funnel-meta"><b>986</b><span class="muted">64.9% · 流失 35.1%</span></span></div>
+      </div>
+      <p class="mini muted">整体转化 11.0%（8,940 → 986）；最大流失在「浏览 → 下单意向」。</p>
+    </div>
+
+    <div class="grid cols-3" style="margin-top: var(--sp-2);">
+      <section class="card">
+        <div class="card-title" style="margin-bottom:8px;">按端</div>
+        <table class="table">
+          <thead><tr><th>端</th><th>支付/浏览</th><th>转化</th></tr></thead>
+          <tbody>
+            <tr><td>web</td><td>412 / 3,120</td><td><span class="up">13.2%</span></td></tr>
+            <tr><td>小程序</td><td>388 / 3,760</td><td><span class="up">10.3%</span></td></tr>
+            <tr><td>mobile</td><td>186 / 2,060</td><td><span class="down">9.0%</span></td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="card">
+        <div class="card-title" style="margin-bottom:8px;">按渠道</div>
+        <table class="table">
+          <thead><tr><th>渠道</th><th>支付/浏览</th><th>转化</th></tr></thead>
+          <tbody>
+            <tr><td>自然流量</td><td>620 / 6,100</td><td>10.2%</td></tr>
+            <tr><td>邀请链接</td><td>240 / 1,640</td><td><span class="up">14.6%</span></td></tr>
+            <tr><td>运营活动</td><td>126 / 1,200</td><td>10.5%</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="card">
+        <div class="card-title" style="margin-bottom:8px;">按日（近 7 天）</div>
+        <div class="bars" aria-hidden="true">
+          <div style="--v:52%;"><i></i></div><div style="--v:60%;"><i></i></div><div style="--v:48%;"><i></i></div><div style="--v:66%;"><i></i></div><div style="--v:72%;"><i></i></div><div style="--v:81%;"><i></i></div><div style="--v:76%;"><i></i></div>
+        </div>
+        <div class="row between mini muted" style="margin-top:6px;"><span>10-07</span><span>10-10</span><span>10-12</span></div>
+      </section>
+    </div>
+
+    <div class="card" style="margin-top: var(--sp-2);">
+      <div class="card-title" style="margin-bottom:8px;">步骤明细（当前筛选）</div>
+      <table class="table">
+        <thead><tr><th>步骤</th><th>事件</th><th>人数</th><th>上一步转化</th><th>相对第一步</th><th>流失</th></tr></thead>
+        <tbody>
+          <tr><td>浏览商品</td><td class="mono mini">page_view(product)</td><td>8,940</td><td>—</td><td>100%</td><td>—</td></tr>
+          <tr><td>下单意向</td><td class="mono mini">checkout_intent</td><td>3,397</td><td>38.0%</td><td>38.0%</td><td>5,543</td></tr>
+          <tr><td>创建订单</td><td class="mono mini">order_created（服务端）</td><td>1,520</td><td>44.7%</td><td>17.0%</td><td>1,877</td></tr>
+          <tr><td>支付成功</td><td class="mono mini">order_paid（服务端）</td><td>986</td><td>64.9%</td><td>11.0%</td><td>534</td></tr>
+        </tbody>
+      </table>
+      <p class="mini muted" style="margin-top:8px;">order_created / order_paid 由服务端在订单事务内打点，不信任客户端上报；与订单报表的差异口径见设计文档 §7/§9。</p>
+    </div>
+  </div>
+</div>
+<script src="../theme.js"></script>
+</body>
+</html>

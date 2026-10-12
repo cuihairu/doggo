@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="brand">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 · admin 设置 — doggo</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+</head>
+<body>
+<div class="admin">
+  <aside class="admin-side">
+    <a class="brand" href="../index.html" style="padding:14px 18px;display:flex;"><span class="brand-mark"></span>doggo admin</a>
+    <a href="dashboard.html"><i class="ico sm ico-grid"></i>仪表盘</a>
+    <a href="products.html"><i class="ico sm ico-box"></i>商品</a>
+    <a href="orders.html"><i class="ico sm ico-bag"></i>订单</a>
+    <a href="#"><i class="ico sm ico-user"></i>用户</a>
+    <a href="funnel.html"><i class="ico sm ico-chart"></i>漏斗分析</a>
+    <a href="#"><i class="ico sm ico-doc"></i>资讯</a>
+    <a href="settings.html" class="on"><i class="ico sm ico-gear"></i>设置</a>
+  </aside>
+  <div class="admin-main">
+    <header class="row between" style="padding:12px 4px;">
+      <b>设置</b>
+      <span class="row"><select class="theme-switch" aria-label="主题"></select><a class="mini" href="../index.html">索引</a></span>
+    </header>
+
+    <div class="proto-note">对应实现：admin/src/pages/Settings（站点参数、支付渠道、活动配置）。新增：主题运营位（按日历自动切换节日/季节主题）与价格爬虫站点管理入口。</div>
+
+    <div class="grid cols-2">
+      <section class="card">
+        <div class="card-title" style="margin-bottom:8px;">站点参数</div>
+        <div class="field"><label class="label">站点名称</label><input value="doggo"></div>
+        <div class="field"><label class="label">订单超时（分钟）</label><input value="30"></div>
+        <div class="field"><label class="label">金币抵扣比例（100 金币 = ? 元）</label><input value="1.00"></div>
+        <button class="btn sm">保存</button>
+      </section>
+
+      <section class="card">
+        <div class="card-title" style="margin-bottom:8px;">支付渠道</div>
+        <table class="table">
+          <thead><tr><th>渠道</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td>微信（Mock）</td><td><span class="badge ok">启用</span></td><td><a class="mini" href="#">配置</a></td></tr>
+            <tr><td>支付宝</td><td><span class="badge mut">未接入</span></td><td><a class="mini" href="#">接入</a></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <div class="card-title" style="margin-bottom:8px;">主题运营位（新增）</div>
+        <p class="mini muted" style="margin-bottom:8px;">按日历对前台自动切换节日/季节主题；用户手动选择优先于运营位。</p>
+        <table class="table">
+          <thead><tr><th>区间</th><th>主题</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td>01-28 ~ 02-04</td><td>节日·春节</td><td><span class="badge ok">启用</span></td></tr>
+            <tr><td>02-12（元宵）</td><td>节日·元宵</td><td><span class="badge ok">启用</span></td></tr>
+            <tr><td>06-19 ~ 06-21</td><td>节日·端午</td><td><span class="badge ok">启用</span></td></tr>
+            <tr><td>09-25 ~ 09-27</td><td>节日·中秋</td><td><span class="badge ok">启用</span></td></tr>
+            <tr><td>09-29 ~ 10-07</td><td>节日·国庆</td><td><span class="badge ok">启用</span></td></tr>
+            <tr><td>03~05 / 06~08 / 09~11 / 12~02</td><td>季节·春夏秋冬</td><td><span class="badge mut">备用</span></td></tr>
+          </tbody>
+        </table>
+        <button class="btn ghost sm" style="margin-top:8px;">编辑日历</button>
+      </section>
+
+      <section class="card">
+        <div class="card-title" style="margin-bottom:8px;">价格爬虫站点（新增，入口）</div>
+        <p class="mini muted" style="margin-bottom:8px;">站点启停、频控与 robots 合规在爬虫模块内管理（docs/design/price-crawler-design.md），此处只做总览。</p>
+        <table class="table">
+          <thead><tr><th>站点</th><th>频率</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td>示例站 A</td><td>30 min</td><td><span class="badge ok">运行</span></td></tr>
+            <tr><td>示例站 B</td><td>60 min</td><td><span class="badge ok">运行</span></td></tr>
+            <tr><td>示例站 C</td><td>—</td><td><span class="badge err">退避中</span></td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </div>
+</div>
+<script src="../theme.js"></script>
+</body>
+</html>

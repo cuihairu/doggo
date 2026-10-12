@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="brand">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 · admin 仪表盘 — doggo</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+</head>
+<body>
+<div class="admin">
+  <aside class="admin-side">
+    <a class="brand" href="../index.html" style="padding:14px 18px;display:flex;"><span class="brand-mark"></span>doggo admin</a>
+    <a href="dashboard.html" class="on"><i class="ico sm ico-grid"></i>仪表盘</a>
+    <a href="products.html"><i class="ico sm ico-box"></i>商品</a>
+    <a href="orders.html"><i class="ico sm ico-bag"></i>订单</a>
+    <a href="#"><i class="ico sm ico-user"></i>用户</a>
+    <a href="funnel.html"><i class="ico sm ico-chart"></i>漏斗分析</a>
+    <a href="#"><i class="ico sm ico-doc"></i>资讯</a>
+    <a href="settings.html"><i class="ico sm ico-gear"></i>设置</a>
+  </aside>
+  <div class="admin-main">
+    <header class="row between" style="padding:12px 4px;">
+      <div class="row" style="gap:10px;">
+        <b>仪表盘</b>
+        <span class="badge mut">数据截至 T-1（UTC 日）</span>
+      </div>
+      <span class="row"><select class="theme-switch" aria-label="主题"></select><a class="mini" href="../index.html">索引</a></span>
+    </header>
+
+    <div class="proto-note">对应实现：admin/src/pages/Dashboard（GET /api/admin/stats、/stats/trend?days=14、/stats/top-products）。漏斗分析为新增页（见 docs/design/analytics-funnel-design.md）。</div>
+
+    <div class="grid cols-4">
+      <div class="kpi"><div class="num">1,284</div><div class="lbl">今日 PV（UserVisitLog）</div></div>
+      <div class="kpi"><div class="num">96</div><div class="lbl">今日 UV（VisitorKey 去重）</div></div>
+      <div class="kpi"><div class="num">37</div><div class="lbl">今日订单数</div></div>
+      <div class="kpi"><div class="num">¥ 2,946.40</div><div class="lbl">今日支付金额</div></div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 2fr 1fr; margin-top: var(--sp-2);">
+      <section class="card">
+        <div class="card-head"><span class="card-title">近 14 日访问趋势</span><span class="legend"><span class="row" style="gap:4px;"><i style="width:10px;height:10px;background:var(--primary);border-radius:2px;display:inline-block;"></i>PV</span><span class="row" style="gap:4px;"><i style="width:10px;height:10px;background:var(--accent-2);border-radius:2px;display:inline-block;"></i>订单</span></span></div>
+        <div class="bars" aria-hidden="true">
+          <div style="--v:42%;"><i></i></div><div style="--v:38%;"><i></i></div><div style="--v:55%;"><i></i></div><div style="--v:47%;"><i></i></div><div style="--v:61%;"><i></i></div><div style="--v:72%;"><i></i></div><div style="--v:66%;"><i></i></div><div style="--v:58%;"><i></i></div><div style="--v:70%;"><i></i></div><div style="--v:78%;"><i></i></div><div style="--v:64%;"><i></i></div><div style="--v:82%;"><i></i></div><div style="--v:75%;"><i></i></div><div style="--v:88%;"><i></i></div>
+        </div>
+        <div class="row between mini muted" style="margin-top:6px;"><span>09-30</span><span>10-06</span><span>10-13</span></div>
+      </section>
+      <section class="card">
+        <div class="card-title" style="margin-bottom:8px;">热销商品 Top 5</div>
+        <table class="table">
+          <thead><tr><th>商品</th><th>销量</th><th>金额</th></tr></thead>
+          <tbody>
+            <tr><td>梦魇武器箱</td><td>412</td><td>¥ 5,273</td></tr>
+            <tr><td>地平线武器箱</td><td>388</td><td>¥ 2,405</td></tr>
+            <tr><td>命悬一线武器箱</td><td>350</td><td>¥ 1,470</td></tr>
+            <tr><td>裂空武器箱</td><td>301</td><td>¥ 2,678</td></tr>
+            <tr><td>CS2 钥匙</td><td>264</td><td>¥ 6,371</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <div class="grid cols-2" style="margin-top: var(--sp-2);">
+      <section class="card">
+        <div class="card-head"><span class="card-title">漏斗速览（T-1）</span><a class="mini" href="funnel.html">进漏斗页 →</a></div>
+        <div class="funnel">
+          <div class="funnel-step"><span class="funnel-name">浏览商品</span><div class="funnel-bar"><i style="width:100%;"></i></div><span class="funnel-meta"><b>1,284</b><span class="muted">—</span></span></div>
+          <div class="funnel-step"><span class="funnel-name">下单意向</span><div class="funnel-bar"><i style="width:41%;"></i></div><span class="funnel-meta"><b>527</b><span class="muted">41.0%</span></span></div>
+          <div class="funnel-step"><span class="funnel-name">创建订单</span><div class="funnel-bar"><i style="width:18%;"></i></div><span class="funnel-meta"><b>231</b><span class="muted">43.8%</span></span></div>
+          <div class="funnel-step"><span class="funnel-name">支付成功</span><div class="funnel-bar"><i style="width:12%;"></i></div><span class="funnel-meta"><b>154</b><span class="muted">66.7%</span></span></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-title" style="margin-bottom:8px;">系统状态</div>
+        <table class="table">
+          <tbody>
+            <tr><td class="muted">价格爬虫</td><td><span class="badge ok">运行中 · 6 站点</span></td></tr>
+            <tr><td class="muted">Scraper（资讯）</td><td><span class="badge ok">运行中</span></td></tr>
+            <tr><td class="muted">行情快照同步</td><td><span class="badge">上次 10-13 06:00</span></td></tr>
+            <tr><td class="muted">失败任务</td><td><span class="badge err">2（已退避重试）</span></td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </div>
+</div>
+<script src="../theme.js"></script>
+</body>
+</html>
