@@ -270,3 +270,4 @@
 - [x] **web 行情约合人民币**：非 CNY 快照价按 `/api/exchange-rates` 汇率显示「≈ ¥」（仅展示换算，符合设计）
 - [x] **web 文章详情页**：`/articles/:id`（`GET /api/articles/{id}`，运营 Banner 链接可指向）
 - [x] **文档同步**：features.md 状态列对齐（运营内容/汇率/积分优惠券/交易链接/手机端五行）
+- [x] **用户端金币流水明细**：新增 `GET /api/coins/logs`（自身份、分页、按时间倒序，CoinApiTests 两例：未授权 401、仅本人行+分页）；web/小程序/手机端用户中心均展示明细（web 表格 10 条，移动两端近 5 条）
