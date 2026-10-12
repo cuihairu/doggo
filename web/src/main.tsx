@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import App from './App'
 import NewsListPage from './pages/NewsListPage'
 import NewsDetailPage from './pages/NewsDetailPage'
+import ArticlePage from './pages/ArticlePage'
 import MarketPage from './pages/MarketPage'
 import MarketDetailPage from './pages/MarketDetailPage'
 import ProductListPage from './pages/ProductListPage'
@@ -23,6 +24,7 @@ createRoot(document.getElementById('root')!).render(
         <Route element={<App />}>
           <Route path="/" element={<NewsListPage />} />
           <Route path="/news/:id" element={<NewsDetailPage />} />
+          <Route path="/articles/:id" element={<ArticlePage />} />
           <Route path="/market" element={<MarketPage />} />
           <Route path="/market/:id" element={<MarketDetailPage />} />
           <Route path="/products" element={<ProductListPage />} />
