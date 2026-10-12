@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro from '@tarojs/taro'
-import { fetchOrder, OrderView, ApiError, kvGet, kvSet, yuan } from '@doggo/shared'
+import { cancelOrder, fetchOrder, OrderView, ApiError, kvGet, kvSet, payOrder, yuan } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted } from '../../ui'
 import { useTheme } from '../../theme'
 
@@ -25,6 +25,7 @@ export default function OrderPage() {
   const [orders, setOrders] = useState<Record<string, OrderView>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [manualId, setManualId] = useState('')
+  const [busyId, setBusyId] = useState('')
 
   const loadIds = useCallback(() => {
     setIds(kvGet<string[]>('doggo.orderIds') ?? [])
@@ -46,6 +47,38 @@ export default function OrderPage() {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ids])
+
+  // Payment polling (web OrderPayPage parity): while an unpaid order is on
+  // screen, re-fetch every 4s so the status flips as soon as the provider
+  // settles it.
+  const ordersRef = useRef(orders)
+  useEffect(() => {
+    ordersRef.current = orders
+  }, [orders])
+  useEffect(() => {
+    const timer = setInterval(() => {
+      Object.values(ordersRef.current).forEach((order) => {
+        if (order.status === 0) refresh(order.id)
+      })
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [refresh])
+
+  async function act(id: string, action: 'pay' | 'cancel') {
+    setBusyId(id)
+    try {
+      if (action === 'pay') {
+        await payOrder(id)
+      } else {
+        await cancelOrder(id)
+      }
+      refresh(id)
+    } catch (e) {
+      setErrors((prev) => ({ ...prev, [id]: e instanceof ApiError ? e.message : '操作失败' }))
+    } finally {
+      setBusyId('')
+    }
+  }
 
   function addManual() {
     const id = manualId.trim()
@@ -96,6 +129,12 @@ export default function OrderPage() {
                     <Muted>{String(order.createdAtUtc ?? '').slice(0, 19).replace('T', ' ')}</Muted>
                   </View>
                   {order.error ? <Muted style={{ color: t.danger }}>{order.error}</Muted> : null}
+                  {order.status === 0 ? (
+                    <View style={styles.row}>
+                      <Btn busy={busyId === id} onPress={() => act(id, 'pay')} style={styles.actionBtn}>支付</Btn>
+                      <Btn tone="danger" busy={busyId === id} onPress={() => act(id, 'cancel')} style={styles.actionBtn}>取消订单</Btn>
+                    </View>
+                  ) : null}
                 </>
               ) : null}
               {err ? <Muted style={{ color: t.danger }}>{err}</Muted> : null}
@@ -108,6 +147,7 @@ export default function OrderPage() {
 }
 
 const STATUS_COLOR: Record<number, string> = {
+  0: '#b7791f',
   4: '#2e9e5b',
   5: '#8a8f99',
   6: '#8a8f99'
@@ -123,5 +163,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 10
   },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  actionBtn: { flex: 1, marginHorizontal: 4 }
 })
