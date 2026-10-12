@@ -105,7 +105,9 @@ jobs:
           MYSQL_PASSWORD: ci-doggo-password
           AUTH_SECRET_KEY: ci-acceptance-secret-key-0123456789abcdef0123456789abcdef
         run: |
-          docker compose -f docker-compose.prod.yml exec -T mysql mysql -u doggo -p"$MYSQL_PASSWORD" doggo <<'SQL'
+          # --default-character-set=utf8mb4: the heredoc is UTF-8 and the
+          # client must not reinterpret it as latin1 (double-encoded rows).
+          docker compose -f docker-compose.prod.yml exec -T mysql mysql --default-character-set=utf8mb4 -u doggo -p"$MYSQL_PASSWORD" doggo <<'SQL'
           INSERT INTO Products (Id, Type, Name, ClassId, IconUrl, PurchasePriceCents, ReferencePriceCents, AdjustPriceCents, FinalPriceCents, RegularPriceCents, Status, PlanFlags, BuyNotice, SortOrder, DeletedAtUtc, CreatedAtUtc, UpdatedAtUtc)
           VALUES (UUID(), 0, 'CI 验收箱', 'ci-case-001', '', 500, 600, 0, 600, 800, 3, '', NULL, 0, NULL, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
           INSERT INTO NewsItems (Id, SourceId, Game, Title, Summary, ContentHtml, Url, UrlHash, Category, Tags, Author, CoverUrl, ViewCount, PublishedAtUtc, DeletedAtUtc, CreatedAtUtc, UpdatedAtUtc)

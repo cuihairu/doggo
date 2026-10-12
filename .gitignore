@@ -68,3 +68,4 @@ docs/.vitepress/dist/
 
 # OS
 .DS_Store
+acceptance/

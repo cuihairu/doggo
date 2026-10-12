@@ -9,6 +9,8 @@ set -uxo pipefail
 PKG=io.github.cuihairu.doggo
 SHOTS=acceptance
 APK=${APK:-app-release.apk}
+# CI stack uses ci-doggo-password; local stacks override at invocation.
+MYSQL_PASSWORD=${MYSQL_PASSWORD:-ci-doggo-password}
 mkdir -p "$SHOTS"
 
 shot() {
@@ -37,7 +39,9 @@ dump() {
 }
 
 # First bounds pair in the dump whose node text equals $1 (or contains $1 when
-# $2=contains). Bounds look like [x1,y1][x2,y2].
+# $2=contains). Bounds look like [x1,y1][x2,y2]. The first grep emits one match
+# per line ending at the closing quote of bounds="...", so the second grep
+# must not anchor to end-of-line (a trailing " would break the match).
 find_bounds() {
   local pattern
   if [ "${2:-}" = "contains" ]; then
@@ -46,7 +50,7 @@ find_bounds() {
     pattern="text=\"$1\""
   fi
   dump | grep -oE "$pattern[^\"]*\"[^>]*bounds=\"\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]\"" \
-    | grep -oE "\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]$" | head -1
+    | grep -oE "\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]" | head -1
 }
 
 tap_at() { # [x1,y1][x2,y2] -> tap the center
@@ -80,7 +84,7 @@ tap_edit() { # tap the $1-th (0-based) EditText on screen
   local xml b
   xml=$(dump)
   b=$(echo "$xml" | grep -oE 'class="android.widget.EditText"[^>]*bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' \
-    | sed -n "$(( $1 + 1 ))p" | grep -oE "\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]$")
+    | sed -n "$(( $1 + 1 ))p" | grep -oE "\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]")
   [ -n "$b" ] || { echo "edit text #$1 not found"; dump > "$SHOTS/ui-missing.xml" || true; exit 1; }
   tap_at "$b"
 }
@@ -100,15 +104,23 @@ assert_text() { # screen must show a node whose text contains $1
   exit 1
 }
 
-# Install: the package service can refuse right after boot, so retry.
+# Install: the package service can refuse right after boot, so retry. The
+# output is captured (not piped into grep -q) so pipefail cannot turn a
+# successful install into a retry loop and the error text stays visible.
 installed=0
 for i in 1 2 3 4 5 6 7 8; do
-  if adb install -r "$APK" 2>&1 | grep -q Success; then installed=1; break; fi
-  echo "install retry $i"
+  out=$(adb install -r "$APK" 2>&1)
+  case "$out" in *Success*) installed=1; break ;; esac
+  echo "install retry $i: $out"
   sleep 10
 done
 [ "$installed" = 1 ] || { echo "install failed"; exit 1; }
-adb shell pm list packages | grep -q "$PKG" || { echo "package missing"; exit 1; }
+# install -r keeps app data; a previous run's AsyncStorage cache would let
+# pages render without ever hitting the API. Clear it so every run starts
+# from true first-install state.
+adb shell pm clear "$PKG" >/dev/null
+pkgs=$(adb shell pm list packages 2>&1)
+case "$pkgs" in *"$PKG"*) ;; *) echo "package missing"; exit 1 ;; esac
 
 # Preflight: the API must still be healthy on the host. The app bundle in CI
 # targets http://127.0.0.1:5077, which adb reverse maps to the host port — no
@@ -150,11 +162,30 @@ tap_contains "单开"
 assert_text "账号登录"
 shot 08-login 3
 
-# Login with the seeded account.
+# Login with the seeded account. RN TextInputs are controlled (setState per
+# keystroke), so batched `input text` drops characters — type one char at a
+# time and let React keep up.
+type_slow() {
+  local text=$1 i
+  for ((i = 0; i < ${#text}; i++)); do
+    adb shell input text "${text:$i:1}"
+    sleep 0.2
+  done
+}
+# A tap issued while the IME window is up can be swallowed — close the
+# keyboard (back only hides the IME when it is shown) before tapping submit.
+hide_keyboard() {
+  if adb shell dumpsys input_method | grep -q 'mInputShown=true'; then
+    adb shell input keyevent 4
+    sleep 1
+  fi
+}
 tap_edit 0
-adb shell input text "13800000001"
+type_slow "13800000001"
 tap_edit 1
-adb shell input text "Passw0rd123"
+type_slow "Passw0rd123"
+shot 08b-login-filled 1
+hide_keyboard
 tap_text "登录"
 assert_text "金币余额"
 shot 09-after-login 4
@@ -172,7 +203,7 @@ shot 12-opening 4
 # The mock payment channel settles orders through its callback endpoint.
 # Post it here so the order page shows a paid state — the app itself keeps
 # no mock logic: pay returns the cashier URL and the provider calls back.
-ORDER_ROW=$(docker exec deploy-mysql-1 mysql -N -u doggo -pci-doggo-password doggo \
+ORDER_ROW=$(docker exec deploy-mysql-1 mysql -N -u doggo -p"$MYSQL_PASSWORD" doggo \
   -e "SELECT CONCAT(Id, ' ', TotalCostCents) FROM UserOrders ORDER BY CreatedAtUtc DESC LIMIT 1" 2>/dev/null)
 OID=$(echo "$ORDER_ROW" | awk '{print $1}')
 AMT=$(echo "$ORDER_ROW" | awk '{print $2}')
