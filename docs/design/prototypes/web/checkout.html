@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="brand">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 · web 下单支付 — doggo</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="brand-mark"></span>doggo</a>
+  <nav class="nav">
+    <a href="home.html">首页</a>
+    <a href="product.html">商品详情</a>
+    <a href="checkout.html" class="active">下单支付</a>
+    <a href="account.html">个人中心</a>
+    <a href="states.html">状态图</a>
+  </nav>
+  <div class="side">
+    <span class="muted mini">用户 <b>玩家 A</b> · <span class="price mini">320 金币</span></span>
+    <select class="theme-switch" aria-label="主题"></select>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="proto-note">对应实现：web 支付流程页（POST /api/orders → POST /api/orders/{id}/pay → 轮询订单状态）。支付为 mock 渠道，超时未支付自动取消。</div>
+  <div class="decor-ribbon" aria-hidden="true"></div>
+
+  <div class="row between" style="margin-bottom:14px;">
+    <h1 style="font-size:var(--fs-title);">确认订单</h1>
+    <span class="badge err"><i class="ico sm ico-clock"></i>剩余 14:32 超时关单</span>
+  </div>
+
+  <div class="grid cols-4">
+    <section style="grid-column: span 3;">
+      <div class="card">
+        <div class="card-head"><span class="card-title">订单内容</span><span class="badge mut">单号 D-20261013-000182</span></div>
+        <div class="row" style="gap:12px;">
+          <span class="ph" style="width:64px;height:64px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="ico lg ico-box"></i></span>
+          <div class="grow">
+            <b>梦魇武器箱</b>
+            <p class="mini muted">套餐：单开 × 1 · 支持优惠券与金币抵扣</p>
+          </div>
+          <span class="money">¥ 12.80</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px;">支付方式</div>
+        <div class="stack">
+          <label class="card flat row between" style="cursor:pointer;border-color:var(--primary);">
+            <span class="row"><i class="ico ico-wallet" style="color:var(--primary)"></i><b>微信（模拟）</b><span class="mini muted">Mock 渠道，支付链接即回跳</span></span>
+            <span class="badge ok"><i class="ico sm ico-check"></i>已选</span>
+          </label>
+          <label class="card flat row between">
+            <span class="row"><i class="ico ico-wallet" style="color:var(--muted)"></i><b>支付宝（待接入）</b><span class="mini muted">真实渠道按需接入</span></span>
+            <span class="badge mut">暂不可用</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card flat">
+        <label class="row" style="gap:8px;"><input type="checkbox" checked style="width:auto;"> 我已阅读并同意 <a href="#">服务条款</a> 与 <a href="#">开箱规则</a></label>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px;">金额明细</div>
+        <table class="table">
+          <tbody>
+            <tr><td class="muted">商品金额</td><td class="strong">¥ 13.50</td></tr>
+            <tr><td class="muted">优惠券</td><td class="up">− ¥ 2.00</td></tr>
+            <tr><td class="muted">金币抵扣（50）</td><td class="up">− ¥ 0.50</td></tr>
+            <tr><td class="muted">首单优惠</td><td class="up">− ¥ 0.20</td></tr>
+            <tr><td class="strong">应付</td><td class="money" style="font-size:20px;color:var(--primary)">¥ 10.80</td></tr>
+          </tbody>
+        </table>
+        <button class="btn block" style="min-height:46px;margin-top:12px;">立即支付 ¥ 10.80 <i class="ico sm ico-next"></i></button>
+        <p class="mini muted" style="margin-top:8px;">支付成功后自动进入开箱流程；也可稍后在「我的订单」继续。</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid cols-3" style="margin-top:16px;">
+    <div class="card">
+      <div class="row" style="margin-bottom:6px;"><i class="ico ico-check" style="color:var(--success)"></i><b>1. 提交订单</b></div>
+      <p class="mini muted">生成订单号，30 分钟内完成支付</p>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:6px;"><i class="ico ico-wallet" style="color:var(--primary)"></i><b>2. 完成支付</b></div>
+      <p class="mini muted">状态：待支付 → 待结算</p>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:6px;"><i class="ico ico-box" style="color:var(--primary)"></i><b>3. 开箱取货</b></div>
+      <p class="mini muted">结果落「我的奖品」，取回需 Steam 交易链接</p>
+    </div>
+  </div>
+</main>
+<script src="../theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="brand">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 · web 商品详情 — doggo</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="brand-mark"></span>doggo</a>
+  <nav class="nav">
+    <a href="home.html">首页</a>
+    <a href="product.html" class="active">商品详情</a>
+    <a href="checkout.html">下单支付</a>
+    <a href="account.html">个人中心</a>
+    <a href="states.html">状态图</a>
+  </nav>
+  <div class="side">
+    <span class="muted mini">用户 <b>玩家 A</b></span>
+    <select class="theme-switch" aria-label="主题"></select>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="proto-note">对应实现：web/src/pages/ProductPage.tsx（GET /api/products/{id}）。右侧选购区是漏斗「加购」事件位（选套餐/选数量 = checkout_intent）。</div>
+  <div class="decor-ribbon" aria-hidden="true"></div>
+  <p class="mini muted"><a href="home.html">首页</a> / <a href="home.html">商品</a> / 梦魇武器箱</p>
+
+  <div class="grid" style="grid-template-columns: 1.5fr 1fr;">
+    <section>
+      <div class="card">
+        <div style="height:260px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--muted);">
+          <span class="stack" style="align-items:center;"><i class="ico lg ico-box" style="width:56px;height:56px;"></i><span class="mini">封面图（真实图标用 /api 返回的 iconUrl）</span></span>
+        </div>
+        <div class="row wrap" style="margin-top:10px;">
+          <span class="ph" style="width:56px;height:56px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--primary)"><i class="ico ico-box"></i></span>
+          <span class="ph" style="width:56px;height:56px;border-radius:8px;background:var(--primary-weak);display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="ico ico-box"></i></span>
+          <span class="ph" style="width:56px;height:56px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="ico ico-box"></i></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px;">包含内容（40 项）</div>
+        <div class="grid cols-4">
+          <span class="card flat row"><span class="badge">刀皮</span><span class="mini">★6</span></span>
+          <span class="card flat row"><span class="badge">枪皮</span><span class="mini">★5</span></span>
+          <span class="card flat row"><span class="badge">手套</span><span class="mini">★7</span></span>
+          <span class="card flat row"><span class="badge">贴纸</span><span class="mini">★4</span></span>
+          <span class="card flat row"><span class="badge">钥匙</span><span class="mini">★6</span></span>
+          <span class="card flat row"><span class="badge">枪皮</span><span class="mini">★3</span></span>
+          <span class="card flat row"><span class="badge">枪皮</span><span class="mini">★3</span></span>
+          <span class="card flat row muted mini">… 其余 32 项</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <span class="row" style="gap:8px;margin-bottom:6px;"><span class="badge mut">CS2</span><span class="badge">在售</span></span>
+        <h1 style="font-size:var(--fs-title);">梦魇武器箱</h1>
+        <p class="muted mini">开启即得 40 项内容之一，按真实 Steam 掉落</p>
+        <div class="row between" style="margin:14px 0 4px;">
+          <span class="money" style="font-size:26px;color:var(--primary);">¥ 12.80</span>
+          <span class="muted mini" style="text-decoration:line-through;">¥ 13.50</span>
+        </div>
+        <p class="mini muted">库存充足 · 支持优惠券与金币抵扣</p>
+
+        <hr class="divider">
+        <p class="label" style="margin-bottom:8px;">套餐</p>
+        <div class="grid cols-3" style="margin-bottom:10px;">
+          <span class="card flat on" style="text-align:center;border-color:var(--primary);">
+            <b style="display:block;">单开</b><span class="mini">¥ 12.80</span>
+          </span>
+          <span class="card flat" style="text-align:center;">
+            <b style="display:block;">三开</b><span class="mini">¥ 36.00</span>
+          </span>
+          <span class="card flat" style="text-align:center;">
+            <b style="display:block;">十开</b><span class="mini">¥ 112.00</span>
+          </span>
+        </div>
+
+        <div class="field">
+          <label class="label">金币抵扣</label>
+          <select><option>不使用金币</option><option>抵扣 50 金币（−¥0.50）</option><option>抵扣 200 金币（−¥2.00）</option></select>
+        </div>
+        <div class="field">
+          <label class="label">优惠券</label>
+          <select><option>不使用</option><option>满 10 减 2（券后 ¥10.80）</option></select>
+        </div>
+
+        <button class="btn block" style="min-height:44px;">立即开箱 · ¥ 12.80 <i class="ico sm ico-next"></i></button>
+        <p class="mini muted" style="text-align:center;margin-top:8px;">支付后进入开箱流程，结果即时可见</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">行情参考价</div>
+        <table class="table">
+          <thead><tr><th>参考内容</th><th>近 30 日</th></tr></thead>
+          <tbody>
+            <tr><td>AK-47 | 红线</td><td><span class="up">+2.3%</span></td></tr>
+            <tr><td>M4A1 | 印花集</td><td><span class="down">-1.1%</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+<script src="../theme.js"></script>
+</body>
+</html>

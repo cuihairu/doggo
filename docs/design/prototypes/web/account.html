@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="brand">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 · web 个人中心与主题设置 — doggo</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+<style>
+  .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .theme-pick { text-align: center; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-s); background: var(--surface); cursor: pointer; }
+  .theme-pick.on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-weak); }
+  .theme-pick .swatches { grid-template-columns: repeat(6, 1fr); gap: 3px; }
+  .theme-pick .swatch { border: 0; padding: 0; }
+  .theme-pick .swatch > i { height: 16px; }
+  .theme-pick b { display: block; font-size: var(--fs-min); margin-top: 6px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="brand-mark"></span>doggo</a>
+  <nav class="nav">
+    <a href="home.html">首页</a>
+    <a href="product.html">商品详情</a>
+    <a href="checkout.html">下单支付</a>
+    <a href="account.html" class="active">个人中心</a>
+    <a href="states.html">状态图</a>
+  </nav>
+  <div class="side">
+    <select class="theme-switch" aria-label="主题"></select>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="proto-note">对应实现：web/src/pages/UserCenterPage.tsx（GET /api/auth/me、/api/coins、/api/coupons、/api/coins/logs、/api/invites、/api/sign）。本页新增「主题设置」卡片——多主题的用户入口。</div>
+  <div class="decor-ribbon" aria-hidden="true"></div>
+  <h1 class="page-title">个人中心</h1>
+
+  <div class="grid cols-4">
+    <div class="card">
+      <div class="row" style="gap:12px;margin-bottom:10px;">
+        <span class="brand-mark" style="width:44px;height:44px;border-radius:50%;"></span>
+        <div><b>玩家 A</b><p class="mini muted">139****8888</p></div>
+      </div>
+      <table class="table">
+        <tbody>
+          <tr><td class="muted">邀请码</td><td class="strong">DOG-7K2F</td></tr>
+          <tr><td class="muted">金币</td><td class="price">320</td></tr>
+          <tr><td class="muted">可用券</td><td class="strong">2 张</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px;">本周签到</div>
+      <div class="grid cols-4" style="gap:6px;margin-bottom:10px;">
+        <span class="card flat on" style="text-align:center;padding:6px;border-color:var(--success);color:var(--success);">周一</span>
+        <span class="card flat on" style="text-align:center;padding:6px;border-color:var(--success);color:var(--success);">周二</span>
+        <span class="card flat on" style="text-align:center;padding:6px;border-color:var(--success);color:var(--success);">周三</span>
+        <span class="card flat" style="text-align:center;padding:6px;color:var(--primary);">今天</span>
+      </div>
+      <button class="btn block">签到 +10 金币</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px;">兑换码</div>
+      <div class="field" style="margin-bottom:8px;"><input placeholder="输入兑换码"></div>
+      <button class="btn ghost block sm">兑换</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px;">邀请返利</div>
+      <p class="mini muted">已成功邀请 <b class="strong">3</b> 人，累计奖励 <b class="price">150</b> 金币</p>
+      <button class="btn ghost block sm" style="margin-top:8px;">复制链接</button>
+    </div>
+  </div>
+
+  <!-- 主题设置：多主题用户入口 -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-head">
+      <span class="card-title row"><i class="ico ico-moon" style="color:var(--primary)"></i>外观与主题</span>
+      <span class="mini muted">当前：<span class="theme-current strong">默认（品牌）</span></span>
+    </div>
+    <p class="mini muted" style="margin-bottom:10px;">主题 = 颜色令牌 + 图案装饰件。切换只换配色与图案，页面结构与信息层级不变；选择会保存并同步到本端其余页面。</p>
+    <div class="theme-grid">
+      <span class="theme-pick on"><span class="swatches"><span class="swatch"><i style="background:#ffffff"></i></span><span class="swatch"><i style="background:#2f66d0"></i></span><span class="swatch"><i style="background:#e8effc"></i></span><span class="swatch"><i style="background:#c7893b"></i></span><span class="swatch"><i style="background:#1f2329"></i></span><span class="swatch"><i style="background:#f5f6f8"></i></span></span><b>默认（品牌）</b></span>
+      <span class="theme-pick"><span class="swatches"><span class="swatch"><i style="background:#1b1f24"></i></span><span class="swatch"><i style="background:#6a96f0"></i></span><span class="swatch"><i style="background:#333b45"></i></span><span class="swatch"><i style="background:#e0b069"></i></span><span class="swatch"><i style="background:#e6e9ec"></i></span><span class="swatch"><i style="background:#121417"></i></span></span><b>暗色</b></span>
+      <span class="theme-pick"><span class="swatches"><span class="swatch"><i style="background:#ffffff"></i></span><span class="swatch"><i style="background:#c62828"></i></span><span class="swatch"><i style="background:#fde3e0"></i></span><span class="swatch"><i style="background:#c7893b"></i></span><span class="swatch"><i style="background:#3a1214"></i></span><span class="swatch"><i style="background:#fff5f2"></i></span></span><b>节日·春节</b></span>
+      <span class="theme-pick"><span class="swatches"><span class="swatch"><i style="background:#fffdfb"></i></span><span class="swatch"><i style="background:#e06a3c"></i></span><span class="swatch"><i style="background:#fbe3d6"></i></span><span class="swatch"><i style="background:#d19a2f"></i></span><span class="swatch"><i style="background:#4a2a1c"></i></span><span class="swatch"><i style="background:#fff8f4"></i></span></span><b>节日·元宵</b></span>
+      <span class="theme-pick"><span class="swatches"><span class="swatch"><i style="background:#ffffff"></i></span><span class="swatch"><i style="background:#0f7a5c"></i></span><span class="swatch"><i style="background:#d7ece4"></i></span><span class="swatch"><i style="background:#b8862f"></i></span><span class="swatch"><i style="background:#123c30"></i></span><span class="swatch"><i style="background:#eef6f3"></i></span></span><b>节日·端午</b></span>
+      <span class="theme-pick"><span class="swatches"><span class="swatch"><i style="background:#1a2236"></i></span><span class="swatch"><i style="background:#e3b548"></i></span><span class="swatch"><i style="background:#232c44"></i></span><span class="swatch"><i style="background:#f0c674"></i></span><span class="swatch"><i style="background:#eef1f8"></i></span><span class="swatch"><i style="background:#101626"></i></span></span><b>节日·中秋</b></span>
+      <span class="theme-pick"><span class="swatches"><span class="swatch"><i style="background:#ffffff"></i></span><span class="swatch"><i style="background:#d8322a"></i></span><span class="swatch"><i style="background:#fbe3df"></i></span><span class="swatch"><i style="background:#d4a017"></i></span><span class="swatch"><i style="background:#3d1414"></i></span><span class="swatch"><i style="background:#fff7f5"></i></span></span><b>节日·国庆</b></span>
+      <span class="theme-pick"><span class="swatches"><span class="swatch"><i style="background:#ffffff"></i></span><span class="swatch"><i style="background:#e0688f"></i></span><span class="swatch"><i style="background:#fbe0eb"></i></span><span class="swatch"><i style="background:#7fc4a0"></i></span><span class="swatch"><i style="background:#33262e"></i></span><span class="swatch"><i style="background:#fdf6f9"></i></span></span><b>季节·春</b></span>
+      <span class="theme-pick"><span class="swatches"><span class="swatch"><i style="background:#ffffff"></i></span><span class="swatch"><i style="background:#0f9bb0"></i></span><span class="swatch"><i style="background:#d6f0f4"></i></span><span class="swatch"><i style="background:#e0912f"></i></span><span class="swatch"><i style="background:#123c44"></i></span><span class="swatch"><i style="background:#f0fafb"></i></span></span><b>季节·夏</b></span>
+      <span class="theme-pick"><span class="swatches"><span class="swatch"><i style="background:#fffdf9"></i></span><span class="swatch"><i style="background:#b4622a"></i></span><span class="swatch"><i style="background:#f7e4d3"></i></span><span class="swatch"><i style="background:#c9912b"></i></span><span class="swatch"><i style="background:#3c2a18"></i></span><span class="swatch"><i style="background:#fbf5ec"></i></span></span><b>季节·秋</b></span>
+      <span class="theme-pick"><span class="swatches"><span class="swatch"><i style="background:#ffffff"></i></span><span class="swatch"><i style="background:#3d7ea6"></i></span><span class="swatch"><i style="background:#e0eef7"></i></span><span class="swatch"><i style="background:#b98b3c"></i></span><span class="swatch"><i style="background:#1c2833"></i></span><span class="swatch"><i style="background:#f3f6f9"></i></span></span><b>季节·冬</b></span>
+    </div>
+    <div class="row between" style="margin-top:12px;">
+      <span class="mini muted">自动切换：可在节日与季节区间内按日历自动生效（需用户许可）</span>
+      <span class="row"><span class="chip on">仅本端</span><span class="chip">同步四端</span></span>
+    </div>
+  </div>
+
+  <div class="grid cols-3" style="margin-top:16px;">
+    <div class="card" style="grid-column: span 2;">
+      <div class="card-head"><span class="card-title">金币明细</span><span class="mini muted">近 5 笔</span></div>
+      <table class="table">
+        <thead><tr><th>时间</th><th>类型</th><th>变动</th><th>余额</th></tr></thead>
+        <tbody>
+          <tr><td class="mini muted">10-13 09:12</td><td>邀请返利</td><td class="up">+50</td><td>320</td></tr>
+          <tr><td class="mini muted">10-12 08:00</td><td>签到</td><td class="up">+10</td><td>270</td></tr>
+          <tr><td class="mini muted">10-11 21:40</td><td>下单抵扣</td><td class="down">−50</td><td>260</td></tr>
+          <tr><td class="mini muted">10-10 12:05</td><td>兑换码</td><td class="up">+100</td><td>310</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">我的优惠券</span><span class="badge">2 张</span></div>
+      <div class="stack">
+        <div class="card flat row between"><span><b>满 10 减 2</b><p class="mini muted">10-20 到期</p></span><span class="badge">可用</span></div>
+        <div class="card flat row between"><span><b>95 折（上限 ¥5）</b><p class="mini muted">10-31 到期</p></span><span class="badge">可用</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="card-head"><span class="card-title">Steam 交易链接</span><span class="badge ok"><i class="ico sm ico-check"></i>已验证</span></div>
+    <p class="mono mini muted">steam://tradeoffer/new/partner/7656119... ?token=…</p>
+  </div>
+</main>
+<script src="../theme.js"></script>
+</body>
+</html>

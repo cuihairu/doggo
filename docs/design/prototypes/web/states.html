@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="brand">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 · web 关键流程状态图 — doggo</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="brand-mark"></span>doggo</a>
+  <nav class="nav">
+    <a href="home.html">首页</a>
+    <a href="product.html">商品详情</a>
+    <a href="checkout.html">下单支付</a>
+    <a href="account.html">个人中心</a>
+    <a href="states.html" class="active">状态图</a>
+  </nav>
+  <div class="side"><select class="theme-switch" aria-label="主题"></select></div>
+</header>
+
+<main class="shell">
+  <div class="proto-note">关键流程状态图：以「下单支付」为主流程，覆盖空态 / 加载 / 错误 / 成功四态；右上切换主题验证同一状态在 11 套主题下的表现。</div>
+  <div class="decor-ribbon" aria-hidden="true"></div>
+
+  <h2 class="page-title">一、下单支付：四态</h2>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div class="states-grid">
+      <div class="card state-cell" style="border:0;">
+        <div class="stack" style="align-items:stretch;margin-bottom:8px;">
+          <div class="card flat row" style="padding:8px;"><span class="ph" style="width:36px;height:36px;border-radius:6px;background:var(--surface-2)"></span><span class="grow"><span class="skeleton skel-line" style="width:70%"></span><span class="skeleton skel-line" style="width:40%"></span></span></div>
+          <span class="skeleton skel-line" style="width:90%"></span>
+          <span class="skeleton skel-line" style="width:60%"></span>
+          <span class="skeleton skel-line" style="width:35%"></span>
+          <span class="skeleton skel-block" style="height:26px"></span>
+        </div>
+        <div class="state-label">加载：骨架屏 + shimmer，按钮置灰不可点</div>
+      </div>
+
+      <div class="card state-cell" style="border:0;">
+        <div class="card flat" style="text-align:center;padding:18px 12px;">
+          <i class="ico ico-filter" style="width:30px;height:30px;color:var(--muted);"></i>
+          <p style="margin-top:6px;font-weight:700;">没有可显示的内容</p>
+          <p class="mini muted">当前条件（单开 × 1）下没有可选优惠券或可用金币</p>
+          <span class="btn ghost sm" style="margin-top:8px;">清空筛选条件</span>
+        </div>
+        <div class="state-label">空态：说明原因 + 下一步动作，不空着</div>
+      </div>
+
+      <div class="card state-cell" style="border:0;">
+        <div class="card flat error-box" style="padding:16px 12px;">
+          <i class="ico ico-warn"></i>
+          <p style="font-weight:700;">支付通道暂不可用</p>
+          <p class="mini">渠道超时，已为你保留订单 14:32</p>
+          <div class="row" style="justify-content:center;gap:8px;margin-top:8px;">
+            <span class="btn sm"><i class="ico sm ico-refresh"></i>重试</span>
+            <span class="btn ghost sm">换一个方式</span>
+          </div>
+        </div>
+        <div class="state-label">错误：可重试 + 替代路径，不吞掉错误</div>
+      </div>
+
+      <div class="card state-cell" style="border:0;">
+        <div class="card flat success-box" style="padding:16px 12px;">
+          <i class="ico ico-check"></i>
+          <p style="font-weight:700;">支付成功</p>
+          <p class="mini">¥ 10.80 · 已进入开箱流程</p>
+          <span class="btn sm" style="margin-top:8px;">查看开箱结果</span>
+        </div>
+        <div class="state-label">成功：给出明确下一步，不让人停在原地</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="page-title">二、列表页：四态（商品 / 行情）</h2>
+  <div class="card">
+    <div class="states-grid">
+      <div class="card state-cell" style="border:0;">
+        <div class="stack" style="align-items:stretch;margin-bottom:8px;">
+          <span class="skeleton skel-block" style="height:70px"></span>
+          <span class="skeleton skel-line"></span>
+          <span class="skeleton skel-line" style="width:50%"></span>
+        </div>
+        <div class="state-label">加载</div>
+      </div>
+      <div class="card state-cell" style="border:0;">
+        <div class="empty" style="padding:18px 8px;">
+          <i class="ico ico-box"></i>
+          <p style="font-weight:700;">没有符合条件的商品</p>
+          <p class="mini">试试清空搜索词或切换类型</p>
+        </div>
+        <div class="state-label">空态（搜索无结果）</div>
+      </div>
+      <div class="card state-cell" style="border:0;">
+        <div class="error-box" style="padding:18px 8px;">
+          <i class="ico ico-warn"></i>
+          <p style="font-weight:700;">加载失败</p>
+          <p class="mini">网络异常，请重试</p>
+          <span class="btn ghost sm" style="margin-top:6px;"><i class="ico sm ico-refresh"></i>重试</span>
+        </div>
+        <div class="state-label">错误</div>
+      </div>
+      <div class="card state-cell" style="border:0;">
+        <div class="stack" style="margin-bottom:8px;">
+          <span class="card flat row"><i class="ico ico-box" style="color:var(--primary)"></i><span class="grow">梦魇武器箱</span><span class="money">¥ 12.80</span></span>
+          <span class="card flat row"><i class="ico ico-box" style="color:var(--primary)"></i><span class="grow">地平线武器箱</span><span class="money">¥ 6.20</span></span>
+        </div>
+        <div class="state-label">正常：首屏 24 条，滚动加载更多</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="page-title">三、轻提示与超时提示</h2>
+  <div class="card">
+    <div class="row wrap" style="gap:10px;">
+      <span class="badge ok"><i class="ico sm ico-check"></i>支付成功</span>
+      <span class="badge err"><i class="ico sm ico-warn"></i>订单已超时取消</span>
+      <span class="badge gold"><i class="ico sm ico-coin"></i>金币 −50</span>
+      <span class="badge mut">库存紧张</span>
+    </div>
+    <p class="mini muted" style="margin-top:10px;">轻提示只用于瞬时反馈；状态变化必须落到页面元素上（余额、按钮文案、状态徽章），不只弹一次就消失。</p>
+  </div>
+</main>
+<script src="../theme.js"></script>
+</body>
+</html>
