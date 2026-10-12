@@ -1,5 +1,11 @@
 import { PropsWithChildren } from 'react'
 import { setApiBase } from '@doggo/shared'
+import { installStorage, preloadStorage } from './storage'
+
+// RN has no working Taro sync storage; route the shared layer through the
+// AsyncStorage-backed adapter and preload persisted values.
+installStorage()
+preloadStorage()
 
 // Emulator default: 10.0.2.2 is the host loopback from the Android emulator.
 // Override at bundle time with TARO_APP_API_BASE.

@@ -1,21 +1,13 @@
-import Taro from '@tarojs/taro'
+import { kvGet, kvSet } from '@doggo/shared'
 
 /**
  * Weak-network degradation: list pages keep their last successful payload in
  * storage and render it (with a hint) when a refresh fails.
  */
 export function loadCache<T>(key: string): T | null {
-  try {
-    return (Taro.getStorageSync(key) as T) ?? null
-  } catch {
-    return null
-  }
+  return kvGet<T>(key)
 }
 
 export function saveCache<T>(key: string, value: T) {
-  try {
-    Taro.setStorageSync(key, value)
-  } catch {
-    // storage full or unavailable — degradation simply won't kick in
-  }
+  kvSet(key, value)
 }

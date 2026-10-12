@@ -20,6 +20,50 @@ export function setApiBase(base: string) {
 const ACCESS_KEY = 'doggo.accessToken'
 const REFRESH_KEY = 'doggo.refreshToken'
 
+/**
+ * Storage seam: mini-program runtimes have synchronous Taro storage, but the
+ * taro-rn stubs for *StorageSync return Error objects, which would poison the
+ * token headers. Platforms whose Taro lacks working sync storage inject an
+ * adapter here at startup (mobile RN backs it with a memory map persisted
+ * through AsyncStorage).
+ */
+export interface StorageAdapter {
+  get(key: string): unknown
+  set(key: string, value: unknown): void
+  remove(key: string): void
+}
+
+let storage: StorageAdapter = {
+  get: (key) => Taro.getStorageSync(key),
+  set: (key, value) => Taro.setStorageSync(key, value),
+  remove: (key) => Taro.removeStorageSync(key)
+}
+
+export function setStorageAdapter(adapter: StorageAdapter) {
+  storage = adapter
+}
+
+/** Generic key-value reads behind the same platform seam. Some storages
+ * return '' for missing keys, which callers can never distinguish from a
+ * stored empty string — both surface here as null. */
+export function kvGet<T>(key: string): T | null {
+  try {
+    const v = storage.get(key)
+    if (v == null || v === '') return null
+    return v as T
+  } catch {
+    return null
+  }
+}
+
+export function kvSet<T>(key: string, value: T) {
+  try {
+    storage.set(key, value)
+  } catch {
+    // storage full or unavailable — callers just lose the cache
+  }
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -30,21 +74,21 @@ export class ApiError extends Error {
 }
 
 export function getAccessToken(): string {
-  return Taro.getStorageSync<string>(ACCESS_KEY) ?? ''
+  return (storage.get(ACCESS_KEY) as string) ?? ''
 }
 
 export function getRefreshToken(): string {
-  return Taro.getStorageSync<string>(REFRESH_KEY) ?? ''
+  return (storage.get(REFRESH_KEY) as string) ?? ''
 }
 
 export function saveTokens(accessToken: string, refreshToken: string) {
-  Taro.setStorageSync(ACCESS_KEY, accessToken)
-  Taro.setStorageSync(REFRESH_KEY, refreshToken)
+  storage.set(ACCESS_KEY, accessToken)
+  storage.set(REFRESH_KEY, refreshToken)
 }
 
 export function clearTokens() {
-  Taro.removeStorageSync(ACCESS_KEY)
-  Taro.removeStorageSync(REFRESH_KEY)
+  storage.remove(ACCESS_KEY)
+  storage.remove(REFRESH_KEY)
 }
 
 interface RequestOptions {

@@ -3,7 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Taro, { useRouter } from '@tarojs/taro'
 import {
   createOrder, fetchProduct, fetchProfile, payOrder,
-  ApiError, getAccessToken, ProductDetail, yuan
+  ApiError, getAccessToken, kvGet, kvSet, ProductDetail, yuan
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
 import { useTheme } from '../../theme'
@@ -33,14 +33,9 @@ export default function ProductPage() {
   }, [router.params])
 
   function rememberOrder(id: string) {
-    try {
-      const list = (Taro.getStorageSync('doggo.orderIds') as string[] | undefined) ?? []
-      const next = [id, ...list.filter((x) => x !== id)].slice(0, 10)
-      Taro.setStorageSync('doggo.orderIds', next)
-      Taro.setStorageSync('doggo.lastOrderId', id)
-    } catch {
-      // storage unavailable — the order page just won't have history
-    }
+    const list = kvGet<string[]>('doggo.orderIds') ?? []
+    kvSet('doggo.orderIds', [id, ...list.filter((x) => x !== id)].slice(0, 10))
+    kvSet('doggo.lastOrderId', id)
   }
 
   async function buy(planId?: string, optionId?: string) {

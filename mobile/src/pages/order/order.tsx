@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro from '@tarojs/taro'
-import { fetchOrder, OrderView, ApiError, yuan } from '@doggo/shared'
+import { fetchOrder, OrderView, ApiError, kvGet, kvSet, yuan } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted } from '../../ui'
 import { useTheme } from '../../theme'
 
@@ -27,12 +27,7 @@ export default function OrderPage() {
   const [manualId, setManualId] = useState('')
 
   const loadIds = useCallback(() => {
-    try {
-      const list = (Taro.getStorageSync('doggo.orderIds') as string[] | undefined) ?? []
-      setIds(list)
-    } catch {
-      setIds([])
-    }
+    setIds(kvGet<string[]>('doggo.orderIds') ?? [])
   }, [])
 
   const refresh = useCallback((id: string) => {
@@ -55,12 +50,8 @@ export default function OrderPage() {
   function addManual() {
     const id = manualId.trim()
     if (!id) return
-    try {
-      const list = (Taro.getStorageSync('doggo.orderIds') as string[] | undefined) ?? []
-      Taro.setStorageSync('doggo.orderIds', [id, ...list.filter((x) => x !== id)].slice(0, 10))
-    } catch {
-      // ignore
-    }
+    const list = kvGet<string[]>('doggo.orderIds') ?? []
+    kvSet('doggo.orderIds', [id, ...list.filter((x) => x !== id)].slice(0, 10))
     setManualId('')
     loadIds()
   }

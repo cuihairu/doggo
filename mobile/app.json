@@ -10,8 +10,17 @@
       "resizeMode": "contain"
     },
     "android": {
-      "package": "io.github.cuihairu.doggo",
-      "usesCleartextTraffic": true
-    }
+      "package": "io.github.cuihairu.doggo"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ]
   }
 }
