@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="brand">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 · 手机端 我的订单 — doggo</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+</head>
+<body>
+<div class="card row between" style="max-width:520px;margin:14px auto 10px;padding:8px 14px;">
+  <span class="mini muted">手机端 · 我的订单（mobile 独有页面；从「我的」进入）</span>
+  <span class="row"><select class="theme-switch" aria-label="主题"></select><a class="mini" href="home.html">返回</a></span>
+</div>
+
+<div class="phone-wrap">
+  <div class="phone">
+    <div class="statusbar"><span>9:41</span><span>doggo</span><span>◍</span></div>
+    <div class="appbar">
+      <span class="row" style="gap:6px;"><i class="ico sm ico-back"></i><b>我的订单</b></span>
+    </div>
+    <div class="screen">
+      <div class="proto-note mini">对应实现：mobile/src/pages/order/order.tsx（订单列表 + 待支付重付）。状态：待支付 / 已支付·待结算 / 已完成 / 已取消；超时不支付自动关单。</div>
+
+      <div class="card">
+        <div class="row" style="gap:10px;">
+          <span class="ph" style="width:44px;height:44px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="ico ico-box"></i></span>
+          <span class="grow"><b>梦魇武器箱 · 单开</b><p class="mini muted">10-13 09:12 · D-20261013-000182</p></span>
+          <b class="money">¥ 10.80</b>
+        </div>
+        <div class="row between" style="margin-top:8px;">
+          <span class="badge err"><i class="ico sm ico-clock"></i>待支付 · 剩 13:07</span>
+          <span class="row" style="gap:6px;"><button class="btn sm">继续支付</button><button class="btn ghost sm">取消</button></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="gap:10px;">
+          <span class="ph" style="width:44px;height:44px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="ico ico-box"></i></span>
+          <span class="grow"><b>梦魇武器箱 · 三开</b><p class="mini muted">10-12 20:35 · D-20261012-000170</p></span>
+          <b class="money">¥ 36.00</b>
+        </div>
+        <div class="row between" style="margin-top:8px;">
+          <span class="badge ok"><i class="ico sm ico-check"></i>已完成 · 奖品 2 件</span>
+          <span class="row" style="gap:6px;"><button class="btn ghost sm">查看奖品</button></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="gap:10px;">
+          <span class="ph" style="width:44px;height:44px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="ico ico-box"></i></span>
+          <span class="grow"><b>地平线武器箱 · 单开</b><p class="mini muted">10-11 11:02 · D-20261011-000155</p></span>
+          <b class="money">¥ 6.20</b>
+        </div>
+        <div class="row between" style="margin-top:8px;">
+          <span class="badge mut"><i class="ico sm ico-close"></i>已取消 · 超时未支付</span>
+          <span class="row" style="gap:6px;"><button class="btn ghost sm">再次购买</button></span>
+        </div>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <a href="home.html"><i class="ico ico-home"></i>首页</a>
+      <a href="product.html"><i class="ico ico-box"></i>商品</a>
+      <a href="market.html"><i class="ico ico-chart"></i>行情</a>
+      <a href="profile.html"><i class="ico ico-user"></i>我的</a>
+    </nav>
+  </div>
+</div>
+<script src="../theme.js"></script>
+</body>
+</html>

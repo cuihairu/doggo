@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="brand">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 · 小程序 我的 — doggo</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+</head>
+<body>
+<div class="card row between" style="max-width:520px;margin:14px auto 10px;padding:8px 14px;">
+  <span class="mini muted">小程序端 · 我的（tab 4/4，含主题入口）</span>
+  <span class="row"><select class="theme-switch" aria-label="主题"></select><a class="mini" href="home.html">返回</a></span>
+</div>
+
+<div class="phone-wrap">
+  <div class="phone">
+    <div class="statusbar"><span>9:41</span><span>doggo · 小程序</span><span>◍</span></div>
+    <div class="appbar"><b>我的</b></div>
+    <div class="screen">
+      <div class="proto-note mini">对应实现：miniapp/src/pages/user/user.tsx（GET /api/auth/me、/api/coins、/api/coupons、/api/sign、/api/invites）。新增「主题外观」入口，与 web 个人中心一致。</div>
+
+      <div class="me-head">
+        <span class="avatar"><i class="ico ico-user"></i></span>
+        <span><b>玩家 A</b><p class="mini muted">139****8888 · 邀请码 DOG-7K2F</p></span>
+      </div>
+
+      <div class="stat-row">
+        <a class="stat-cell" href="#"><b class="price">320</b><i class="mini muted">金币</i></a>
+        <a class="stat-cell" href="#"><b>2</b><i class="mini muted">优惠券</i></a>
+        <a class="stat-cell" href="#"><b>3</b><i class="mini muted">邀请</i></a>
+      </div>
+
+      <div class="card flat row" style="margin-bottom:8px;">
+        <span class="row"><i class="ico sm ico-moon" style="color:var(--primary)"></i><b class="mini">主题外观</b></span>
+        <span class="row"><span class="mini muted theme-current">默认（品牌）</span><i class="ico sm ico-next"></i></span>
+      </div>
+
+      <div class="menu-group">
+        <a class="menu-item" href="#"><span class="row"><i class="ico sm ico-box" style="color:var(--primary)"></i>我的奖品</span><i class="ico sm ico-next"></i></a>
+        <a class="menu-item" href="#"><span class="row"><i class="ico sm ico-doc" style="color:var(--primary)"></i>订单记录</span><i class="ico sm ico-next"></i></a>
+        <a class="menu-item" href="#"><span class="row"><i class="ico sm ico-coin" style="color:var(--primary)"></i>金币明细</span><i class="ico sm ico-next"></i></a>
+        <a class="menu-item" href="#"><span class="row"><i class="ico sm ico-wallet" style="color:var(--primary)"></i>Steam 交易链接</span><span class="badge ok mini">已验证</span></a>
+        <a class="menu-item" href="#"><span class="row"><i class="ico sm ico-gift" style="color:var(--primary)"></i>邀请返利</span><i class="ico sm ico-next"></i></a>
+        <a class="menu-item" href="#"><span class="row"><i class="ico sm ico-gear" style="color:var(--primary)"></i>设置</span><i class="ico sm ico-next"></i></a>
+      </div>
+
+      <div class="card flat row between" style="margin-top:8px;">
+        <span class="mini muted">本周签到 3/7 · 今天可 +10</span>
+        <button class="btn sm">签到</button>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <a href="home.html"><i class="ico ico-home"></i>首页</a>
+      <a href="product.html"><i class="ico ico-box"></i>商品</a>
+      <a href="market.html"><i class="ico ico-chart"></i>行情</a>
+      <a class="on" href="profile.html"><i class="ico ico-user"></i>我的</a>
+    </nav>
+  </div>
+</div>
+<script src="../theme.js"></script>
+</body>
+</html>
