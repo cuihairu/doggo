@@ -271,3 +271,4 @@
 - [x] **web 文章详情页**：`/articles/:id`（`GET /api/articles/{id}`，运营 Banner 链接可指向）
 - [x] **文档同步**：features.md 状态列对齐（运营内容/汇率/积分优惠券/交易链接/手机端五行）
 - [x] **用户端金币流水明细**：新增 `GET /api/coins/logs`（自身份、分页、按时间倒序，CoinApiTests 两例：未授权 401、仅本人行+分页）；web/小程序/手机端用户中心均展示明细（web 表格 10 条，移动两端近 5 条）
+- [x] **领券中心**：`GET /api/coupons`（可领列表）+ `POST /api/coupons/{id}/claim`（领取，服务端强制每人/总量限制）接通三端——web 用户中心领券表格，小程序/手机端领券卡片，领取后刷新我的优惠券
