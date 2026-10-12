@@ -107,8 +107,11 @@ export interface ProductView {
   sortOrder: number
 }
 
-export function fetchProducts(page = 1) {
-  return api<{ total: number; items: ProductView[] }>(`/api/products?page=${page}&pageSize=20`)
+export function fetchProducts(page = 1, filters?: { q?: string }) {
+  const params = new URLSearchParams({ page: String(page), pageSize: '20' })
+  const q = filters?.q?.trim()
+  if (q) params.set('q', q)
+  return api<{ total: number; items: ProductView[] }>(`/api/products?${params}`)
 }
 
 export interface ProductDetail extends ProductView {

@@ -1,31 +1,39 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro from '@tarojs/taro'
 import { fetchProducts, ApiError, ProductView, yuan } from '@doggo/shared'
-import { SafeTop, Card, Msg, Muted } from '../../ui'
+import { SafeTop, Btn, Card, Msg, Muted } from '../../ui'
 import { useTheme } from '../../theme'
 import { loadCache, saveCache } from '../../cache'
 
-/** On-shelf products list; tap a crate to open its plan list. */
+const PAGE_SIZE = 20
+
+/** On-shelf products list with search and load-more; tap a crate to open its plan list. */
 export default function ProductsPage() {
   const t = useTheme()
   const [items, setItems] = useState<ProductView[]>([])
+  const [total, setTotal] = useState(0)
+  const [loaded, setLoaded] = useState(0)
+  const [searchInput, setSearchInput] = useState('')
+  const [q, setQ] = useState('')
   const [stale, setStale] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(() => {
+  const loadPage = useCallback((page: number, append: boolean, query: string) => {
     setLoading(true)
     setStale(false)
-    fetchProducts(1)
-      .then((page) => {
-        const shelf = page.items.filter((p) => p.status === 3)
-        setItems(shelf)
-        saveCache('doggo.cache.products', shelf)
+    fetchProducts(page, { q: query })
+      .then((result) => {
+        const shelf = result.items.filter((p) => p.status === 3)
+        setItems((prev) => (append ? [...prev, ...shelf] : shelf))
+        setTotal(result.total)
+        setLoaded((prev) => (append ? prev + shelf.length : shelf.length))
+        saveCache(`doggo.cache.products.${query}`, shelf)
         setError('')
       })
       .catch((e) => {
-        const cached = loadCache<ProductView[]>('doggo.cache.products')
+        const cached = loadCache<ProductView[]>(`doggo.cache.products.${query}`)
         if (cached?.length) {
           setItems(cached)
           setStale(true)
@@ -36,17 +44,34 @@ export default function ProductsPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Search changes restart from page 1.
   useEffect(() => {
-    load()
-  }, [load])
+    loadPage(1, false, q)
+  }, [loadPage, q])
+
+  const busy = loading
 
   return (
     <View style={[styles.page, { backgroundColor: t.bg }]}>
       <SafeTop style={{ backgroundColor: t.bg }} />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <Card>
+          <TextInput
+            placeholder="搜索商品名称"
+            placeholderTextColor={t.muted}
+            value={searchInput}
+            onChangeText={setSearchInput}
+            returnKeyType="search"
+            onSubmitEditing={() => setQ(searchInput.trim())}
+            autoCapitalize="none"
+            style={[styles.input, { backgroundColor: t.bg, borderColor: t.border, color: t.text }]}
+          />
+          <Btn disabled={!searchInput.trim()} onPress={() => setQ(searchInput.trim())}>搜索</Btn>
+        </Card>
         {stale ? <Msg text="网络不佳，正在展示缓存内容" /> : null}
-        {error && !stale ? <Msg text={error} onRetry={load} /> : null}
+        {error && !stale ? <Msg text={error} onRetry={() => loadPage(1, false, q)} /> : null}
         {items.length === 0 && !error && loading ? <Msg text="加载中…" /> : null}
+        {items.length === 0 && !error && !loading ? <Msg text="没有符合条件的商品" /> : null}
         {items.map((item) => (
           <Card key={item.id}>
             <View
@@ -65,23 +90,19 @@ export default function ProductsPage() {
             </View>
           </Card>
         ))}
-        <BtnRefresh onPress={load} />
+        {items.length > 0 && loaded < total ? (
+          <Btn busy={busy} disabled={busy} onPress={() => loadPage(Math.floor(loaded / PAGE_SIZE) + 1, true, q)}>
+            {busy ? '加载中…' : `加载更多（${loaded}/${total}）`}
+          </Btn>
+        ) : null}
       </ScrollView>
     </View>
   )
 }
 
-function BtnRefresh({ onPress }: { onPress: () => void }) {
-  const t = useTheme()
-  return (
-    <Text onPress={onPress} style={{ color: t.primary, textAlign: 'center', padding: 12, minHeight: 44 }}>
-      刷新
-    </Text>
-  )
-}
-
 const styles = StyleSheet.create({
   page: { flex: 1 },
+  input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, marginBottom: 10 },
   touchRow: { flexDirection: 'row', alignItems: 'center', minHeight: 56 },
   icon: { width: 44, height: 44, borderRadius: 6 },
   name: { fontSize: 15, fontWeight: '600' }
