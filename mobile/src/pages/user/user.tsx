@@ -3,7 +3,8 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro, { useDidShow } from '@tarojs/taro'
 import {
   fetchCoinBalance, fetchMyCoupons, fetchProfile, fetchSignCycle,
-  logout, redeemCode, signToday, ApiError, getAccessToken, Profile
+  fetchTradeUrls, addTradeUrl, logout, redeemCode, signToday,
+  ApiError, getAccessToken, Profile, TradeUrlEntry
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
 import { useTheme } from '../../theme'
@@ -19,6 +20,9 @@ export default function UserPage() {
   const [signBusy, setSignBusy] = useState(false)
   const [redeemInput, setRedeemInput] = useState('')
   const [redeemBusy, setRedeemBusy] = useState(false)
+  const [tradeUrls, setTradeUrls] = useState<TradeUrlEntry[]>([])
+  const [tradeInput, setTradeInput] = useState('')
+  const [tradeBusy, setTradeBusy] = useState(false)
 
   const load = useCallback(() => {
     if (!getAccessToken()) {
@@ -27,7 +31,10 @@ export default function UserPage() {
     }
     setError('')
     fetchProfile()
-      .then((p) => { setProfile(p); setError('') })
+      .then((p) => {
+        setProfile(p); setError('')
+        fetchTradeUrls(p.id).then(setTradeUrls).catch(() => {})
+      })
       .catch((e) => {
         if (e instanceof ApiError && e.status === 401) {
           setError('未登录')
@@ -87,6 +94,22 @@ export default function UserPage() {
     }
   }
 
+  async function doAddTradeUrl() {
+    const url = tradeInput.trim()
+    if (!url || !profile) return
+    setTradeBusy(true)
+    try {
+      await addTradeUrl(profile.id, url)
+      setTradeInput('')
+      setTradeUrls(await fetchTradeUrls(profile.id))
+      Taro.showToast({ title: '已保存', icon: 'success' })
+    } catch (e) {
+      Taro.showToast({ title: e instanceof ApiError ? e.message : '保存失败', icon: 'none' })
+    } finally {
+      setTradeBusy(false)
+    }
+  }
+
   if (error === '未登录') {
     return (
       <View style={[styles.page, { backgroundColor: t.bg }]}>
@@ -122,6 +145,28 @@ export default function UserPage() {
               {signed === true ? '今日已签到' : '每日签到'}
             </Btn>
           </View>
+        </Card>
+
+        <Card>
+          <Text style={[styles.section, { color: t.text }]}>Steam 交易链接</Text>
+          {tradeUrls.map((link) => (
+            <View key={link.id} style={styles.couponRow}>
+              <Text style={{ color: t.text, flex: 1, marginRight: 8 }} numberOfLines={1}>
+                {link.isPreferred ? '★ ' : ''}{link.url}
+              </Text>
+              <Muted>{link.status === 1 ? '已验证' : link.status === 2 ? '无效' : '未验证'}</Muted>
+            </View>
+          ))}
+          {tradeUrls.length === 0 && <Muted>尚未绑定，饰品取回前需要</Muted>}
+          <TextInput
+            placeholder="粘贴 Steam 交易链接"
+            placeholderTextColor={t.muted}
+            value={tradeInput}
+            onChangeText={setTradeInput}
+            autoCapitalize="none"
+            style={[styles.input, { backgroundColor: t.bg, borderColor: t.border, color: t.text }]}
+          />
+          <Btn busy={tradeBusy} disabled={!tradeInput.trim()} onPress={doAddTradeUrl}>保存</Btn>
         </Card>
 
         <Card>

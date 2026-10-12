@@ -248,6 +248,29 @@ export function redeemCode(code: string) {
   return api<RedeemResult>('/api/redeem', { method: 'POST', data: { code } })
 }
 
+export interface TradeUrlEntry {
+  id: string
+  steamId: string
+  url: string
+  nickname: string
+  isPreferred: boolean
+  status: number
+  checkError?: string | null
+  checkedAtUtc?: string | null
+}
+
+/** Steam trade links of the user; status 1 = valid. */
+export function fetchTradeUrls(userId: string) {
+  return api<TradeUrlEntry[]>(`/api/users/${userId}/trade-urls`)
+}
+
+export function addTradeUrl(userId: string, url: string, nickname?: string) {
+  return api<TradeUrlEntry>(`/api/users/${userId}/trade-urls`, {
+    method: 'POST',
+    data: { url, nickname: nickname ?? null }
+  })
+}
+
 export interface SignCycleDay {
   date: string
   signed: boolean
