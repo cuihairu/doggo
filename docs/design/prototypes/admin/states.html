@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="brand">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 · admin 状态图 — doggo</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+</head>
+<body>
+<div class="admin">
+  <aside class="admin-side">
+    <a class="brand" href="../index.html" style="padding:14px 18px;display:flex;"><span class="brand-mark"></span>doggo admin</a>
+    <a href="dashboard.html"><i class="ico sm ico-grid"></i>仪表盘</a>
+    <a href="products.html"><i class="ico sm ico-box"></i>商品</a>
+    <a href="orders.html"><i class="ico sm ico-bag"></i>订单</a>
+    <a href="#"><i class="ico sm ico-user"></i>用户</a>
+    <a href="funnel.html"><i class="ico sm ico-chart"></i>漏斗分析</a>
+    <a href="#"><i class="ico sm ico-doc"></i>资讯</a>
+    <a href="settings.html"><i class="ico sm ico-gear"></i>设置</a>
+  </aside>
+  <div class="admin-main">
+    <header class="row between" style="padding:12px 4px;">
+      <b>状态图</b>
+      <span class="row"><select class="theme-switch" aria-label="主题"></select><a class="mini" href="../index.html">索引</a></span>
+    </header>
+
+    <div class="proto-note">后台关键流程（列表查询、退款、爬虫与漏斗数据加载）的空态 / 加载 / 错误 / 成功四态；右上切换主题验证 11 套主题下表现一致。</div>
+
+    <div class="states-grid">
+      <div class="card state-cell">
+        <div class="stack" style="align-items:stretch;margin-bottom:8px;">
+          <span class="skeleton skel-line" style="width:40%"></span>
+          <table class="table" aria-hidden="true">
+            <thead><tr><th>订单号</th><th>金额</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td><span class="skeleton skel-line" style="width:90%"></span></td><td><span class="skeleton skel-line" style="width:50%"></span></td><td><span class="skeleton skel-line" style="width:60%"></span></td></tr>
+              <tr><td><span class="skeleton skel-line" style="width:80%"></span></td><td><span class="skeleton skel-line" style="width:40%"></span></td><td><span class="skeleton skel-line" style="width:55%"></span></td></tr>
+              <tr><td><span class="skeleton skel-line" style="width:85%"></span></td><td><span class="skeleton skel-line" style="width:60%"></span></td><td><span class="skeleton skel-line" style="width:50%"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="state-label">加载：表格骨架行，筛选按钮置灰不可重复提交</div>
+      </div>
+
+      <div class="card state-cell">
+        <table class="table">
+          <thead><tr><th>订单号</th><th>金额</th><th>状态</th></tr></thead>
+          <tbody><tr><td colspan="3" style="text-align:center;padding:24px 8px;">
+            <div class="empty" style="padding:6px 0;"><i class="ico ico-filter"></i><p style="font-weight:700;">没有匹配的订单</p><p class="mini">当前筛选条件下无记录</p></div>
+          </td></tr></tbody>
+        </table>
+        <div class="row between" style="margin-top:8px;"><span class="mini muted">建议动作：放宽筛选</span><span class="btn ghost sm">清空筛选</span></div>
+        <div class="state-label">空态：给出原因与放宽条件动作</div>
+      </div>
+
+      <div class="card state-cell">
+        <div class="error-box" style="padding:16px 12px;">
+          <i class="ico ico-warn"></i>
+          <p style="font-weight:700;">漏斗数据加载失败</p>
+          <p class="mini">聚合任务未按时产出（T-1 缺失），或服务异常</p>
+          <div class="row" style="gap:8px;margin-top:8px;">
+            <span class="btn sm"><i class="ico sm ico-refresh"></i>重试</span>
+            <span class="btn ghost sm">查看任务日志</span>
+          </div>
+        </div>
+        <div class="state-label">错误：可重试 + 排查入口，错误不静默</div>
+      </div>
+
+      <div class="card state-cell">
+        <div class="success-box" style="padding:14px 12px;">
+          <i class="ico ico-check"></i>
+          <p style="font-weight:700;">退款已提交</p>
+          <p class="mini">订单 D-20261012-000170 · ¥ 36.00</p>
+        </div>
+        <div class="row" style="gap:8px;margin:8px 0;">
+          <span class="badge ok">状态已回写</span><span class="badge">优惠券已退</span><span class="badge gold">金币 +150</span>
+        </div>
+        <div class="state-label">成功：操作结果即时回写到列表行，不只弹提示</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: var(--sp-2);">
+      <div class="card-title" style="margin-bottom:8px;">爬虫/任务类状态（设置页与仪表盘）</div>
+      <div class="row wrap" style="gap:10px;">
+        <span class="badge ok"><i class="ico sm ico-check"></i>运行中</span>
+        <span class="badge err"><i class="ico sm ico-warn"></i>熔断冷却中（60min）</span>
+        <span class="badge mut"><i class="ico sm ico-clock"></i>robots 禁止抓取 · 已跳过</span>
+        <span class="badge gold"><i class="ico sm ico-refresh"></i>退避重试（第 2/3 次）</span>
+      </div>
+      <p class="mini muted" style="margin-top:8px;">后台任务的状态必须落在列表行（徽章）而非只写日志；熔断与退避的站点在状态列可见。</p>
+    </div>
+  </div>
+</div>
+<script src="../theme.js"></script>
+</body>
+</html>
