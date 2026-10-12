@@ -154,10 +154,13 @@ export default function ProductListPage() {
         ))}
       </div>
       {onShelf.length === 0 && !busy && <p className="muted">没有符合条件的商品</p>}
-      {onShelf.length < total && (
+      {/* Gate on rows fetched, not the on-shelf subset: total also covers
+          self-open/group-open products, so the subset would disagree with it
+          and "load more" would refetch the last page. */}
+      {items.length < total && (
         <div style={{ marginTop: 12, textAlign: 'center' }}>
           <button className="btn secondary" disabled={busy} onClick={loadMore}>
-            {busy ? '加载中…' : `加载更多（已显示 ${onShelf.length} / ${total}）`}
+            {busy ? '加载中…' : `加载更多（已加载 ${items.length} / ${total}）`}
           </button>
         </div>
       )}

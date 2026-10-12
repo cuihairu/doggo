@@ -23,7 +23,10 @@ export default function ProductsPage() {
         const shelf = result.items.filter((p) => p.status === 3)
         setItems((prev) => (append ? [...prev, ...shelf] : shelf))
         setTotal(result.total)
-        setLoaded((prev) => (append ? prev + shelf.length : shelf.length))
+        // Count rows fetched from the server, not the on-shelf subset: total
+        // also covers self-open/group-open products, so the subset would
+        // disagree with it and "load more" would refetch the last page.
+        setLoaded((prev) => (append ? prev + result.items.length : result.items.length))
         setError('')
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : '加载失败'))
@@ -72,7 +75,7 @@ export default function ProductsPage() {
       ))}
       {items.length > 0 && loaded < total && (
         <Button size="mini" className="btn-primary" disabled={busy} onClick={() => loadPage(Math.floor(loaded / PAGE_SIZE) + 1, true, q)}>
-          {busy ? '加载中…' : `加载更多（${loaded}/${total}）`}
+          {busy ? '加载中…' : `加载更多（已加载 ${loaded}/${total}）`}
         </Button>
       )}
     </ScrollView>
