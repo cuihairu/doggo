@@ -19,6 +19,7 @@ interface ExchangeRate {
 }
 
 const GAME_FILTERS: Record<string, string> = { '': '全部游戏', '0': '通用', '1': 'CS2', '2': 'Dota2' }
+const TYPE_FILTERS: Record<string, string> = { '': '全部类型', '0': '箱子', '1': '钥匙', '2': '皮肤', '3': '其他' }
 const PAGE_SIZE = 50
 
 /** Market catalog: latest snapshot price, with an approximate CNY figure when
@@ -27,6 +28,7 @@ export default function MarketPage() {
   const [q, setQ] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [game, setGame] = useState('')
+  const [type, setType] = useState('')
   const [items, setItems] = useState<MarketListResult['items']>([])
   const [total, setTotal] = useState(0)
   const [rates, setRates] = useState<Record<string, number>>({})
@@ -37,6 +39,7 @@ export default function MarketPage() {
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
     if (q.trim()) params.set('q', q.trim())
     if (game) params.set('game', game)
+    if (type) params.set('type', type)
     return `/api/market/items?${params}`
   }
 
@@ -57,9 +60,9 @@ export default function MarketPage() {
       })
       .catch((err) => setError(String(err.message ?? err)))
       .finally(() => setBusy(false))
-    // buildUrl closes over q/game; only re-run when they change.
+    // buildUrl closes over q/game/type; only re-run when they change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, game])
+  }, [q, game, type])
 
   function loadMore() {
     // Items always fill complete pages, so the next page is derived from the count.
@@ -105,6 +108,16 @@ export default function MarketPage() {
           style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 10px', fontSize: 14 }}
         >
           {Object.entries(GAME_FILTERS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+        <select
+          aria-label="按类型筛选"
+          value={type}
+          onChange={(event) => setType(event.target.value)}
+          style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 10px', fontSize: 14 }}
+        >
+          {Object.entries(TYPE_FILTERS).map(([value, label]) => (
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
