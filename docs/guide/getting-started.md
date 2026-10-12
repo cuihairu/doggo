@@ -1,7 +1,5 @@
 # 快速开始
 
-项目处于早期建设阶段,本页描述目标使用方式;对应模块落地后会同步更新。
-
 ## 环境要求
 
 | 依赖 | 版本 | 用途 |
@@ -60,10 +58,10 @@ pnpm docs:build
 
 ## 路线图
 
-- [x] 项目文档与架构设计
-- [ ] 领域模型与数据层
-- [ ] 资讯爬虫与聚合管道
-- [ ] 饰品行情同步(基于 vapor)
-- [ ] 开箱模拟玩法
-- [ ] REST API 与用户体系
-- [ ] 管理后台
+- [x] 项目文档与架构设计(`docs/`)
+- [x] 领域模型与数据层(`server/src/Doggo.Domain`,EF 迁移随部署执行)
+- [x] 资讯爬虫与聚合管道(`server/src/Doggo.Scraper`)
+- [x] 饰品行情同步(基于 vapor)(`server/src/Doggo.Infrastructure/Vapor`,Worker 定时同步)
+- [x] 开箱模拟玩法(`server/src/Doggo.Infrastructure/Cases`)
+- [x] REST API 与用户体系(`server/src/Doggo.Api`,JWT + Steam OpenID)
+- [x] 管理后台(`admin/` 前端 + `/api/admin`)
