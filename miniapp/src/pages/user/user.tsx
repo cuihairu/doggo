@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { View, Text, ScrollView, Button, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {
-  fetchCoinBalance, fetchMyCoupons, fetchProfile, fetchSignCycle,
-  fetchTradeUrls, addTradeUrl, logout, redeemCode, Profile, signToday, TradeUrlEntry
+  fetchCoinBalance, fetchCoinLogs, fetchMyCoupons, fetchProfile, fetchSignCycle,
+  fetchTradeUrls, addTradeUrl, logout, redeemCode, Profile, signToday, TradeUrlEntry, CoinLogEntry
 } from '../../api/endpoints'
 import { ApiError, getAccessToken } from '../../api/client'
 
@@ -16,6 +16,8 @@ interface CouponLite {
   validToUtc?: string | null
 }
 
+const COIN_LOG_TYPE: Record<number, string> = { 0: '发放', 1: '消费', 2: '退款', 3: '过期' }
+
 /** User center: identity, coins, coupons, weekly sign-in. */
 export default function UserPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -25,6 +27,7 @@ export default function UserPage() {
   const [redeemInput, setRedeemInput] = useState('')
   const [tradeUrls, setTradeUrls] = useState<TradeUrlEntry[]>([])
   const [tradeInput, setTradeInput] = useState('')
+  const [coinLogs, setCoinLogs] = useState<CoinLogEntry[]>([])
   const [error, setError] = useState('')
 
   const load = useCallback(() => {
@@ -38,6 +41,7 @@ export default function UserPage() {
       fetchTradeUrls(p.id).then(setTradeUrls).catch(() => {})
     }).catch((e) => setError(e instanceof ApiError ? e.message : '加载失败'))
     fetchCoinBalance().then((b) => setCoins(b.balance)).catch(() => {})
+    fetchCoinLogs(1, 5).then((page) => setCoinLogs(page.items)).catch(() => {})
     // Unused = 0 / Used = 1 / Expired = 2 — "available" means unused and unexpired.
     fetchMyCoupons()
       .then((rows) => setCoupons(rows.filter((c) => c.status === 0 && (!c.validToUtc || new Date(c.validToUtc) > new Date()))))
@@ -118,6 +122,19 @@ export default function UserPage() {
         <Button size="mini" className="btn-primary" disabled={signed === true} onClick={doSign}>
           {signed === true ? '今日已签到' : '每日签到'}
         </Button>
+        {coinLogs.length > 0 && (
+          <View style={{ marginTop: '12rpx' }}>
+            <Text className="muted">金币明细</Text>
+            {coinLogs.map((log) => (
+              <View key={log.id} className="row" style={{ justifyContent: 'space-between', marginTop: '8rpx' }}>
+                <Text className="muted">{COIN_LOG_TYPE[log.type] ?? log.type} · {log.createdAtUtc.slice(0, 10)}</Text>
+                <Text style={{ color: log.delta >= 0 ? '#2f6fed' : '#c0392b', fontWeight: 600 }}>
+                  {log.delta >= 0 ? `+${log.delta}` : log.delta}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       <View className="card">

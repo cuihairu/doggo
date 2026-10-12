@@ -2,14 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro, { useDidShow } from '@tarojs/taro'
 import {
-  fetchCoinBalance, fetchMyCoupons, fetchProfile, fetchSignCycle,
+  fetchCoinBalance, fetchCoinLogs, fetchMyCoupons, fetchProfile, fetchSignCycle,
   fetchTradeUrls, addTradeUrl, logout, redeemCode, signToday,
-  ApiError, getAccessToken, Profile, TradeUrlEntry
+  ApiError, getAccessToken, CoinLogEntry, Profile, TradeUrlEntry
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
 import { useTheme } from '../../theme'
 
 /** User center: identity, coins, coupons, weekly sign-in, entries. */
+const COIN_LOG_TYPE: Record<number, string> = { 0: '发放', 1: '消费', 2: '退款', 3: '过期' }
+
 export default function UserPage() {
   const t = useTheme()
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -23,6 +25,7 @@ export default function UserPage() {
   const [tradeUrls, setTradeUrls] = useState<TradeUrlEntry[]>([])
   const [tradeInput, setTradeInput] = useState('')
   const [tradeBusy, setTradeBusy] = useState(false)
+  const [coinLogs, setCoinLogs] = useState<CoinLogEntry[]>([])
 
   const load = useCallback(() => {
     if (!getAccessToken()) {
@@ -43,6 +46,7 @@ export default function UserPage() {
         setError(e instanceof ApiError ? e.message : '加载失败')
       })
     fetchCoinBalance().then((b) => setCoins(b.balance)).catch(() => {})
+    fetchCoinLogs(1, 5).then((page) => setCoinLogs(page.items)).catch(() => {})
     // Unused = 0 / Used = 1 / Expired = 2 — "available" means unused and unexpired.
     fetchMyCoupons()
       .then((rows) => setCoupons(rows.filter((c) => c.status === 0 && (!c.validToUtc || new Date(c.validToUtc) > new Date()))))
@@ -146,6 +150,23 @@ export default function UserPage() {
             </Btn>
           </View>
         </Card>
+
+        {coinLogs.length > 0 ? (
+          <Card>
+            <Text style={[styles.section, { color: t.text }]}>金币明细</Text>
+            {coinLogs.slice(0, 5).map((log) => (
+              <View key={log.id} style={styles.couponRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: t.text }}>{COIN_LOG_TYPE[log.type] ?? log.type}</Text>
+                  <Muted>{log.createdAtUtc.slice(0, 10)}</Muted>
+                </View>
+                <Text style={{ color: log.delta >= 0 ? t.primary : t.danger, fontWeight: '700' }}>
+                  {log.delta >= 0 ? `+${log.delta}` : log.delta}
+                </Text>
+              </View>
+            ))}
+          </Card>
+        ) : null}
 
         <Card>
           <Text style={[styles.section, { color: t.text }]}>Steam 交易链接</Text>

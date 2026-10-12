@@ -25,6 +25,15 @@ interface SignCycle {
   totalReward: number
 }
 
+interface CoinLog {
+  id: string
+  type: number
+  delta: number
+  balanceAfter: number
+  note?: string | null
+  createdAtUtc: string
+}
+
 interface TradeUrlView {
   id: string
   url: string
@@ -41,6 +50,8 @@ interface RedeemResult {
 
 const COUPON_STATUS: Record<number, string> = { 0: '未使用', 1: '已使用', 2: '已过期' }
 
+const COIN_LOG_TYPE: Record<number, string> = { 0: '发放', 1: '消费', 2: '退款', 3: '过期' }
+
 /** User center: profile, trade link, coin balance, coupons, and this week's sign board. */
 export default function UserCenterPage() {
   const { setProfile } = useContext(ProfileContext)
@@ -48,6 +59,7 @@ export default function UserCenterPage() {
   const [coins, setCoins] = useState<CoinBalance | null>(null)
   const [coupons, setCoupons] = useState<CouponView[]>([])
   const [sign, setSign] = useState<SignCycle | null>(null)
+  const [coinLogs, setCoinLogs] = useState<CoinLog[]>([])
   const [tradeUrl, setTradeUrl] = useState<TradeUrlView | null>(null)
   const [tradeInput, setTradeInput] = useState('')
   const [redeemInput, setRedeemInput] = useState('')
@@ -62,6 +74,9 @@ export default function UserCenterPage() {
       })
       .catch((err) => setError(String(err.message ?? err)))
     api<CoinBalance>('/api/coins/balance').then(setCoins).catch(() => {})
+    api<{ items: CoinLog[] }>('/api/coins/logs?page=1&pageSize=10')
+      .then((result) => setCoinLogs(result.items))
+      .catch(() => {})
     api<{ items: CouponView[] }>('/api/coupons/mine')
       .then((result) => setCoupons(result.items))
       .catch(() => {})
@@ -198,6 +213,38 @@ export default function UserCenterPage() {
             兑换
           </button>
         </div>
+      </div>
+
+      <h2 className="page-title" style={{ fontSize: 17, marginTop: 24 }}>金币明细</h2>
+      <div className="card">
+        {coinLogs.length === 0 ? (
+          <p className="muted">暂无金币记录</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>类型</th>
+                <th>变动</th>
+                <th>余额</th>
+                <th>备注</th>
+              </tr>
+            </thead>
+            <tbody>
+              {coinLogs.map((log) => (
+                <tr key={log.id}>
+                  <td className="muted">{log.createdAtUtc.slice(0, 19).replace('T', ' ')}</td>
+                  <td>{COIN_LOG_TYPE[log.type] ?? log.type}</td>
+                  <td className={log.delta >= 0 ? 'price-up' : 'price-down'}>
+                    {log.delta >= 0 ? `+${log.delta}` : log.delta}
+                  </td>
+                  <td>{log.balanceAfter}</td>
+                  <td className="muted">{log.note ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <h2 className="page-title" style={{ fontSize: 17, marginTop: 24 }}>我的优惠券</h2>

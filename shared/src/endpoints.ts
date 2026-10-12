@@ -219,6 +219,22 @@ export function fetchCoinBalance() {
   return api<{ balance: number; checkedAtUtc: string }>('/api/coins/balance')
 }
 
+export interface CoinLogEntry {
+  id: string
+  type: number
+  delta: number
+  balanceAfter: number
+  note?: string | null
+  createdAtUtc: string
+}
+
+/** The caller's own coin ledger, newest first. */
+export function fetchCoinLogs(page = 1, pageSize = 10) {
+  return api<{ total: number; page: number; pageSize: number; items: CoinLogEntry[] }>(
+    `/api/coins/logs?page=${page}&pageSize=${pageSize}`,
+  )
+}
+
 export interface MyCoupon {
   id: string
   couponId: string
