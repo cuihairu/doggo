@@ -278,9 +278,10 @@
 > 背景：扫出两处「有数据模型 / 有查询参数，但客户端零暴露」的缺口——`InviteRewardLog` 只写不读（features.md 称邀请返利已完成，用户却看不到邀请了几人、得了多少奖励）；`ProductQuery` / `MarketItemQuery` 的 `q` / `type` / `game` / `page` 参数服务端已支持，web 与移动端零使用。
 
 - [x] **邀请返利明细（跨三端）**：新增 `GET /api/invites`（自身份、分页、按时间倒序，返回 total / totalReward / items 并 join `UserAccounts` 回填被邀请人昵称）；`InviteApiTests` 三例（未授权 401、只统计本人行且回填昵称、分页取第二页）；shared 增 `fetchInviteRewards` / `InviteRewardView`；web 用户中心「邀请返利」区块（累计人数与奖励 + 明细表），小程序/手机端个人中心邀请返利卡片
-- [x] **web 行情搜索与分页**：关键词搜索框（回车或按钮提交）+ 游戏筛选（通用/CS2/Dota2）+「加载更多」翻页（每页 50，显示已加载/总数）
+- [x] **web 行情搜索与分页**：关键词搜索框（回车或按钮提交）+ 游戏筛选（通用/CS2/Dota2）+ 类型筛选（箱子/钥匙/皮肤/其他）+「加载更多」翻页（每页 50，显示已加载/总数）
 - [x] **web 商店搜索与分页**：关键词搜索框 + 类型筛选（钥匙/箱子/箱子组件）+「加载更多」翻页（每页 24），推荐位横滑保留
 - [x] **小程序/手机端商品搜索**：shared `fetchProducts` 增可选 `{ q }` 过滤（既有 `fetchProducts(1)` 调用返回原样 URL，不受影响）；两端商品列表加搜索框与「加载更多」
 - [x] **加载更多计数修正**：三端翻页计数改用「已取回的服务端行数」而非「已上架子集」——`total` 覆盖自用/团开商品，用子集会与 total 不符，末页后按钮仍显示并重复取回同一页
+- [x] **web 行情类型筛选**：`MarketItemQuery.Type`（箱子/钥匙/皮肤/其他）此前同样零使用，补进行情页筛选行
 - [x] **文档同步**：features.md 三行更新（行情列表与搜索、新增商品列表与搜索、邀请与签到）
-- **验收口径（可数）**：服务端 `dotnet test` 355 例全绿（基线 352 + 邀请新增 3 例）；web `pnpm build` + `oxlint` 通过；小程序 `tsc --noEmit` + webpack 构建通过；手机端 `tsc --noEmit` + `build:rn` 通过。共 4 次提交（feat: invite rewards across clients / feat: market and product search with pagination / feat: product search on miniapp and mobile / fix: load more counts server rows），每次测试绿后才提交并 push；全程无 tag、无 release、无 force push
+- **验收口径（可数）**：服务端 `dotnet test` 355 例全绿（基线 352 + 邀请新增 3 例）；web `pnpm build` + `oxlint` 通过；小程序 `tsc --noEmit` + webpack 构建通过；手机端 `tsc --noEmit` + `build:rn` 通过；文档站 `vitepress build docs` 通过。共 6 次提交（feat: invite rewards across clients / feat: market and product search with pagination / feat: product search on miniapp and mobile / fix: load more counts server rows / docs: record search and invite batch / feat: market type filter on web），每次测试绿后才提交并 push；全程无 tag、无 release、无 force push

@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | 市场价格同步 | 通过 vapor 拉取 Steam 市场挂牌价,失败自动退避;不可用时读最近快照 | 已完成(vapor 联调待其可用) |
 | 价格快照与日线 | 每次同步落快照,价格不变不重复落;按日折叠成 OHLC | 已完成 |
-| 行情列表与搜索 | `GET /api/market/items`(关键词、游戏、分页,含最新价);web 行情页提供关键词搜索框、游戏筛选与「加载更多」翻页 | 已完成 |
+| 行情列表与搜索 | `GET /api/market/items`(关键词、游戏、类型、分页,含最新价);web 行情页提供关键词搜索框、游戏/类型筛选与「加载更多」翻页 | 已完成 |
 | 价格趋势展示 | `GET /api/market/items/{id}/prices` 按日 OHLC 序列 | 已完成 |
 | 汇率 | `GET /api/exchange-rates`;web 行情列表对非 CNY 价格按汇率显示约合人民币 | 已完成 |
 | vapor Webhook | `POST /api/vapor/webhook`(HMAC-SHA256 验签、时间窗校验、Redis 幂等去重) | 已完成 |
