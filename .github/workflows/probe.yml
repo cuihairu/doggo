@@ -1,0 +1,14 @@
+name: Runner probe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  u24:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "u24 ok"
+  u22:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo "u22 ok"
