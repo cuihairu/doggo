@@ -292,8 +292,14 @@
 
 - [ ] **① 四端 UI 原型重做（多主题令牌化）**：web 前台/小程序/admin 后台/手机端各一套 HTML/CSS 静态原型（`docs/design/prototypes/`，静态可打开、截图可验），主题 = 颜色令牌 + 图案/装饰件组合、令牌化（换主题不改布局），至少 11 套：默认（品牌）/暗色/中国节日（春节·元宵·端午·中秋·国庆）/季节（春夏秋冬），每主题一张色板与适用场景说明；每端覆盖首页（或列表）、详情、下单（或关键动作）、设置（或个人页），关键流程给空态/加载/错误/成功状态图；`docs/design/ui-system.md` 记录令牌表、主题清单、组件复用关系与「哪端用哪套」。（来源：用户 2026-10-12）
   - 验收口径：四端原型文件齐且浏览器直接可开；同一页面切 11 套主题布局不变（data-theme 切换截图可验）；ui-system.md 令牌表与 tokens.css 逐项一致；不引第三方设计素材（icon/品牌资产用仓内 `docs/public/*.svg` 与自绘 SVG）。
-  - 进度（2026-10-13）：设计与产出中，交付路径见本条目回填。
+  - 进度（2026-10-13）：原型与文档全部交付，待用户过目后才动实现代码。
+    - 原型：`docs/design/prototypes/index.html`（索引+色板）、`web/`（home/product/checkout/account/states）、`miniapp/`（home/product/market/order/profile/states）、`mobile/`（同小程序+订单列表页）、`admin/`（dashboard/products/orders/funnel/settings），共 22 屏；打开方式与截图清单见 `prototypes/README.md`。
+    - 主题 11 套：brand 默认 / dark 暗色 / cny 春节 / lantern 元宵 / dragonboat 端午 / midautumn 中秋 / national 国庆 / spring 春 / summer 夏 / autumn 秋 / winter 冬；`tokens.css` 结构令牌固定于 `:root`（换主题不改布局），`theme.js` 支持 `#theme=xxx` 定位截图。
+    - 文档：`docs/design/ui-system.md`（令牌表/主题清单/组件复用矩阵/状态矩阵/四端实现映射）。
+    - 提交：5914329（token system）、4011390（web）、d1064be（miniapp+mobile）、89e1c05（admin）、29fb730（ui-system）。
 - [ ] **② 价格爬虫独立模块（先设计后实现）**：独立可复用包（doggo 以引用接入，将来可独立成项目）；调度 / 站点适配器 / 清洗去重 / 落库 / 限速与失败退避 / 合规（robots 与频控）；产出价格序列与趋势指标（日环比、周同比、区间涨跌）；与站内 `MarketPriceSnapshot` 聚合对照口径；写清 `Doggo.Scraper` 复用什么、新建什么。（来源：用户 2026-10-12）
   - 验收口径：`docs/design/price-crawler-design.md` 含表结构、接口签名、复用/新建清单、聚合口径与待拍板项；用户过目设计后才动代码。
+  - 进度（2026-10-13）：设计文档已交付（423 行，10 节）：`docs/design/price-crawler-design.md`，提交 1ca6dd5。`ISiteAdapter` 签名、4 张实体草表（ItemMap/Raw/Series/Trend）、调度频控与 robots 退避参数、清洗去重口径、与 `MarketPriceDaily.CloseCents` 聚合口径、admin 接口草图齐备；待拍板 10 条见文内（目标站点清单、映射人工审核、Playwright 是否启用、宿主形态等）。
 - [ ] **③ 漏斗数据分析（先设计后实现）**：页面点击→加购→下单→支付四步流失；埋点模型（事件名/属性/会话/用户）；上报接口与离线补报；聚合任务；后台漏斗页（转化率、流失率，按端/按渠道/按时间分组）；与既有资讯/行情数据同一数据源口径。（来源：用户 2026-10-12）
   - 验收口径：`docs/design/analytics-funnel-design.md` 含埋点表结构、上报接口契约、聚合任务与后台页设计、同源口径说明与待拍板项；用户过目设计后才动代码。
+  - 进度（2026-10-13）：设计文档已交付（466 行，12 节）：`docs/design/analytics-funnel-design.md`，提交 152a7de。漏斗映射（加购=checkout_intent，第 4 步服务端权威打点）、AnalyticsEvent/FunnelDailyStat 草表、`POST /api/events` 契约与离线补报、T-1+滚动 7 天重算、`GET /api/admin/funnel` 与后台页布局（原型 `admin/funnel.html`）、同源口径与隐私约束齐备；待拍板 10 条见文内。
