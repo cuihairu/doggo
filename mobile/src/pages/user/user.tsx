@@ -3,9 +3,9 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro, { useDidShow } from '@tarojs/taro'
 import {
   fetchCoinBalance, fetchCoinLogs, fetchMyCoupons, fetchProfile, fetchSignCycle,
-  fetchTradeUrls, addTradeUrl, fetchClaimableCoupons, claimCoupon,
+  fetchTradeUrls, addTradeUrl, fetchClaimableCoupons, claimCoupon, fetchInviteRewards,
   logout, redeemCode, signToday,
-  ApiError, getAccessToken, ClaimableCoupon, CoinLogEntry, Profile, TradeUrlEntry
+  ApiError, getAccessToken, ClaimableCoupon, CoinLogEntry, Profile, TradeUrlEntry, InviteRewardView
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
 import { useTheme } from '../../theme'
@@ -28,6 +28,7 @@ export default function UserPage() {
   const [tradeBusy, setTradeBusy] = useState(false)
   const [coinLogs, setCoinLogs] = useState<CoinLogEntry[]>([])
   const [claimable, setClaimable] = useState<ClaimableCoupon[]>([])
+  const [invites, setInvites] = useState<{ total: number; totalReward: number; items: InviteRewardView[] } | null>(null)
 
   const load = useCallback(() => {
     if (!getAccessToken()) {
@@ -55,6 +56,7 @@ export default function UserPage() {
       .catch(() => {})
     fetchSignCycle().then((cycle) => setSigned(cycle.todaySigned)).catch(() => {})
     fetchClaimableCoupons().then(setClaimable).catch(() => {})
+    fetchInviteRewards(1, 10).then(setInvites).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -214,6 +216,21 @@ export default function UserPage() {
             style={[styles.input, { backgroundColor: t.bg, borderColor: t.border, color: t.text }]}
           />
           <Btn busy={redeemBusy} disabled={!redeemInput.trim()} onPress={doRedeem}>兑换</Btn>
+        </Card>
+
+        <Card>
+          <Text style={[styles.section, { color: t.text }]}>邀请返利</Text>
+          <Muted>已成功邀请 {invites?.total ?? 0} 人，累计奖励 {invites?.totalReward ?? 0} 金币</Muted>
+          {invites && invites.items.length === 0 ? (
+            <Muted>还没有返利记录，把邀请码分享给好友即可</Muted>
+          ) : (
+            invites?.items.map((invite) => (
+              <View key={invite.id} style={styles.couponRow}>
+                <Text style={{ color: t.text }}>{invite.inviteeNickname || '—'}</Text>
+                <Text style={{ color: t.primary, fontWeight: '700' }}>+{invite.coinReward}</Text>
+              </View>
+            ))
+          )}
         </Card>
 
         <Card>

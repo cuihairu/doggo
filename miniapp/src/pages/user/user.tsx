@@ -3,8 +3,8 @@ import { View, Text, ScrollView, Button, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {
   fetchCoinBalance, fetchCoinLogs, fetchMyCoupons, fetchProfile, fetchSignCycle,
-  fetchTradeUrls, addTradeUrl, fetchClaimableCoupons, claimCoupon,
-  logout, redeemCode, Profile, signToday, TradeUrlEntry, CoinLogEntry, ClaimableCoupon
+  fetchTradeUrls, addTradeUrl, fetchClaimableCoupons, claimCoupon, fetchInviteRewards,
+  logout, redeemCode, Profile, signToday, TradeUrlEntry, CoinLogEntry, ClaimableCoupon, InviteRewardView
 } from '../../api/endpoints'
 import { ApiError, getAccessToken } from '../../api/client'
 
@@ -30,6 +30,7 @@ export default function UserPage() {
   const [tradeInput, setTradeInput] = useState('')
   const [coinLogs, setCoinLogs] = useState<CoinLogEntry[]>([])
   const [claimable, setClaimable] = useState<ClaimableCoupon[]>([])
+  const [invites, setInvites] = useState<{ total: number; totalReward: number; items: InviteRewardView[] } | null>(null)
   const [error, setError] = useState('')
 
   const load = useCallback(() => {
@@ -50,6 +51,7 @@ export default function UserPage() {
       .catch(() => {})
     fetchSignCycle().then((cycle) => setSigned(cycle.todaySigned)).catch(() => {})
     fetchClaimableCoupons().then(setClaimable).catch(() => {})
+    fetchInviteRewards(1, 10).then(setInvites).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -181,6 +183,23 @@ export default function UserPage() {
         <Button size="mini" className="btn-primary" disabled={!redeemInput.trim()} onClick={doRedeem}>
           兑换
         </Button>
+      </View>
+
+      <View className="card">
+        <Text style={{ fontWeight: 700 }}>邀请返利</Text>
+        <Text className="muted">
+          已成功邀请 {invites?.total ?? 0} 人，累计奖励 {invites?.totalReward ?? 0} 金币
+        </Text>
+        {invites && invites.items.length === 0 ? (
+          <Text className="muted">还没有返利记录，把邀请码分享给好友即可</Text>
+        ) : (
+          invites?.items.map((invite) => (
+            <View key={invite.id} className="row" style={{ justifyContent: 'space-between', marginTop: '10rpx' }}>
+              <Text>{invite.inviteeNickname || '—'}</Text>
+              <Text>+{invite.coinReward} 金币</Text>
+            </View>
+          ))
+        )}
       </View>
 
       <View className="card">

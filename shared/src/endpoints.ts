@@ -335,3 +335,17 @@ export interface NoticeView {
 export function fetchNotices() {
   return api<NoticeView[]>('/api/notices')
 }
+
+export interface InviteRewardView {
+  id: string
+  inviteeNickname: string
+  coinReward: number
+  createdAtUtc: string
+}
+
+/** Invite rewards the caller has earned, newest first. */
+export function fetchInviteRewards(page = 1, pageSize = 10) {
+  return api<{ total: number; totalReward: number; page: number; pageSize: number; items: InviteRewardView[] }>(
+    `/api/invites?page=${page}&pageSize=${pageSize}`,
+  )
+}

@@ -109,6 +109,7 @@ app.MapAuthEndpoints();
 app.MapCoinEndpoints();
 app.MapCouponEndpoints();
 app.MapSignEndpoints();
+app.MapInviteEndpoints();
 app.MapAdminEndpoints();
 app.MapContentEndpoints();
 app.MapMarketEndpoints();

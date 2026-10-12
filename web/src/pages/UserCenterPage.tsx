@@ -57,6 +57,17 @@ interface ClaimableCoupon {
   minOrderCents: number
 }
 
+interface InviteRewards {
+  total: number
+  totalReward: number
+  items: {
+    id: string
+    inviteeNickname: string
+    coinReward: number
+    createdAtUtc: string
+  }[]
+}
+
 const COUPON_STATUS: Record<number, string> = { 0: '未使用', 1: '已使用', 2: '已过期' }
 
 const COIN_LOG_TYPE: Record<number, string> = { 0: '发放', 1: '消费', 2: '退款', 3: '过期' }
@@ -70,6 +81,7 @@ export default function UserCenterPage() {
   const [sign, setSign] = useState<SignCycle | null>(null)
   const [coinLogs, setCoinLogs] = useState<CoinLog[]>([])
   const [claimable, setClaimable] = useState<ClaimableCoupon[]>([])
+  const [invites, setInvites] = useState<InviteRewards | null>(null)
   const [tradeUrl, setTradeUrl] = useState<TradeUrlView | null>(null)
   const [tradeInput, setTradeInput] = useState('')
   const [redeemInput, setRedeemInput] = useState('')
@@ -91,6 +103,7 @@ export default function UserCenterPage() {
       .then((result) => setCoupons(result.items))
       .catch(() => {})
     api<ClaimableCoupon[]>('/api/coupons').then(setClaimable).catch(() => {})
+    api<InviteRewards>('/api/invites?page=1&pageSize=10').then(setInvites).catch(() => {})
     api<SignCycle>('/api/sign').then(setSign).catch(() => {})
   }, [setProfile])
 
@@ -263,6 +276,35 @@ export default function UserCenterPage() {
                   </td>
                   <td>{log.balanceAfter}</td>
                   <td className="muted">{log.note ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <h2 className="page-title" style={{ fontSize: 17, marginTop: 24 }}>邀请返利</h2>
+      <div className="card">
+        <p className="muted">
+          已成功邀请 <strong>{invites?.total ?? 0}</strong> 人，累计奖励 <strong>{invites?.totalReward ?? 0}</strong> 金币
+        </p>
+        {invites && invites.items.length === 0 ? (
+          <p className="muted">还没有返利记录，把邀请码分享给好友即可</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>被邀请人</th>
+                <th>奖励</th>
+                <th>时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invites?.items.map((invite) => (
+                <tr key={invite.id}>
+                  <td>{invite.inviteeNickname || '—'}</td>
+                  <td>{invite.coinReward}</td>
+                  <td className="muted">{invite.createdAtUtc.slice(0, 19).replace('T', ' ')}</td>
                 </tr>
               ))}
             </tbody>
