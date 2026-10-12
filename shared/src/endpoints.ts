@@ -165,7 +165,7 @@ export function createOrder(userId: string, productId: string, planId?: string, 
       serviceMode: 0,
       fulfillmentType: 1,
       payType: 2,
-      userCouponId: userCouponId ?? null
+      userCouponId: userCouponId || null
     }
   }).then((order) => ({ ...order, id: order.orderId ?? order.id }))
 }

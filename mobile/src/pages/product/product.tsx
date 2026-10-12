@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import Taro, { useRouter } from '@tarojs/taro'
+import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import {
   createOrder, fetchMyCoupons, fetchProduct, fetchProfile, payOrder,
   ApiError, getAccessToken, kvGet, kvSet, MyCoupon, ProductDetail, yuan
@@ -42,6 +42,12 @@ export default function ProductPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.params])
 
+  // Reload after the login round-trip: returning from another page keeps this
+  // screen mounted, so the coupon list would otherwise stay from guest state.
+  useDidShow(() => {
+    loadCoupons()
+  })
+
   function rememberOrder(id: string) {
     const list = kvGet<string[]>('doggo.orderIds') ?? []
     kvSet('doggo.orderIds', [id, ...list.filter((x) => x !== id)].slice(0, 10))
@@ -58,8 +64,10 @@ export default function ProductPage() {
     try {
       const profile = await fetchProfile()
       // The server validates the coupon (threshold, plan eligibility) and
-      // rejects the order with a message if it does not apply.
-      const useCoupon = allowCoupon ? couponId : undefined
+      // rejects the order with a message if it does not apply. An empty
+      // selection must be undefined, not '' — the API binds Guid? and an
+      // empty string fails deserialization.
+      const useCoupon = allowCoupon && couponId ? couponId : undefined
       const order = await createOrder(profile.id, detail!.id, planId, optionId, useCoupon)
       await payOrder(order.id)
       rememberOrder(order.id)
