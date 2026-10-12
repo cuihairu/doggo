@@ -255,3 +255,18 @@
 - [x] **手机后置补齐 3/3**：下单优惠券抵扣选择器（/api/coupons/mine + createOrder userCouponId）
 - [x] **数量档下单补齐**：CreateOrderRequest 增 quantity（服务端按档计价，clamp 1..1000，套餐档数量优先）+ mobile 无套餐商品数量档选择与按档计价下单；web 数量套餐接真数据修复（原 /skus 按 enabled 过滤恒空且读不存在的 priceCents，现按真实 SkuDto 渲染套餐档 + quantityTiers 阶梯、下单带 quantity；契约断言 quantity/planId 已补进 ProductApiTests）
 - **验收（硬口径）**：真机或模拟器**安装可跑**（iOS/Android 至少一端，截图留证）+ 核心流程实走（登录 → 浏览 → 开箱 → 订单查得到）；Taro 两端共享层无复制粘贴漂移；测试绿才 push、commit 英文简短、不发版。注：开箱后的奖品交付依赖 vapor 取回链路（各端一致），手机端验收以「下单 + 支付 + 订单状态可查」为实走边界
+
+## M10 运营内容与 C 端死接口清零（2026-10-12 自主派工：TODO 清零后扫出服务端零前端使用的接口）
+
+> 背景：`POST /api/redeem`、`GET /api/notices`、`GET /api/banners`、`GET /api/articles/{id}`、`GET /api/recommends`、`GET /api/exchange-rates` 六个服务端接口没有任何前端调用；另 M9 打标「手机后置」的交易链接管理（CRUD 不依赖 vapor）。本批全部接通。
+
+- [x] **web 用户中心兑换码**：`POST /api/redeem`（积分码刷新余额、券码刷新优惠券列表，结果与错误就地展示）
+- [x] **web 首页运营内容**：公告条（`/api/notices`）+ Banner 横滑（`/api/banners`，LinkUrl 内部路由跳转/外链新开）
+- [x] **web 商店推荐位**：`GET /api/recommends` 横滑卡片，直达商品详情
+- [x] **shared 层扩展**：`redeemCode` / `fetchNotices` / `fetchTradeUrls` / `addTradeUrl` 四个共享端点函数
+- [x] **小程序/手机端用户中心兑换码**：两端共用 shared 函数；顺带修复小程序优惠券过滤错向（原 `status === 1` 把已用当可用，对齐 mobile 的未使用+未过期口径）
+- [x] **手机端 Steam 交易链接管理**（M9 手机后置项收口）：绑定/列表/状态展示，CRUD 不依赖 vapor
+- [x] **小程序/手机端首页公告条**：与 web 首页公告同源（`/api/notices`）
+- [x] **web 行情约合人民币**：非 CNY 快照价按 `/api/exchange-rates` 汇率显示「≈ ¥」（仅展示换算，符合设计）
+- [x] **web 文章详情页**：`/articles/:id`（`GET /api/articles/{id}`，运营 Banner 链接可指向）
+- [x] **文档同步**：features.md 状态列对齐（运营内容/汇率/积分优惠券/交易链接/手机端五行）
