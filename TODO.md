@@ -253,5 +253,5 @@
 - [x] **手机后置补齐 1/3**：行情 30 日收盘 SVG 趋势折线图（web MarketDetailPage 对齐，react-native-svg 直绘）
 - [x] **手机后置补齐 2/3**：订单支付轮询（4s）与未支付取消订单（web OrderPayPage 对齐）
 - [x] **手机后置补齐 3/3**：下单优惠券抵扣选择器（/api/coupons/mine + createOrder userCouponId）
-- [x] **数量档下单补齐**：CreateOrderRequest 增 quantity（服务端按档计价，clamp 1..1000，套餐档数量优先）+ mobile 无套餐商品数量档选择与按档计价下单；web 数量套餐实为死代码（/skus 响应无 enabled 字段，过滤恒空且按钮读不存在的 priceCents），待另行修复
+- [x] **数量档下单补齐**：CreateOrderRequest 增 quantity（服务端按档计价，clamp 1..1000，套餐档数量优先）+ mobile 无套餐商品数量档选择与按档计价下单；web 数量套餐接真数据修复（原 /skus 按 enabled 过滤恒空且读不存在的 priceCents，现按真实 SkuDto 渲染套餐档 + quantityTiers 阶梯、下单带 quantity；契约断言 quantity/planId 已补进 ProductApiTests）
 - **验收（硬口径）**：真机或模拟器**安装可跑**（iOS/Android 至少一端，截图留证）+ 核心流程实走（登录 → 浏览 → 开箱 → 订单查得到）；Taro 两端共享层无复制粘贴漂移；测试绿才 push、commit 英文简短、不发版。注：开箱后的奖品交付依赖 vapor 取回链路（各端一致），手机端验收以「下单 + 支付 + 订单状态可查」为实走边界

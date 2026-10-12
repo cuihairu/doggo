@@ -188,12 +188,15 @@ public class ProductApiTests(ApiFactory factory) : ApiTestBase(factory)
 
         var single = skus.EnumerateArray().First(s => s.GetProperty("optionId").ValueKind == JsonValueKind.Null);
         Assert.Equal(1300, single.GetProperty("unitPriceCents").GetInt64());
+        Assert.Equal(1, single.GetProperty("quantity").GetInt32());
         Assert.Equal("self_open", single.GetProperty("serviceMode").GetString());
         Assert.Equal("final_price", single.GetProperty("priceSource").GetString());
 
         var planSku = skus.EnumerateArray().First(s => s.GetProperty("optionId").ValueKind != JsonValueKind.Null);
         Assert.Equal(3250, planSku.GetProperty("unitPriceCents").GetInt64());
         Assert.Equal(9750, planSku.GetProperty("totalPriceCents").GetInt64());
+        Assert.Equal(3, planSku.GetProperty("quantity").GetInt32());
+        Assert.False(planSku.GetProperty("planId").ValueKind == JsonValueKind.Null);
         Assert.Equal(500, planSku.GetProperty("cashbackBps").GetInt32());
         Assert.True(planSku.GetProperty("canUseCoupon").GetBoolean());
     }
