@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Taro, { useRouter } from '@tarojs/taro'
 import {
-  createOrder, fetchProduct, fetchProfile, payOrder,
-  ApiError, getAccessToken, kvGet, kvSet, ProductDetail, yuan
+  createOrder, fetchMyCoupons, fetchProduct, fetchProfile, payOrder,
+  ApiError, getAccessToken, kvGet, kvSet, MyCoupon, ProductDetail, yuan
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
 import { useTheme } from '../../theme'
@@ -15,6 +15,8 @@ export default function ProductPage() {
   const [detail, setDetail] = useState<ProductDetail | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [coupons, setCoupons] = useState<MyCoupon[]>([])
+  const [couponId, setCouponId] = useState('')
 
   async function load(id?: string) {
     if (!id) return
@@ -26,9 +28,17 @@ export default function ProductPage() {
     }
   }
 
+  async function loadCoupons() {
+    if (!getAccessToken()) return
+    const usable = await fetchMyCoupons()
+      .catch(() => [])
+    setCoupons(usable.filter((c) => c.status === 0 && (!c.validToUtc || new Date(c.validToUtc) > new Date())))
+  }
+
   useEffect(() => {
     const params = (Taro.getCurrentInstance().router?.params ?? {}) as { id?: string }
     load(params.id)
+    loadCoupons()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.params])
 
@@ -38,7 +48,7 @@ export default function ProductPage() {
     kvSet('doggo.lastOrderId', id)
   }
 
-  async function buy(planId?: string, optionId?: string) {
+  async function buy(planId?: string, optionId?: string, allowCoupon = true) {
     if (!getAccessToken()) {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       Taro.navigateTo({ url: '/pages/login/login' })
@@ -47,9 +57,16 @@ export default function ProductPage() {
     setBusy(true)
     try {
       const profile = await fetchProfile()
-      const order = await createOrder(profile.id, detail!.id, planId, optionId)
+      // The server validates the coupon (threshold, plan eligibility) and
+      // rejects the order with a message if it does not apply.
+      const useCoupon = allowCoupon ? couponId : undefined
+      const order = await createOrder(profile.id, detail!.id, planId, optionId, useCoupon)
       await payOrder(order.id)
       rememberOrder(order.id)
+      if (useCoupon) {
+        setCouponId('')
+        loadCoupons()
+      }
       Taro.showToast({ title: '已支付', icon: 'success' })
       Taro.navigateTo({ url: '/pages/opening/opening' })
     } catch (e) {
@@ -102,7 +119,7 @@ export default function ProductPage() {
                 ? plan.options
                 : [{ id: '', quantity: plan.minQuantity, priceCents: detail.finalPriceCents, upliftBps: 0 }]
               ).map((option) => (
-                <Btn key={option.id || plan.id} busy={busy} style={styles.optionBtn} onPress={() => buy(plan.id, option.id || undefined)}>
+                <Btn key={option.id || plan.id} busy={busy} style={styles.optionBtn} onPress={() => buy(plan.id, option.id || undefined, plan.canUseCoupon)}>
                   {option.quantity}连开 ¥{yuan(option.priceCents)}
                 </Btn>
               ))}
@@ -115,6 +132,30 @@ export default function ProductPage() {
             <Btn busy={busy} onPress={() => buy()}>单开 ¥{yuan(detail.finalPriceCents)}</Btn>
           </Card>
         )}
+
+        {coupons.length > 0 ? (
+          <Card>
+            <Text style={[styles.section, { color: t.text }]}>优惠券</Text>
+            <CouponRow
+              label="不使用优惠券"
+              selected={couponId === ''}
+              color={t.muted}
+              border={t.border}
+              onPress={() => setCouponId('')}
+            />
+            {coupons.map((coupon) => (
+              <CouponRow
+                key={coupon.id}
+                label={`${coupon.title} ${coupon.type === 0 ? `-¥${yuan(coupon.amountOffCents)}` : `${coupon.percentOff}%`}${coupon.minOrderCents > 0 ? `（满¥${yuan(coupon.minOrderCents)}可用）` : ''}`}
+                selected={couponId === coupon.id}
+                color={t.text}
+                border={couponId === coupon.id ? t.primary : t.border}
+                onPress={() => setCouponId(coupon.id)}
+              />
+            ))}
+            <Muted>下单时自动核销，不适用套餐由服务端校验</Muted>
+          </Card>
+        ) : null}
 
         <Card>
           <Text style={[styles.section, { color: t.text }]}>箱内物品</Text>
@@ -131,6 +172,29 @@ export default function ProductPage() {
   )
 }
 
+/** Selectable coupon row — 44px touch target, check mark when picked. */
+function CouponRow({ label, selected, color, border, onPress }: {
+  label: string
+  selected: boolean
+  color: string
+  border: string
+  onPress: () => void
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.couponRow,
+        { borderColor: border },
+        pressed && { opacity: 0.8 }
+      ]}
+    >
+      <Text numberOfLines={1} style={{ flex: 1, color }}>{label}</Text>
+      {selected ? <Text style={{ color, fontWeight: '700' }}>✓</Text> : null}
+    </Pressable>
+  )
+}
+
 const styles = StyleSheet.create({
   page: { flex: 1 },
   icon: { width: 64, height: 64, borderRadius: 8 },
@@ -138,5 +202,15 @@ const styles = StyleSheet.create({
   section: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   optionBtn: { paddingHorizontal: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, minHeight: 44 }
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, minHeight: 44 },
+  couponRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginTop: 8
+  }
 })

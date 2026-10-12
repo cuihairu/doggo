@@ -148,8 +148,10 @@ export interface OrderView {
   createdAtUtc: string
 }
 
-/** Case entry, self-open, spot, WeChat pay — the standard single-open. */
-export function createOrder(userId: string, productId: string, planId?: string, optionId?: string) {
+/** Case entry, self-open, spot, WeChat pay — the standard single-open.
+ * userCouponId selects a UserCoupon (the /api/coupons/mine row id) whose
+ * discount the server applies and validates authoritatively. */
+export function createOrder(userId: string, productId: string, planId?: string, optionId?: string, userCouponId?: string) {
   // The create endpoint returns { orderId, ... } while the detail endpoint
   // returns { id, ... }; normalize so callers can use order.id either way.
   return api<OrderView & { orderId?: string }>('/api/orders', {
@@ -162,7 +164,8 @@ export function createOrder(userId: string, productId: string, planId?: string, 
       entry: 1,
       serviceMode: 0,
       fulfillmentType: 1,
-      payType: 2
+      payType: 2,
+      userCouponId: userCouponId ?? null
     }
   }).then((order) => ({ ...order, id: order.orderId ?? order.id }))
 }
