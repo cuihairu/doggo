@@ -29,7 +29,8 @@ public static class OrderEndpoints
                     request.FulfillmentType,
                     request.PayType,
                     request.CoinDeduction,
-                    request.UserCouponId), cancellationToken);
+                    request.UserCouponId,
+                    request.Quantity), cancellationToken);
 
                 return Results.Created($"/api/orders/{result.OrderId}", result);
             }
@@ -203,7 +204,8 @@ public sealed record CreateOrderRequest(
     FulfillmentType FulfillmentType,
     PaymentProvider PayType,
     long CoinDeduction = 0,
-    Guid? UserCouponId = null);
+    Guid? UserCouponId = null,
+    int Quantity = 1);
 
 public sealed record RefundRequest(string Reason);
 

@@ -30,7 +30,8 @@ public sealed record CreateOrderCommand(
     FulfillmentType FulfillmentType,
     PaymentProvider PayType,
     long CoinDeduction = 0,
-    Guid? UserCouponId = null);
+    Guid? UserCouponId = null,
+    int Quantity = 1);
 
 public sealed record CreateOrderResult(
     Guid OrderId,
@@ -85,7 +86,9 @@ public sealed partial class OrderService(
             .Where(tier => tier.ProductId == command.ProductId)
             .ToListAsync(cancellationToken);
 
-        var quantity = planOption?.Quantity ?? 1;
+        // A plan option carries its own quantity; a plain buy takes the requested
+        // amount so the quantity-tier ladder can price it (clamped to a sane cap).
+        var quantity = planOption?.Quantity ?? Math.Clamp(command.Quantity, 1, 1000);
         var breakdown = PriceCalculator.Calculate(product, quantity, tiers, planOption);
         var total = breakdown.TotalCents;
 

@@ -215,6 +215,71 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task Create_prices_plain_quantity_through_the_tier_ladder()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 10000);
+        db.QuantityOptions.Add(new QuantityOption
+        {
+            Id = Guid.CreateVersion7(),
+            ProductId = product.Id,
+            Quantity = 5,
+            PriceCents = 9000
+        });
+        await db.SaveChangesAsync();
+
+        // Below the threshold every unit stays at the base price.
+        var below = await orders.CreateOrderAsync(new CreateOrderCommand(
+            UserId, product.Id, null, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Alipay,
+            Quantity: 4));
+        Assert.Equal(40000, below.TotalPriceCents);
+
+        // Meeting the threshold reprices every unit through the tier.
+        var atTier = await orders.CreateOrderAsync(new CreateOrderCommand(
+            UserId, product.Id, null, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Alipay,
+            Quantity: 5));
+        Assert.Equal(45000, atTier.TotalPriceCents);
+
+        var order = await db.UserOrders.FirstAsync(o => o.TotalPriceCents == 45000);
+        Assert.Equal(9000, order.PriceCents);
+    }
+
+    [Fact]
+    public async Task Create_plan_option_quantity_wins_over_request_quantity()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 4000);
+        var plan = new CasePlan
+        {
+            Id = Guid.CreateVersion7(),
+            ProductId = product.Id,
+            Title = "5连开",
+            MinQuantity = 5,
+            MaxQuantity = 5,
+            Enabled = true
+        };
+        var option = new CasePlanOption
+        {
+            Id = Guid.CreateVersion7(),
+            PlanId = plan.Id,
+            Quantity = 5,
+            PriceCents = 1800,
+            Enabled = true
+        };
+        db.CasePlans.Add(plan);
+        db.CasePlanOptions.Add(option);
+        await db.SaveChangesAsync();
+
+        var result = await orders.CreateOrderAsync(new CreateOrderCommand(
+            UserId, product.Id, plan.Id, option.Id, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Alipay,
+            Quantity: 7));
+
+        Assert.Equal(9000, result.TotalPriceCents);
+    }
+
+    [Fact]
     public async Task Create_applies_deductions_without_below_zero()
     {
         using var db = CreateDb();
