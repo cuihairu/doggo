@@ -160,49 +160,54 @@ public class SignServiceTests
         var (signs, _) = CreateServices(db);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var cycleStart = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
-        // On Monday there is no earlier day inside the cycle; the valid-makeup branch below
-        // is skipped and only the rejection paths run.
+        // Order checks only apply to makeup of a past day. On Monday no earlier
+        // day exists in the cycle, so those paths cannot run and signing today
+        // is just a plain sign.
         var missed = cycleStart != today ? cycleStart : today;
-        var order = await SeedCompletedOrderAsync(db, UserId, "DO-MAKEUP-1");
+        await SeedCompletedOrderAsync(db, UserId, "DO-MAKEUP-1");
 
-        // No order number given.
-        await Assert.ThrowsAsync<SignValidationException>(() => signs.SignAsync(UserId, missed, null));
-
-        // Someone else's order is refused.
-        var strangerOrder = await SeedCompletedOrderAsync(db, Guid.CreateVersion7(), "DO-MAKEUP-2");
-        await Assert.ThrowsAsync<SignValidationException>(() => signs.SignAsync(UserId, missed, "DO-MAKEUP-2"));
-
-        // A pending order is refused.
-        var pending = new UserOrder
-        {
-            Id = Guid.CreateVersion7(),
-            UserId = UserId,
-            OrderNo = "DO-MAKEUP-3",
-            ProductId = Guid.CreateVersion7(),
-            Entry = OrderEntry.Case,
-            Status = OrderStatus.PendingPayment,
-            ServiceMode = ServiceMode.CloudOpen,
-            FulfillmentType = FulfillmentType.Spot,
-            PayType = PaymentProvider.Alipay
-        };
-        db.UserOrders.Add(pending);
-        await db.SaveChangesAsync();
-        await Assert.ThrowsAsync<SignValidationException>(() => signs.SignAsync(UserId, missed, "DO-MAKEUP-3"));
-
-        var secondMissed = missed.AddDays(1);
-        var hasTwoMissedDays = secondMissed < today;
-
-        // The valid makeup works once; the same order cannot cover a second day.
         if (missed != today)
         {
+            // No order number given.
+            await Assert.ThrowsAsync<SignValidationException>(() => signs.SignAsync(UserId, missed, null));
+
+            // Someone else's order is refused.
+            await SeedCompletedOrderAsync(db, Guid.CreateVersion7(), "DO-MAKEUP-2");
+            await Assert.ThrowsAsync<SignValidationException>(() => signs.SignAsync(UserId, missed, "DO-MAKEUP-2"));
+
+            // A pending order is refused.
+            var pending = new UserOrder
+            {
+                Id = Guid.CreateVersion7(),
+                UserId = UserId,
+                OrderNo = "DO-MAKEUP-3",
+                ProductId = Guid.CreateVersion7(),
+                Entry = OrderEntry.Case,
+                Status = OrderStatus.PendingPayment,
+                ServiceMode = ServiceMode.CloudOpen,
+                FulfillmentType = FulfillmentType.Spot,
+                PayType = PaymentProvider.Alipay
+            };
+            db.UserOrders.Add(pending);
+            await db.SaveChangesAsync();
+            await Assert.ThrowsAsync<SignValidationException>(() => signs.SignAsync(UserId, missed, "DO-MAKEUP-3"));
+
+            // The valid makeup works once; the same order cannot cover a second day.
             var result = await signs.SignAsync(UserId, missed, "DO-MAKEUP-1");
             Assert.Equal(50, result.CoinReward);
             var record = await db.SignRecords.SingleAsync(s => s.SignedDate == missed);
             Assert.Equal("DO-MAKEUP-1", record.MakeupOrderNo);
-            if (hasTwoMissedDays)
+            var secondMissed = missed.AddDays(1);
+            if (secondMissed < today)
             {
                 await Assert.ThrowsAsync<SignValidationException>(() => signs.SignAsync(UserId, secondMissed, "DO-MAKEUP-1"));
             }
+        }
+        else
+        {
+            // Monday: today is the only signable day of the cycle so far.
+            await signs.SignTodayAsync(UserId);
+            await Assert.ThrowsAsync<SignValidationException>(() => signs.SignTodayAsync(UserId));
         }
 
         // Future days are refused outright.
