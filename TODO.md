@@ -285,3 +285,15 @@
 - [x] **web 行情类型筛选**：`MarketItemQuery.Type`（箱子/钥匙/皮肤/其他）此前同样零使用，补进行情页筛选行
 - [x] **文档同步**：features.md 三行更新（行情列表与搜索、新增商品列表与搜索、邀请与签到）
 - **验收口径（可数）**：服务端 `dotnet test` 355 例全绿（基线 352 + 邀请新增 3 例）；web `pnpm build` + `oxlint` 通过；小程序 `tsc --noEmit` + webpack 构建通过；手机端 `tsc --noEmit` + `build:rn` 通过；文档站 `vitepress build docs` 通过。共 6 次提交（feat: invite rewards across clients / feat: market and product search with pagination / feat: product search on miniapp and mobile / fix: load more counts server rows / docs: record search and invite batch / feat: market type filter on web），每次测试绿后才提交并 push；全程无 tag、无 release、无 force push
+
+## M12 界面重设计与两个模块（2026-10-12 用户令：先设计，原型/设计文档过目后才动实现）
+
+> 来源：用户 2026-10-12 设计重做单 + 登记单。纪律：设计阶段不改业务代码；实现阶段按原型逐屏对照并给「已对上/有差异/未实现」三档 + 截图证据；不许只改颜色就声称完成主题。
+
+- [ ] **① 四端 UI 原型重做（多主题令牌化）**：web 前台/小程序/admin 后台/手机端各一套 HTML/CSS 静态原型（`docs/design/prototypes/`，静态可打开、截图可验），主题 = 颜色令牌 + 图案/装饰件组合、令牌化（换主题不改布局），至少 11 套：默认（品牌）/暗色/中国节日（春节·元宵·端午·中秋·国庆）/季节（春夏秋冬），每主题一张色板与适用场景说明；每端覆盖首页（或列表）、详情、下单（或关键动作）、设置（或个人页），关键流程给空态/加载/错误/成功状态图；`docs/design/ui-system.md` 记录令牌表、主题清单、组件复用关系与「哪端用哪套」。（来源：用户 2026-10-12）
+  - 验收口径：四端原型文件齐且浏览器直接可开；同一页面切 11 套主题布局不变（data-theme 切换截图可验）；ui-system.md 令牌表与 tokens.css 逐项一致；不引第三方设计素材（icon/品牌资产用仓内 `docs/public/*.svg` 与自绘 SVG）。
+  - 进度（2026-10-13）：设计与产出中，交付路径见本条目回填。
+- [ ] **② 价格爬虫独立模块（先设计后实现）**：独立可复用包（doggo 以引用接入，将来可独立成项目）；调度 / 站点适配器 / 清洗去重 / 落库 / 限速与失败退避 / 合规（robots 与频控）；产出价格序列与趋势指标（日环比、周同比、区间涨跌）；与站内 `MarketPriceSnapshot` 聚合对照口径；写清 `Doggo.Scraper` 复用什么、新建什么。（来源：用户 2026-10-12）
+  - 验收口径：`docs/design/price-crawler-design.md` 含表结构、接口签名、复用/新建清单、聚合口径与待拍板项；用户过目设计后才动代码。
+- [ ] **③ 漏斗数据分析（先设计后实现）**：页面点击→加购→下单→支付四步流失；埋点模型（事件名/属性/会话/用户）；上报接口与离线补报；聚合任务；后台漏斗页（转化率、流失率，按端/按渠道/按时间分组）；与既有资讯/行情数据同一数据源口径。（来源：用户 2026-10-12）
+  - 验收口径：`docs/design/analytics-funnel-design.md` 含埋点表结构、上报接口契约、聚合任务与后台页设计、同源口径说明与待拍板项；用户过目设计后才动代码。
