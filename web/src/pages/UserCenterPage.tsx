@@ -31,6 +31,14 @@ interface TradeUrlView {
   status: number
 }
 
+interface RedeemResult {
+  type: number
+  coinAmount: number
+  couponId?: string | null
+  couponTitle: string
+  balance: number
+}
+
 const COUPON_STATUS: Record<number, string> = { 0: '未使用', 1: '已使用', 2: '已过期' }
 
 /** User center: profile, trade link, coin balance, coupons, and this week's sign board. */
@@ -42,6 +50,8 @@ export default function UserCenterPage() {
   const [sign, setSign] = useState<SignCycle | null>(null)
   const [tradeUrl, setTradeUrl] = useState<TradeUrlView | null>(null)
   const [tradeInput, setTradeInput] = useState('')
+  const [redeemInput, setRedeemInput] = useState('')
+  const [redeemMsg, setRedeemMsg] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -87,6 +97,25 @@ export default function UserCenterPage() {
       reloadTradeUrl()
     } catch (err) {
       setError(String((err as Error).message ?? err))
+    }
+  }
+
+  async function redeemCode() {
+    setRedeemMsg('')
+    try {
+      const result = await api<RedeemResult>('/api/redeem', { body: { code: redeemInput.trim() } })
+      setRedeemInput('')
+      setCoins({ balance: result.balance })
+      setRedeemMsg(
+        result.type === 0
+          ? `兑换成功，积分 +${result.coinAmount}`
+          : `兑换成功，获得优惠券「${result.couponTitle}」`,
+      )
+      api<{ items: CouponView[] }>('/api/coupons/mine')
+        .then((res) => setCoupons(res.items))
+        .catch(() => {})
+    } catch (err) {
+      setRedeemMsg(String((err as Error).message ?? err))
     }
   }
 
@@ -152,6 +181,21 @@ export default function UserCenterPage() {
           </div>
           <button className="btn" disabled={sign?.todaySigned} onClick={signToday}>
             {sign?.todaySigned ? '今日已签' : '签到'}
+          </button>
+        </div>
+
+        <div className="card">
+          <strong>兑换码</strong>
+          {redeemMsg && <p className="muted">{redeemMsg}</p>}
+          <div className="field">
+            <input
+              placeholder="输入兑换码"
+              value={redeemInput}
+              onChange={(event) => setRedeemInput(event.target.value)}
+            />
+          </div>
+          <button className="btn secondary" disabled={!redeemInput.trim()} onClick={redeemCode}>
+            兑换
           </button>
         </div>
       </div>
