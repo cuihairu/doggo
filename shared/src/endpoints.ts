@@ -235,6 +235,19 @@ export function fetchMyCoupons() {
   return api<MyCoupon[]>('/api/coupons/mine')
 }
 
+export interface RedeemResult {
+  type: number
+  coinAmount: number
+  couponId?: string | null
+  couponTitle: string
+  balance: number
+}
+
+/** Redeem code exchange: POST /api/redeem → coin credit or coupon grant. */
+export function redeemCode(code: string) {
+  return api<RedeemResult>('/api/redeem', { method: 'POST', data: { code } })
+}
+
 export interface SignCycleDay {
   date: string
   signed: boolean

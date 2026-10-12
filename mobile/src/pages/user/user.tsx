@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro, { useDidShow } from '@tarojs/taro'
 import {
   fetchCoinBalance, fetchMyCoupons, fetchProfile, fetchSignCycle,
-  logout, signToday, ApiError, getAccessToken, Profile
+  logout, redeemCode, signToday, ApiError, getAccessToken, Profile
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
 import { useTheme } from '../../theme'
@@ -17,6 +17,8 @@ export default function UserPage() {
   const [signed, setSigned] = useState<boolean | null>(null)
   const [error, setError] = useState('')
   const [signBusy, setSignBusy] = useState(false)
+  const [redeemInput, setRedeemInput] = useState('')
+  const [redeemBusy, setRedeemBusy] = useState(false)
 
   const load = useCallback(() => {
     if (!getAccessToken()) {
@@ -65,6 +67,26 @@ export default function UserPage() {
     }
   }
 
+  async function doRedeem() {
+    const code = redeemInput.trim()
+    if (!code) return
+    setRedeemBusy(true)
+    try {
+      const result = await redeemCode(code)
+      setRedeemInput('')
+      setCoins(result.balance)
+      Taro.showToast({
+        title: result.type === 0 ? `兑换成功，金币 +${result.coinAmount}` : `获得优惠券「${result.couponTitle}」`,
+        icon: 'success'
+      })
+      load()
+    } catch (e) {
+      Taro.showToast({ title: e instanceof ApiError ? e.message : '兑换失败', icon: 'none' })
+    } finally {
+      setRedeemBusy(false)
+    }
+  }
+
   if (error === '未登录') {
     return (
       <View style={[styles.page, { backgroundColor: t.bg }]}>
@@ -103,6 +125,19 @@ export default function UserPage() {
         </Card>
 
         <Card>
+          <Text style={[styles.section, { color: t.text }]}>兑换码</Text>
+          <TextInput
+            placeholder="输入兑换码"
+            placeholderTextColor={t.muted}
+            value={redeemInput}
+            onChangeText={setRedeemInput}
+            autoCapitalize="none"
+            style={[styles.input, { backgroundColor: t.bg, borderColor: t.border, color: t.text }]}
+          />
+          <Btn busy={redeemBusy} disabled={!redeemInput.trim()} onPress={doRedeem}>兑换</Btn>
+        </Card>
+
+        <Card>
           <Text style={[styles.section, { color: t.text }]}>可用优惠券 ({coupons.length})</Text>
           {coupons.map((coupon) => (
             <View key={coupon.id} style={styles.couponRow}>
@@ -136,6 +171,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 20, fontWeight: '700' },
   section: { fontSize: 16, fontWeight: '700', marginBottom: 6 },
   coins: { fontSize: 26, fontWeight: '700' },
+  input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, minHeight: 44, marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   couponRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, minHeight: 44 },
   entryRow: { flexDirection: 'row', gap: 8, marginBottom: 12 }

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, ScrollView, Button } from '@tarojs/components'
+import { View, Text, ScrollView, Button, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {
   fetchCoinBalance, fetchMyCoupons, fetchProfile, fetchSignCycle,
-  logout, Profile, signToday
+  logout, redeemCode, Profile, signToday
 } from '../../api/endpoints'
 import { ApiError, getAccessToken } from '../../api/client'
 
@@ -13,6 +13,7 @@ interface CouponLite {
   amountOffCents: number
   percentOff: number
   status: number
+  validToUtc?: string | null
 }
 
 /** User center: identity, coins, coupons, weekly sign-in. */
@@ -21,6 +22,7 @@ export default function UserPage() {
   const [coins, setCoins] = useState<number | null>(null)
   const [coupons, setCoupons] = useState<CouponLite[]>([])
   const [signed, setSigned] = useState<boolean | null>(null)
+  const [redeemInput, setRedeemInput] = useState('')
   const [error, setError] = useState('')
 
   const load = useCallback(() => {
@@ -33,7 +35,10 @@ export default function UserPage() {
       setError('')
     }).catch((e) => setError(e instanceof ApiError ? e.message : '加载失败'))
     fetchCoinBalance().then((b) => setCoins(b.balance)).catch(() => {})
-    fetchMyCoupons().then((rows) => setCoupons(rows.filter((c) => c.status === 1))).catch(() => {})
+    // Unused = 0 / Used = 1 / Expired = 2 — "available" means unused and unexpired.
+    fetchMyCoupons()
+      .then((rows) => setCoupons(rows.filter((c) => c.status === 0 && (!c.validToUtc || new Date(c.validToUtc) > new Date()))))
+      .catch(() => {})
     fetchSignCycle().then((cycle) => setSigned(cycle.todaySigned)).catch(() => {})
   }, [])
 
@@ -50,6 +55,23 @@ export default function UserPage() {
       fetchCoinBalance().then((b) => setCoins(b.balance)).catch(() => {})
     } catch (e) {
       Taro.showToast({ title: e instanceof ApiError ? e.message : '签到失败', icon: 'none' })
+    }
+  }
+
+  async function doRedeem() {
+    const code = redeemInput.trim()
+    if (!code) return
+    try {
+      const result = await redeemCode(code)
+      setRedeemInput('')
+      setCoins(result.balance)
+      Taro.showToast({
+        title: result.type === 0 ? `兑换成功，金币 +${result.coinAmount}` : `获得优惠券「${result.couponTitle}」`,
+        icon: 'success'
+      })
+      load()
+    } catch (e) {
+      Taro.showToast({ title: e instanceof ApiError ? e.message : '兑换失败', icon: 'none' })
     }
   }
 
@@ -79,6 +101,19 @@ export default function UserPage() {
         </View>
         <Button size="mini" className="btn-primary" disabled={signed === true} onClick={doSign}>
           {signed === true ? '今日已签到' : '每日签到'}
+        </Button>
+      </View>
+
+      <View className="card">
+        <Text style={{ fontWeight: 700 }}>兑换码</Text>
+        <Input
+          placeholder="输入兑换码"
+          value={redeemInput}
+          onInput={(e) => setRedeemInput(e.detail.value)}
+          style={{ border: '1rpx solid #eee', borderRadius: '8rpx', padding: '12rpx', margin: '20rpx 0' }}
+        />
+        <Button size="mini" className="btn-primary" disabled={!redeemInput.trim()} onClick={doRedeem}>
+          兑换
         </Button>
       </View>
 
