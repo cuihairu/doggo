@@ -3,7 +3,8 @@ import { View, Text, ScrollView, Button, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {
   fetchCoinBalance, fetchCoinLogs, fetchMyCoupons, fetchProfile, fetchSignCycle,
-  fetchTradeUrls, addTradeUrl, logout, redeemCode, Profile, signToday, TradeUrlEntry, CoinLogEntry
+  fetchTradeUrls, addTradeUrl, fetchClaimableCoupons, claimCoupon,
+  logout, redeemCode, Profile, signToday, TradeUrlEntry, CoinLogEntry, ClaimableCoupon
 } from '../../api/endpoints'
 import { ApiError, getAccessToken } from '../../api/client'
 
@@ -28,6 +29,7 @@ export default function UserPage() {
   const [tradeUrls, setTradeUrls] = useState<TradeUrlEntry[]>([])
   const [tradeInput, setTradeInput] = useState('')
   const [coinLogs, setCoinLogs] = useState<CoinLogEntry[]>([])
+  const [claimable, setClaimable] = useState<ClaimableCoupon[]>([])
   const [error, setError] = useState('')
 
   const load = useCallback(() => {
@@ -47,6 +49,7 @@ export default function UserPage() {
       .then((rows) => setCoupons(rows.filter((c) => c.status === 0 && (!c.validToUtc || new Date(c.validToUtc) > new Date()))))
       .catch(() => {})
     fetchSignCycle().then((cycle) => setSigned(cycle.todaySigned)).catch(() => {})
+    fetchClaimableCoupons().then(setClaimable).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -92,6 +95,16 @@ export default function UserPage() {
       Taro.showToast({ title: '已保存', icon: 'success' })
     } catch (e) {
       Taro.showToast({ title: e instanceof ApiError ? e.message : '保存失败', icon: 'none' })
+    }
+  }
+
+  async function doClaim(couponId: string) {
+    try {
+      const claimed = await claimCoupon(couponId)
+      Taro.showToast({ title: `已领取「${claimed.title}」`, icon: 'success' })
+      load()
+    } catch (e) {
+      Taro.showToast({ title: e instanceof ApiError ? e.message : '领取失败', icon: 'none' })
     }
   }
 
@@ -168,6 +181,20 @@ export default function UserPage() {
         <Button size="mini" className="btn-primary" disabled={!redeemInput.trim()} onClick={doRedeem}>
           兑换
         </Button>
+      </View>
+
+      <View className="card">
+        <Text style={{ fontWeight: 700 }}>领券中心</Text>
+        {claimable.map((coupon) => (
+          <View key={coupon.id} className="row" style={{ justifyContent: 'space-between', marginTop: '10rpx' }}>
+            <View style={{ flex: 1 }}>
+              <Text>{coupon.title}</Text>
+              <Text className="muted">满 ¥{(coupon.minOrderCents / 100).toFixed(2)} 可用</Text>
+            </View>
+            <Button size="mini" className="btn-primary" onClick={() => doClaim(coupon.id)}>领取</Button>
+          </View>
+        ))}
+        {claimable.length === 0 && <Text className="muted">暂无可领优惠券</Text>}
       </View>
 
       <View className="card">

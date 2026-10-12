@@ -3,8 +3,9 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro, { useDidShow } from '@tarojs/taro'
 import {
   fetchCoinBalance, fetchCoinLogs, fetchMyCoupons, fetchProfile, fetchSignCycle,
-  fetchTradeUrls, addTradeUrl, logout, redeemCode, signToday,
-  ApiError, getAccessToken, CoinLogEntry, Profile, TradeUrlEntry
+  fetchTradeUrls, addTradeUrl, fetchClaimableCoupons, claimCoupon,
+  logout, redeemCode, signToday,
+  ApiError, getAccessToken, ClaimableCoupon, CoinLogEntry, Profile, TradeUrlEntry
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
 import { useTheme } from '../../theme'
@@ -26,6 +27,7 @@ export default function UserPage() {
   const [tradeInput, setTradeInput] = useState('')
   const [tradeBusy, setTradeBusy] = useState(false)
   const [coinLogs, setCoinLogs] = useState<CoinLogEntry[]>([])
+  const [claimable, setClaimable] = useState<ClaimableCoupon[]>([])
 
   const load = useCallback(() => {
     if (!getAccessToken()) {
@@ -52,6 +54,7 @@ export default function UserPage() {
       .then((rows) => setCoupons(rows.filter((c) => c.status === 0 && (!c.validToUtc || new Date(c.validToUtc) > new Date()))))
       .catch(() => {})
     fetchSignCycle().then((cycle) => setSigned(cycle.todaySigned)).catch(() => {})
+    fetchClaimableCoupons().then(setClaimable).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -111,6 +114,16 @@ export default function UserPage() {
       Taro.showToast({ title: e instanceof ApiError ? e.message : '保存失败', icon: 'none' })
     } finally {
       setTradeBusy(false)
+    }
+  }
+
+  async function doClaim(couponId: string) {
+    try {
+      const claimed = await claimCoupon(couponId)
+      Taro.showToast({ title: `已领取「${claimed.title}」`, icon: 'success' })
+      load()
+    } catch (e) {
+      Taro.showToast({ title: e instanceof ApiError ? e.message : '领取失败', icon: 'none' })
     }
   }
 
@@ -201,6 +214,20 @@ export default function UserPage() {
             style={[styles.input, { backgroundColor: t.bg, borderColor: t.border, color: t.text }]}
           />
           <Btn busy={redeemBusy} disabled={!redeemInput.trim()} onPress={doRedeem}>兑换</Btn>
+        </Card>
+
+        <Card>
+          <Text style={[styles.section, { color: t.text }]}>领券中心</Text>
+          {claimable.map((coupon) => (
+            <View key={coupon.id} style={styles.couponRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: t.text }}>{coupon.title}</Text>
+                <Muted>满 ¥{(coupon.minOrderCents / 100).toFixed(2)} 可用</Muted>
+              </View>
+              <Btn tone="plain" onPress={() => doClaim(coupon.id)}>领取</Btn>
+            </View>
+          ))}
+          {claimable.length === 0 && <Muted>暂无可领优惠券</Muted>}
         </Card>
 
         <Card>

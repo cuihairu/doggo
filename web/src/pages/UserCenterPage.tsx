@@ -48,6 +48,15 @@ interface RedeemResult {
   balance: number
 }
 
+interface ClaimableCoupon {
+  id: string
+  title: string
+  type: number
+  amountOffCents: number
+  percentOff: number
+  minOrderCents: number
+}
+
 const COUPON_STATUS: Record<number, string> = { 0: '未使用', 1: '已使用', 2: '已过期' }
 
 const COIN_LOG_TYPE: Record<number, string> = { 0: '发放', 1: '消费', 2: '退款', 3: '过期' }
@@ -60,6 +69,7 @@ export default function UserCenterPage() {
   const [coupons, setCoupons] = useState<CouponView[]>([])
   const [sign, setSign] = useState<SignCycle | null>(null)
   const [coinLogs, setCoinLogs] = useState<CoinLog[]>([])
+  const [claimable, setClaimable] = useState<ClaimableCoupon[]>([])
   const [tradeUrl, setTradeUrl] = useState<TradeUrlView | null>(null)
   const [tradeInput, setTradeInput] = useState('')
   const [redeemInput, setRedeemInput] = useState('')
@@ -80,6 +90,7 @@ export default function UserCenterPage() {
     api<{ items: CouponView[] }>('/api/coupons/mine')
       .then((result) => setCoupons(result.items))
       .catch(() => {})
+    api<ClaimableCoupon[]>('/api/coupons').then(setClaimable).catch(() => {})
     api<SignCycle>('/api/sign').then(setSign).catch(() => {})
   }, [setProfile])
 
@@ -131,6 +142,18 @@ export default function UserCenterPage() {
         .catch(() => {})
     } catch (err) {
       setRedeemMsg(String((err as Error).message ?? err))
+    }
+  }
+
+  async function claim(id: string) {
+    setError('')
+    try {
+      await api(`/api/coupons/${id}/claim`, { body: {} })
+      api<{ items: CouponView[] }>('/api/coupons/mine')
+        .then((res) => setCoupons(res.items))
+        .catch(() => {})
+    } catch (err) {
+      setError(String((err as Error).message ?? err))
     }
   }
 
@@ -240,6 +263,36 @@ export default function UserCenterPage() {
                   </td>
                   <td>{log.balanceAfter}</td>
                   <td className="muted">{log.note ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <h2 className="page-title" style={{ fontSize: 17, marginTop: 24 }}>领券中心</h2>
+      <div className="card">
+        {claimable.length === 0 ? (
+          <p className="muted">暂无可领优惠券</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>面额</th>
+                <th>门槛</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {claimable.map((coupon) => (
+                <tr key={coupon.id}>
+                  <td>{coupon.title}</td>
+                  <td>{coupon.type === 0 ? `¥${(coupon.amountOffCents / 100).toFixed(2)}` : `${coupon.percentOff}%`}</td>
+                  <td>满 ¥{(coupon.minOrderCents / 100).toFixed(2)}</td>
+                  <td>
+                    <button className="btn secondary" onClick={() => claim(coupon.id)}>领取</button>
+                  </td>
                 </tr>
               ))}
             </tbody>

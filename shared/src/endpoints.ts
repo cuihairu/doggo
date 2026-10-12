@@ -251,6 +251,29 @@ export function fetchMyCoupons() {
   return api<MyCoupon[]>('/api/coupons/mine')
 }
 
+export interface ClaimableCoupon {
+  id: string
+  title: string
+  type: number
+  amountOffCents: number
+  percentOff: number
+  minOrderCents: number
+  perUserLimit: number
+  totalLimit?: number | null
+  validFromUtc?: string | null
+  validToUtc?: string | null
+}
+
+/** Coupon center: every enabled coupon inside its claim window. */
+export function fetchClaimableCoupons() {
+  return api<ClaimableCoupon[]>('/api/coupons')
+}
+
+/** Claim a coupon; the server enforces the per-user and total limits. */
+export function claimCoupon(couponId: string) {
+  return api<MyCoupon>(`/api/coupons/${couponId}/claim`, { method: 'POST' })
+}
+
 export interface RedeemResult {
   type: number
   coinAmount: number
