@@ -1,24 +1,36 @@
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { fetchNews, fetchMarket, NewsItemView, MarketItemView } from '../../api/endpoints'
+import { fetchNews, fetchMarket, fetchNotices, NewsItemView, MarketItemView, NoticeView } from '../../api/endpoints'
 import { ApiError } from '../../api/client'
 
-/** Home: news feed and a live market glance. */
+/** Home: notices, news feed and a live market glance. */
 export default function IndexPage() {
   const [news, setNews] = useState<NewsItemView[]>([])
   const [market, setMarket] = useState<MarketItemView[]>([])
+  const [notices, setNotices] = useState<NoticeView[]>([])
   const [error, setError] = useState('')
 
   useEffect(() => {
     fetchNews(1).then((page) => { setNews(page.items); setError('') })
       .catch((e) => setError(e instanceof ApiError ? e.message : '加载失败'))
     fetchMarket(1).then((page) => setMarket(page.items.slice(0, 10))).catch(() => {})
+    fetchNotices().then(setNotices).catch(() => {})
   }, [])
 
   return (
     <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
       {error && <View className="card"><Text className="muted">{error}</Text></View>}
+
+      {notices.length > 0 && (
+        <View className="card">
+          {notices.map((notice, index) => (
+            <Text key={notice.id} className="muted" style={index > 0 ? { marginTop: '10rpx' } : undefined}>
+              公告 {notice.title}：{notice.content}
+            </Text>
+          ))}
+        </View>
+      )}
 
       <View className="card">
         <Text style={{ fontWeight: 700 }}>行情速览</Text>

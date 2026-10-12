@@ -285,3 +285,14 @@ export function fetchSignCycle() {
 export function signToday() {
   return api<{ cycleId: string; signedDate: string; coinReward: number; cycleTotalReward: number }>('/api/sign', { method: 'POST' })
 }
+
+export interface NoticeView {
+  id: string
+  title: string
+  content: string
+}
+
+/** Operator notices currently in their published window. */
+export function fetchNotices() {
+  return api<NoticeView[]>('/api/notices')
+}

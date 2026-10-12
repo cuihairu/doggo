@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import Taro from '@tarojs/taro'
-import { fetchNews, fetchMarket, ApiError, MarketItemView, NewsItemView, yuan } from '@doggo/shared'
+import { fetchNews, fetchMarket, fetchNotices, ApiError, MarketItemView, NewsItemView, NoticeView, yuan } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
 import { useTheme } from '../../theme'
 import { loadCache, saveCache } from '../../cache'
@@ -11,6 +11,7 @@ export default function IndexPage() {
   const t = useTheme()
   const [news, setNews] = useState<NewsItemView[]>([])
   const [market, setMarket] = useState<MarketItemView[]>([])
+  const [notices, setNotices] = useState<NoticeView[]>([])
   const [stale, setStale] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -48,6 +49,7 @@ export default function IndexPage() {
 
   useEffect(() => {
     load()
+    fetchNotices().then(setNotices).catch(() => {})
   }, [load])
 
   const entries = [
@@ -73,6 +75,16 @@ export default function IndexPage() {
 
         {stale ? <Msg text="网络不佳，正在展示缓存内容" /> : null}
         {error && !stale ? <Msg text={error} onRetry={load} /> : null}
+
+        {notices.length > 0 ? (
+          <Card>
+            {notices.map((notice, index) => (
+              <Muted key={notice.id} style={index > 0 ? { marginTop: 8 } : undefined}>
+                公告 {notice.title}：{notice.content}
+              </Muted>
+            ))}
+          </Card>
+        ) : null}
 
         <Card>
           <Text style={[styles.section, { color: t.text }]}>行情速览</Text>
