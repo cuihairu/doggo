@@ -20,12 +20,12 @@
 
 | 原指令 | vapor 能力 |
 | --- | --- |
-| open_crate / open_all_crate | CaseOpening 插件的开箱 action |
+| open_crate / open_all_crate | CS:GO 插件的 `case_open` action;真实开箱在 vapor 侧受 `open.enabled` 门禁,请求携带 `caseId`(批次上的 VaporCaseId)与该座位的 `crateAssetId` / `keyAssetId` |
 | inventory / inventory_history | 库存 action 与变更事件 |
-| trading | 交易报价 action |
+| trading | 交易报价 action(`send_trade_offer`,资产条目键为 `asset_id` / `app_id`) |
 | password_auth / enable_guard | 凭据与 SteamGuard 会话管理 |
 
-Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook / SSE 订阅结果事件;按订单号关联回本地奖品记录。
+Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook / SSE 订阅结果事件;按订单号关联回本地奖品记录。2026-10-14 核对 vapor 源码:其通知目前只有 `job` / `session` / `auth` 三类,尚无开箱域事件,座位结果经 `/api/group-buyings/{id}/seats/{seatNo}/result` 接口回填;Webhook 侧的 `case_opening` 事件类别保留为 doggo 侧约定,待 vapor 提供域事件后接上。
 
 ## 状态机
 
