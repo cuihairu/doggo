@@ -51,7 +51,10 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 }
 
 async function request(path: string, options: RequestOptions): Promise<Response> {
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = {
+    // Server-authoritative funnel events (order_created) read the client session from here.
+    'X-Doggo-Session': getSessionId()
+  }
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
@@ -101,4 +104,57 @@ async function parseBody<T>(response: Response): Promise<T> {
     throw new ApiError(response.status, message)
   }
   return payload as T
+}
+
+// ---- analytics session + channel (used by events.ts and the session header) ----
+
+const SESSION_KEY = 'doggo.analyticsSession'
+const CHANNEL_KEY = 'doggo.analyticsChannel'
+
+/** Inactivity after which a new session id is minted (funnel design §4.3). */
+const SESSION_IDLE_MS = 30 * 60_000
+
+function newId(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID()
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const rand = (Math.random() * 16) | 0
+    const value = ch === 'x' ? rand : (rand & 0x3) | 0x8
+    return value.toString(16)
+  })
+}
+
+/** Session id survives reloads; 30 minutes without activity starts a new one. */
+export function getSessionId(): string {
+  const now = Date.now()
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    const stored = raw ? (JSON.parse(raw) as { id: string; lastActiveAt: number }) : null
+    if (stored && now - stored.lastActiveAt < SESSION_IDLE_MS) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ ...stored, lastActiveAt: now }))
+      return stored.id
+    }
+  } catch {
+    // fall through to a fresh session
+  }
+
+  const fresh = { id: newId(), lastActiveAt: now }
+  localStorage.setItem(SESSION_KEY, JSON.stringify(fresh))
+  return fresh.id
+}
+
+/** Campaign/attribution channel set once at startup; defaults to organic server-side too. */
+export function setChannel(channel: string) {
+  localStorage.setItem(CHANNEL_KEY, JSON.stringify(channel))
+}
+
+export function getChannel(): string | null {
+  try {
+    const raw = localStorage.getItem(CHANNEL_KEY)
+    return raw ? (JSON.parse(raw) as string) : null
+  } catch {
+    return null
+  }
 }

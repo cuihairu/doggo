@@ -18,6 +18,12 @@ export default defineConfig({
       redirect: '/dashboard',
     },
     { path: '/dashboard', component: './Dashboard', icon: 'DashboardOutlined', name: '数据面板' },
+    {
+      path: '/analytics',
+      icon: 'FallOutlined',
+      name: '数据分析',
+      routes: [{ path: '/analytics/funnel', component: './Funnel', name: '转化漏斗' }],
+    },
     { path: '/articles', component: './Articles', icon: 'FileTextOutlined', name: '资讯管理' },
     { path: '/products', component: './Products', icon: 'AppstoreOutlined', name: '商品管理' },
     { path: '/orders', component: './Orders', icon: 'ShoppingCartOutlined', name: '订单管理' },

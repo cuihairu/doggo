@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, getAccessToken } from '../api/client'
+import { trackEvent } from '../api/events'
 
 interface ProductDetail {
   id: string
@@ -51,6 +52,8 @@ export default function ProductDetailPage() {
     api<{ items: Sku[] }>(`/api/products/${id}/skus`)
       .then((result) => setSkus(result.items))
       .catch(() => setSkus([]))
+    // Funnel step 1: the detail page rendered with a concrete product (design §3.2).
+    trackEvent('page_view_product', { productId: id, source: 'direct' }, `/products/${id}`)
   }, [id])
 
   async function placeOrder() {
@@ -62,6 +65,12 @@ export default function ProductDetailPage() {
 
     setError('')
     const sku = skus.find((item) => item.optionId != null && item.optionId === selectedSkuId)
+    // Funnel step 2: plan/quantity decided, buy confirmed (design §3.1).
+    trackEvent(
+      'checkout_intent',
+      { productId: id, planId: sku?.planId ?? null, optionId: sku?.optionId ?? null, quantity: selectedTier || 1 },
+      `/products/${id}`
+    )
     try {
       const result = await api<CreateOrderResult>('/api/orders', {
         body: {

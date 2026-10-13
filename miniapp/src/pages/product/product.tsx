@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, Image, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { createOrder, fetchProduct, fetchProfile, payOrder, ProductDetail } from '../../api/endpoints'
-import { ApiError, getAccessToken, yuan } from '../../api/client'
+import { ApiError, getAccessToken, trackEvent, yuan } from '../../api/client'
 
 /** Product detail: contents, plans with option prices, and the buy → pay → results flow. */
 export default function ProductPage() {
@@ -14,6 +14,8 @@ export default function ProductPage() {
     const params = Taro.getCurrentInstance().router?.params ?? {}
     if (!params.id) return
     fetchProduct(params.id).then(setDetail).catch((e) => setError(e instanceof ApiError ? e.message : '加载失败'))
+    // Funnel step 1: the detail page rendered with a concrete product (design §3.2).
+    trackEvent('page_view_product', { productId: params.id, source: 'direct' }, `/pages/product/product?id=${params.id}`)
   }, [])
 
   async function buy(planId?: string, optionId?: string) {
@@ -22,6 +24,8 @@ export default function ProductPage() {
       Taro.navigateTo({ url: '/pages/login/login' })
       return
     }
+    // Funnel step 2: plan/quantity decided, buy confirmed (design §3.1).
+    trackEvent('checkout_intent', { productId: detail!.id, planId: planId ?? null, optionId: optionId ?? null, quantity: 1 })
     setBusy(true)
     try {
       const profile = await fetchProfile()

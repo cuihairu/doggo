@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import {
   createOrder, fetchMyCoupons, fetchProduct, fetchProfile, payOrder,
-  ApiError, getAccessToken, kvGet, kvSet, MyCoupon, ProductDetail, yuan
+  ApiError, getAccessToken, kvGet, kvSet, MyCoupon, ProductDetail, trackEvent, yuan
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
 import { useTheme } from '../../theme'
@@ -39,6 +39,10 @@ export default function ProductPage() {
     const params = (Taro.getCurrentInstance().router?.params ?? {}) as { id?: string }
     load(params.id)
     loadCoupons()
+    // Funnel step 1: the detail page rendered with a concrete product (design §3.2).
+    if (params.id) {
+      trackEvent('page_view_product', { productId: params.id, source: 'direct' }, `/pages/product/product?id=${params.id}`)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.params])
 
@@ -60,6 +64,8 @@ export default function ProductPage() {
       Taro.navigateTo({ url: '/pages/login/login' })
       return
     }
+    // Funnel step 2: plan/quantity decided, buy confirmed (design §3.1).
+    trackEvent('checkout_intent', { productId: detail?.id ?? '', planId: planId ?? null, optionId: optionId ?? null, quantity })
     setBusy(true)
     try {
       const profile = await fetchProfile()

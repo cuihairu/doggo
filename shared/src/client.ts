@@ -98,7 +98,11 @@ interface RequestOptions {
 }
 
 async function rawRequest<T>(path: string, options: RequestOptions): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    // Server-authoritative funnel events (order_created) read the client session from here.
+    'X-Doggo-Session': getSessionId()
+  }
   const token = getAccessToken()
   if (token && !options.skipAuth) {
     headers.Authorization = `Bearer ${token}`
@@ -153,3 +157,47 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 }
 
 export const yuan = (cents: number | string | undefined) => (Number(cents ?? 0) / 100).toFixed(2)
+
+// ---- analytics session + channel (used by events.ts and the session header) ----
+
+const SESSION_KEY = 'doggo.analyticsSession'
+const CHANNEL_KEY = 'doggo.analyticsChannel'
+
+/** Inactivity after which a new session id is minted (funnel design §4.3). */
+const SESSION_IDLE_MS = 30 * 60_000
+
+/** UUID fallback for runtimes without crypto.randomUUID (older RN engines). */
+export function newId(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID()
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const rand = (Math.random() * 16) | 0
+    const value = ch === 'x' ? rand : (rand & 0x3) | 0x8
+    return value.toString(16)
+  })
+}
+
+/** Session id survives restarts; 30 minutes without activity starts a new one. */
+export function getSessionId(): string {
+  const now = Date.now()
+  const stored = kvGet<{ id: string; lastActiveAt: number }>(SESSION_KEY)
+  if (stored && now - stored.lastActiveAt < SESSION_IDLE_MS) {
+    kvSet(SESSION_KEY, { ...stored, lastActiveAt: now })
+    return stored.id
+  }
+
+  const fresh = { id: newId(), lastActiveAt: now }
+  kvSet(SESSION_KEY, fresh)
+  return fresh.id
+}
+
+/** Campaign/attribution channel set once at startup; defaults to organic server-side too. */
+export function setChannel(channel: string) {
+  kvSet(CHANNEL_KEY, channel)
+}
+
+export function getChannel(): string | null {
+  return kvGet<string>(CHANNEL_KEY)
+}
