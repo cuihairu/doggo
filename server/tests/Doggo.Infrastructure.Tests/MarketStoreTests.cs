@@ -22,9 +22,12 @@ public class MarketStoreTests
         decimal? price,
         int minutesAgo = 0,
         int? currencyId = 23,
-        string appId = "730") =>
+        string appId = "730",
+        DateTimeOffset? fetchedAt = null) =>
         new(Guid.NewGuid(), hashName, hashName, 5, appId, null, classId, null, price, currencyId,
-            DateTimeOffset.UtcNow.AddMinutes(-minutesAgo));
+            fetchedAt ?? DateTimeOffset.UtcNow.AddMinutes(-minutesAgo));
+
+    private static readonly DateTimeOffset FixedMorning = new(2026, 5, 1, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task Apply_creates_item_change_only_snapshots_and_daily_fold()
@@ -34,9 +37,11 @@ public class MarketStoreTests
 
         var result = await store.ApplyListingsAsync("730",
         [
-            Listing("Case A", "101", 10.00m, minutesAgo: 60),
-            Listing("Case A", "101", 12.50m, minutesAgo: 30),
-            Listing("Case A", "101", 9.00m, minutesAgo: 5)
+            // Fixed timestamps: a relative "60 minutes ago" crosses UTC midnight when the
+            // suite runs in the 00:00-00:59 window and would fold into a second daily row.
+            Listing("Case A", "101", 10.00m, fetchedAt: FixedMorning),
+            Listing("Case A", "101", 12.50m, fetchedAt: FixedMorning.AddMinutes(30)),
+            Listing("Case A", "101", 9.00m, fetchedAt: FixedMorning.AddMinutes(55))
         ]);
 
         var item = db.MarketItems.Single();
@@ -130,9 +135,10 @@ public class MarketStoreTests
 
         await store.ApplyListingsAsync("730",
         [
-            Listing("Case A", "101", 10.00m, minutesAgo: 60),
-            Listing("Case A", "101", 11.00m),
-            Listing("Case B", "102", 5.00m)
+            // Same fixed-day trick as above: no accidental day rollover.
+            Listing("Case A", "101", 10.00m, fetchedAt: FixedMorning),
+            Listing("Case A", "101", 11.00m, fetchedAt: FixedMorning.AddHours(1)),
+            Listing("Case B", "102", 5.00m, fetchedAt: FixedMorning.AddHours(2))
         ]);
 
         Assert.Equal(2, db.MarketPriceDailies.Count());

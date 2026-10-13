@@ -1,4 +1,6 @@
 using Doggo.Infrastructure;
+using Doggo.Infrastructure.PriceCrawl;
+using Doggo.PriceCrawler;
 using Doggo.Scraper;
 using Doggo.Scraper.News;
 using Doggo.Scraper.News.Adapters;
@@ -39,6 +41,9 @@ else
 
 builder.Services.AddHostedService<NewsSourceSeeder>();
 builder.Services.AddHostedService<ScraperWorker>();
+
+builder.Services.AddPriceCrawlStores();
+builder.Services.AddPriceCrawler(builder.Configuration);
 
 var host = builder.Build();
 host.Run();

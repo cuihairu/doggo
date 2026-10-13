@@ -2,6 +2,7 @@ using Doggo.Domain.Cases;
 using Doggo.Domain.Market;
 using Doggo.Domain.News;
 using Doggo.Domain.Orders;
+using Doggo.Domain.Price;
 using Doggo.Domain.Products;
 using Doggo.Domain.System;
 using Doggo.Domain.Users;
@@ -247,4 +248,42 @@ public class NotificationChannelConfiguration : IEntityTypeConfiguration<Notific
 {
     public void Configure(EntityTypeBuilder<NotificationChannel> builder) =>
         builder.Property(x => x.ConfigJson).HasMaxLength(4_000);
+}
+
+public class PriceCrawlItemMapConfiguration : IEntityTypeConfiguration<PriceCrawlItemMap>
+{
+    public void Configure(EntityTypeBuilder<PriceCrawlItemMap> builder)
+    {
+        builder.HasIndex(x => new { x.SiteKey, x.ExternalId }).IsUnique();
+        builder.HasIndex(x => new { x.MapStatus, x.SiteKey });
+        builder.HasIndex(x => x.MarketItemId);
+    }
+}
+
+public class PriceCrawlRawConfiguration : IEntityTypeConfiguration<PriceCrawlRaw>
+{
+    public void Configure(EntityTypeBuilder<PriceCrawlRaw> builder)
+    {
+        builder.HasIndex(x => new { x.SiteKey, x.ExternalId, x.ObservedAtUtc });
+        builder.HasIndex(x => x.FetchedAtUtc); // retention purge scans on this
+        builder.Property(x => x.RawPriceText).HasMaxLength(512);
+    }
+}
+
+public class PriceCrawlSeriesConfiguration : IEntityTypeConfiguration<PriceCrawlSeries>
+{
+    public void Configure(EntityTypeBuilder<PriceCrawlSeries> builder)
+    {
+        // Window dedup: one cleaned point per (map, window); the window key already encodes
+        // the site's observation bucket through its map.
+        builder.HasIndex(x => new { x.MapId, x.WindowKey }).IsUnique();
+        builder.HasIndex(x => new { x.MarketItemId, x.ObservedAtUtc });
+        builder.Property(x => x.WindowKey).HasMaxLength(16);
+    }
+}
+
+public class PriceCrawlSiteStateConfiguration : IEntityTypeConfiguration<PriceCrawlSiteState>
+{
+    public void Configure(EntityTypeBuilder<PriceCrawlSiteState> builder) =>
+        builder.HasIndex(x => x.SiteKey).IsUnique();
 }

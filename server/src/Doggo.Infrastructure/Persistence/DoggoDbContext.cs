@@ -4,6 +4,7 @@ using Doggo.Domain.Common;
 using Doggo.Domain.Market;
 using Doggo.Domain.News;
 using Doggo.Domain.Orders;
+using Doggo.Domain.Price;
 using Doggo.Domain.Products;
 using Doggo.Domain.System;
 using Doggo.Domain.Users;
@@ -67,6 +68,11 @@ public class DoggoDbContext(DbContextOptions<DoggoDbContext> options) : DbContex
     public DbSet<MarketPriceSnapshot> MarketPriceSnapshots => Set<MarketPriceSnapshot>();
     public DbSet<MarketPriceDaily> MarketPriceDailies => Set<MarketPriceDaily>();
     public DbSet<SyncCursor> SyncCursors => Set<SyncCursor>();
+
+    public DbSet<PriceCrawlItemMap> PriceCrawlItemMaps => Set<PriceCrawlItemMap>();
+    public DbSet<PriceCrawlRaw> PriceCrawlRaws => Set<PriceCrawlRaw>();
+    public DbSet<PriceCrawlSeries> PriceCrawlSeriesPoints => Set<PriceCrawlSeries>();
+    public DbSet<PriceCrawlSiteState> PriceCrawlSiteStates => Set<PriceCrawlSiteState>();
 
     public DbSet<AdminAccount> AdminAccounts => Set<AdminAccount>();
     public DbSet<AdminRole> AdminRoles => Set<AdminRole>();

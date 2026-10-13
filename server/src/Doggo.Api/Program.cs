@@ -8,6 +8,8 @@ using Doggo.Infrastructure.Market;
 using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Orders;
 using Doggo.Infrastructure.Persistence;
+using Doggo.Infrastructure.PriceCrawl;
+using Doggo.PriceCrawler;
 using Doggo.Infrastructure.Users;
 using Doggo.Infrastructure.Vapor;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -20,6 +22,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddDoggoInfrastructure(builder.Configuration);
+// Price crawl stores back the admin review routes; the crawler worker itself runs in Doggo.Scraper.
+builder.Services.AddPriceCrawlStores();
 
 builder.Services.AddOptions<AuthOptions>().Bind(builder.Configuration.GetSection(AuthOptions.SectionName));
 // Singleton: issuance and validation must share one signing key, including the ephemeral
@@ -120,6 +124,7 @@ app.MapTradeUrlEndpoints();
 app.MapCaseEndpoints();
 app.MapPrizeEndpoints();
 app.MapRollEndpoints();
+app.MapPriceCrawlerAdminEndpoints();
 
 app.MapGet("/healthz", async (DoggoDbContext db, IConnectionMultiplexer redis, CancellationToken cancellationToken) =>
 {

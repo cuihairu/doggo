@@ -1013,6 +1013,226 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.ToTable("UserOrders");
                 });
 
+            modelBuilder.Entity("Doggo.Domain.Price.PriceCrawlItemMap", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("ExternalTitle")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("ExternalUrl")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("MapStatus")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("MarketItemId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("MatchSource")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SiteKey")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MarketItemId");
+
+                    b.HasIndex("MapStatus", "SiteKey");
+
+                    b.HasIndex("SiteKey", "ExternalId")
+                        .IsUnique();
+
+                    b.ToTable("PriceCrawlItemMaps");
+                });
+
+            modelBuilder.Entity("Doggo.Domain.Price.PriceCrawlRaw", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AdapterVersion")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("FetchedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("HttpStatusCode")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ObservedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("PageFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<long?>("PriceCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RawPriceText")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<string>("SiteKey")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FetchedAtUtc");
+
+                    b.HasIndex("SiteKey", "ExternalId", "ObservedAtUtc");
+
+                    b.ToTable("PriceCrawlRaws");
+                });
+
+            modelBuilder.Entity("Doggo.Domain.Price.PriceCrawlSeries", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<long?>("ConvertedCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<decimal?>("ExchangeRate")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<bool>("IsSuspect")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("MapId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("MarketItemId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("ObservedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("PriceCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SiteKey")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("WindowKey")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MapId", "WindowKey")
+                        .IsUnique();
+
+                    b.HasIndex("MarketItemId", "ObservedAtUtc");
+
+                    b.ToTable("PriceCrawlSeriesPoints");
+                });
+
+            modelBuilder.Entity("Doggo.Domain.Price.PriceCrawlSiteState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("CircuitOpenUntilUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("ConsecutiveFailures")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("LastDiscoverAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LastError")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime?>("LastRunAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("RobotsCrawlDelaySeconds")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SiteKey")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SiteKey")
+                        .IsUnique();
+
+                    b.ToTable("PriceCrawlSiteStates");
+                });
+
             modelBuilder.Entity("Doggo.Domain.Products.CaseContent", b =>
                 {
                     b.Property<Guid>("Id")
