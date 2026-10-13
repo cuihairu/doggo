@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { fetchProfile, type Profile } from '../api/auth'
 import { ProfileContext } from '../ProfileContext'
+import { useTheme } from '../theme'
 
 interface CoinBalance {
   balance: number
@@ -75,6 +76,7 @@ const COIN_LOG_TYPE: Record<number, string> = { 0: '发放', 1: '消费', 2: '�
 /** User center: profile, trade link, coin balance, coupons, and this week's sign board. */
 export default function UserCenterPage() {
   const { setProfile } = useContext(ProfileContext)
+  const { theme, themes, setTheme } = useTheme()
   const [profile, setLocalProfile] = useState<Profile | null>(null)
   const [coins, setCoins] = useState<CoinBalance | null>(null)
   const [coupons, setCoupons] = useState<CouponView[]>([])
@@ -223,7 +225,7 @@ export default function UserCenterPage() {
                   borderRadius: 4,
                   fontSize: 12,
                   background: day.signed ? 'var(--primary-weak)' : 'var(--bg)',
-                  color: day.signed ? 'var(--primary)' : 'var(--text-muted)',
+                  color: day.signed ? 'var(--primary)' : 'var(--muted)',
                 }}
               >
                 {day.date.slice(5)}
@@ -368,6 +370,25 @@ export default function UserCenterPage() {
             </tbody>
           </table>
         )}
+      </div>
+
+      <h2 className="page-title" style={{ fontSize: 17, marginTop: 24 }}>外观与主题</h2>
+      <div className="card">
+        <p className="muted">选择后立即生效并记住到本机；布局不变，只换颜色与装饰图案。</p>
+        <div className="theme-card">
+          {themes.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="theme-opt"
+              aria-pressed={theme === item.id}
+              onClick={() => setTheme(item.id)}
+            >
+              <span className="theme-swatch" data-theme={item.id} />
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

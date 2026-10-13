@@ -1,0 +1,300 @@
+/* 主题令牌源（与 docs/design/ui-system.md 一致，值取自 docs/design/prototypes/tokens.css）。
+ *
+ * 两层：结构令牌写在 :root 且不被任何主题覆盖（"换主题不改布局"）；
+ * 视觉令牌每主题一个 [data-theme="..."] 块，只允许颜色与图案。
+ */
+
+:root {
+  --sp-1: 8px;
+  --sp-2: 16px;
+  --sp-3: 24px;
+  --sp-4: 36px;
+  --sp-5: 56px;
+
+  --fs-min: 12px;
+  --fs-body: 14px;
+  --fs-lead: 16px;
+  --fs-title: 20px;
+  --fs-h1: 28px;
+
+  --topbar-h: 56px;
+  --tabbar-h: 56px;
+  --radius-s: 6px;
+  --radius-m: 8px;
+  --radius-l: 14px;
+
+  --container: 1200px;
+  --sidebar-w: 220px;
+
+  --dur: 160ms;
+  --ease: ease-out;
+}
+
+/* ① 默认：品牌蓝，浅色。 */
+:root,
+[data-theme="brand"] {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f6;
+  --text: #1f2329;
+  --muted: #646a73;
+  --border: #dee0e3;
+  --primary: #2f66d0;
+  --primary-text: #ffffff;
+  --primary-weak: #e8effc;
+  --danger: #d83931;
+  --success: #2e9e6b;
+  --gold: #c7893b;
+  --accent-2: #5b8def;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(31, 35, 41, 0.08);
+  --brand-mark: var(--primary);
+  --pattern: none;
+  --pattern-opacity: 0;
+  color-scheme: light;
+}
+
+/* ② 暗色。 */
+[data-theme="dark"] {
+  --bg: #121417;
+  --surface: #1b1f24;
+  --surface-2: #242a31;
+  --text: #e6e9ec;
+  --muted: #9aa3ad;
+  --border: #333b45;
+  --primary: #6a96f0;
+  --primary-text: #0e1116;
+  --primary-weak: rgba(106, 150, 240, 0.18);
+  --danger: #ef5350;
+  --success: #4caf7d;
+  --gold: #e0b069;
+  --accent-2: #7c9bff;
+  --radius: 10px;
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --brand-mark: var(--gold);
+  --pattern: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.028) 0 1px, transparent 1px 26px);
+  --pattern-opacity: 1;
+  color-scheme: dark;
+}
+
+/* ③ 节日·春节。 */
+[data-theme="cny"] {
+  --bg: #fff5f2;
+  --surface: #ffffff;
+  --surface-2: #fdece6;
+  --text: #3a1214;
+  --muted: #a35a4d;
+  --border: #f3d3c8;
+  --primary: #c62828;
+  --primary-text: #ffffff;
+  --primary-weak: #fde3e0;
+  --danger: #e2503f;
+  --success: #2f9e6b;
+  --gold: #c7893b;
+  --accent-2: #d99a2b;
+  --radius: 10px;
+  --shadow: 0 2px 10px rgba(198, 40, 40, 0.1);
+  --brand-mark: #c62828;
+  --pattern: repeating-linear-gradient(45deg, rgba(198, 40, 40, 0.05) 0 14px, transparent 14px 30px),
+    radial-gradient(circle at 12% 18%, rgba(199, 137, 59, 0.16), transparent 42%);
+  --pattern-opacity: 1;
+  color-scheme: light;
+}
+
+/* ④ 节日·元宵。 */
+[data-theme="lantern"] {
+  --bg: #fff8f4;
+  --surface: #fffdfb;
+  --surface-2: #fbefe9;
+  --text: #4a2a1c;
+  --muted: #a97b62;
+  --border: #f0dccf;
+  --primary: #e06a3c;
+  --primary-text: #ffffff;
+  --primary-weak: #fbe3d6;
+  --danger: #d8433a;
+  --success: #3f9e6b;
+  --gold: #d19a2f;
+  --accent-2: #e8a44c;
+  --radius: 10px;
+  --shadow: 0 2px 10px rgba(224, 106, 60, 0.1);
+  --brand-mark: #e06a3c;
+  --pattern: radial-gradient(circle at 88% 12%, rgba(232, 164, 76, 0.22), transparent 38%),
+    radial-gradient(circle at 8% 84%, rgba(224, 106, 60, 0.14), transparent 40%);
+  --pattern-opacity: 1;
+  color-scheme: light;
+}
+
+/* ⑤ 节日·端午。 */
+[data-theme="dragonboat"] {
+  --bg: #eef6f3;
+  --surface: #ffffff;
+  --surface-2: #e2efe9;
+  --text: #123c30;
+  --muted: #5c8577;
+  --border: #cfe2da;
+  --primary: #0f7a5c;
+  --primary-text: #ffffff;
+  --primary-weak: #d7ece4;
+  --danger: #d8543f;
+  --success: #2e9e6b;
+  --gold: #b8862f;
+  --accent-2: #3d9a7a;
+  --radius: 10px;
+  --shadow: 0 2px 10px rgba(15, 122, 92, 0.1);
+  --brand-mark: #0f7a5c;
+  --pattern: repeating-linear-gradient(-20deg, rgba(15, 122, 92, 0.045) 0 10px, transparent 10px 34px),
+    radial-gradient(circle at 82% 80%, rgba(61, 154, 122, 0.14), transparent 44%);
+  --pattern-opacity: 1;
+  color-scheme: light;
+}
+
+/* ⑥ 节日·中秋（暗色）。 */
+[data-theme="midautumn"] {
+  --bg: #101626;
+  --surface: #1a2236;
+  --surface-2: #232c44;
+  --text: #eef1f8;
+  --muted: #93a0bd;
+  --border: #2f3a55;
+  --primary: #e3b548;
+  --primary-text: #1a2236;
+  --primary-weak: rgba(227, 181, 72, 0.16);
+  --danger: #f2726a;
+  --success: #7fd0a8;
+  --gold: #f0c674;
+  --accent-2: #8fa4d6;
+  --radius: 10px;
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+  --brand-mark: var(--gold);
+  --pattern: radial-gradient(circle at 84% 14%, rgba(240, 198, 116, 0.3), transparent 30%),
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.1), transparent 3px),
+    radial-gradient(circle at 62% 68%, rgba(255, 255, 255, 0.08), transparent 2px),
+    radial-gradient(circle at 33% 82%, rgba(255, 255, 255, 0.07), transparent 2px);
+  --pattern-opacity: 1;
+  color-scheme: dark;
+}
+
+/* ⑦ 节日·国庆。 */
+[data-theme="national"] {
+  --bg: #fff7f5;
+  --surface: #ffffff;
+  --surface-2: #fdeae6;
+  --text: #3d1414;
+  --muted: #a06a5f;
+  --border: #f5d5cc;
+  --primary: #d8322a;
+  --primary-text: #ffffff;
+  --primary-weak: #fbe3df;
+  --danger: #e2503f;
+  --success: #2f9e6b;
+  --gold: #d4a017;
+  --accent-2: #e0912c;
+  --radius: 10px;
+  --shadow: 0 2px 10px rgba(216, 50, 42, 0.1);
+  --brand-mark: #d8322a;
+  --pattern: linear-gradient(180deg, rgba(216, 50, 42, 0.055) 0 2px, transparent 2px 46px),
+    radial-gradient(circle at 86% 16%, rgba(212, 160, 23, 0.16), transparent 42%);
+  --pattern-opacity: 1;
+  color-scheme: light;
+}
+
+/* ⑧ 季节·春。 */
+[data-theme="spring"] {
+  --bg: #fdf6f9;
+  --surface: #ffffff;
+  --surface-2: #fbeef5;
+  --text: #33262e;
+  --muted: #8a6d7c;
+  --border: #f2dde8;
+  --primary: #e0688f;
+  --primary-text: #ffffff;
+  --primary-weak: #fbe0eb;
+  --danger: #d8433a;
+  --success: #4ea87a;
+  --gold: #c9a227;
+  --accent-2: #7fc4a0;
+  --radius: 12px;
+  --shadow: 0 2px 10px rgba(224, 104, 143, 0.1);
+  --brand-mark: #e0688f;
+  --pattern: radial-gradient(circle at 16% 22%, rgba(224, 104, 143, 0.16), transparent 6px),
+    radial-gradient(circle at 78% 38%, rgba(224, 104, 143, 0.12), transparent 5px),
+    radial-gradient(circle at 44% 76%, rgba(224, 104, 143, 0.1), transparent 5px),
+    radial-gradient(circle at 90% 86%, rgba(127, 196, 160, 0.12), transparent 6px);
+  --pattern-opacity: 1;
+  color-scheme: light;
+}
+
+/* ⑨ 季节·夏。 */
+[data-theme="summer"] {
+  --bg: #f0fafb;
+  --surface: #ffffff;
+  --surface-2: #e1f3f6;
+  --text: #123c44;
+  --muted: #5b8890;
+  --border: #cbe7eb;
+  --primary: #0f9bb0;
+  --primary-text: #ffffff;
+  --primary-weak: #d6f0f4;
+  --danger: #d8433a;
+  --success: #3fa07d;
+  --gold: #e0912f;
+  --accent-2: #4bbcd4;
+  --radius: 12px;
+  --shadow: 0 2px 10px rgba(15, 155, 176, 0.1);
+  --brand-mark: #0f9bb0;
+  --pattern: repeating-linear-gradient(135deg, rgba(15, 155, 176, 0.045) 0 12px, transparent 12px 32px),
+    radial-gradient(circle at 88% 12%, rgba(224, 145, 47, 0.18), transparent 42%);
+  --pattern-opacity: 1;
+  color-scheme: light;
+}
+
+/* ⑩ 季节·秋。 */
+[data-theme="autumn"] {
+  --bg: #fbf5ec;
+  --surface: #fffdf9;
+  --surface-2: #f6ebdc;
+  --text: #3c2a18;
+  --muted: #997748;
+  --border: #ecdcc4;
+  --primary: #b4622a;
+  --primary-text: #ffffff;
+  --primary-weak: #f7e4d3;
+  --danger: #d8433a;
+  --success: #4f9e6b;
+  --gold: #c9912b;
+  --accent-2: #cf9a4a;
+  --radius: 10px;
+  --shadow: 0 2px 10px rgba(180, 98, 42, 0.1);
+  --brand-mark: #b4622a;
+  --pattern: repeating-linear-gradient(-30deg, rgba(180, 98, 42, 0.05) 0 16px, transparent 16px 40px),
+    radial-gradient(circle at 12% 16%, rgba(201, 145, 43, 0.18), transparent 44%);
+  --pattern-opacity: 1;
+  color-scheme: light;
+}
+
+/* ⑪ 季节·冬。 */
+[data-theme="winter"] {
+  --bg: #f3f6f9;
+  --surface: #ffffff;
+  --surface-2: #e9eff5;
+  --text: #1c2833;
+  --muted: #6b7f8e;
+  --border: #d8e2ea;
+  --primary: #3d7ea6;
+  --primary-text: #ffffff;
+  --primary-weak: #e0eef7;
+  --danger: #d8433a;
+  --success: #4f9e7d;
+  --gold: #b98b3c;
+  --accent-2: #6ea6c4;
+  --radius: 10px;
+  --shadow: 0 2px 10px rgba(61, 126, 166, 0.1);
+  --brand-mark: #3d7ea6;
+  --pattern: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 46%),
+    radial-gradient(circle at 22% 24%, rgba(110, 166, 196, 0.16), transparent 4px),
+    radial-gradient(circle at 68% 58%, rgba(110, 166, 196, 0.13), transparent 3px),
+    radial-gradient(circle at 86% 26%, rgba(110, 166, 196, 0.1), transparent 3px);
+  --pattern-opacity: 1;
+  color-scheme: light;
+}

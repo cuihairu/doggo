@@ -15,7 +15,12 @@ import MyPrizesPage from './pages/MyPrizesPage'
 import RollRoomsPage from './pages/RollRoomsPage'
 import UserCenterPage from './pages/UserCenterPage'
 import LoginPage from './pages/LoginPage'
+import { initTheme } from './theme'
+import './tokens.css'
 import './theme.css'
+
+// 在渲染前落主题，避免首帧闪现默认品牌色。
+initTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
