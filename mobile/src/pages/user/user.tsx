@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro, { useDidShow } from '@tarojs/taro'
 import {
   fetchCoinBalance, fetchCoinLogs, fetchMyCoupons, fetchProfile, fetchSignCycle,
@@ -8,13 +8,14 @@ import {
   ApiError, getAccessToken, ClaimableCoupon, CoinLogEntry, Profile, TradeUrlEntry, InviteRewardView
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
-import { useTheme } from '../../theme'
+import { useTheme, useThemeChoice, THEMES, THEME_PALETTES } from '../../theme'
 
 /** User center: identity, coins, coupons, weekly sign-in, entries. */
 const COIN_LOG_TYPE: Record<number, string> = { 0: '发放', 1: '消费', 2: '退款', 3: '过期' }
 
 export default function UserPage() {
   const t = useTheme()
+  const { choice, setChoice } = useThemeChoice()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [coins, setCoins] = useState<number | null>(null)
   const [coupons, setCoupons] = useState<{ id: string; title: string; amountOffCents: number; percentOff: number }[]>([])
@@ -260,6 +261,32 @@ export default function UserPage() {
           {coupons.length === 0 && <Muted>暂无可用优惠券</Muted>}
         </Card>
 
+        <Card>
+          <Text style={[styles.section, { color: t.text }]}>外观与主题</Text>
+          <Muted>默认跟随系统深浅色；也可锁定单套主题，记住到本机。</Muted>
+          <View style={styles.themeGrid}>
+            <ThemeRow
+              label="跟随系统"
+              swatch={t.primary}
+              active={choice === 'system'}
+              onPress={() => setChoice('system')}
+              textColor={t.text}
+              borderColor={t.border}
+            />
+            {THEMES.map((item) => (
+              <ThemeRow
+                key={item.id}
+                label={item.label}
+                swatch={THEME_PALETTES[item.id].primary}
+                active={choice === item.id}
+                onPress={() => setChoice(item.id)}
+                textColor={t.text}
+                borderColor={t.border}
+              />
+            ))}
+          </View>
+        </Card>
+
         <View style={styles.entryRow}>
           <Btn tone="plain" style={{ flex: 1 }} onPress={() => Taro.navigateTo({ url: '/pages/opening/opening' })}>
             我的奖品
@@ -276,6 +303,36 @@ export default function UserPage() {
   )
 }
 
+function ThemeRow({
+  label,
+  swatch,
+  active,
+  onPress,
+  textColor,
+  borderColor
+}: {
+  label: string
+  swatch: string
+  active: boolean
+  onPress: () => void
+  textColor: string
+  borderColor: string
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.themeRow,
+        { borderColor: active ? swatch : borderColor, borderWidth: active ? 2 : 1 }
+      ]}
+    >
+      <View style={[styles.swatch, { backgroundColor: swatch }]} />
+      <Text style={[styles.themeLabel, { color: textColor }]}>{label}</Text>
+      {active ? <Text style={{ color: swatch, fontWeight: '700' }}>✓</Text> : null}
+    </Pressable>
+  )
+}
+
 const styles = StyleSheet.create({
   page: { flex: 1 },
   name: { fontSize: 20, fontWeight: '700' },
@@ -284,5 +341,17 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, minHeight: 44, marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   couponRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, minHeight: 44 },
-  entryRow: { flexDirection: 'row', gap: 8, marginBottom: 12 }
+  entryRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  themeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  themeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1
+  },
+  swatch: { width: 14, height: 14, borderRadius: 7 },
+  themeLabel: { fontSize: 14, flex: 1 }
 })

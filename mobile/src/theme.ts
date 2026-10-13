@@ -1,4 +1,6 @@
 import { useColorScheme } from 'react-native'
+import { useSyncExternalStore } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 export interface Palette {
   bg: string
@@ -11,30 +13,105 @@ export interface Palette {
   danger: string
 }
 
-const light: Palette = {
-  bg: '#f6f7f9',
-  card: '#ffffff',
-  text: '#1a1a1a',
-  muted: '#8a8f99',
-  border: '#e5e7eb',
-  primary: '#2f6fed',
-  primaryText: '#ffffff',
-  danger: '#c0392b'
+/** The 11 themes from docs/design/ui-system.md §4; ids and labels match the web source. */
+export const THEMES = [
+  { id: 'brand', label: '默认（品牌）' },
+  { id: 'dark', label: '暗色' },
+  { id: 'cny', label: '节日·春节' },
+  { id: 'lantern', label: '节日·元宵' },
+  { id: 'dragonboat', label: '节日·端午' },
+  { id: 'midautumn', label: '节日·中秋' },
+  { id: 'national', label: '节日·国庆' },
+  { id: 'spring', label: '季节·春' },
+  { id: 'summer', label: '季节·夏' },
+  { id: 'autumn', label: '季节·秋' },
+  { id: 'winter', label: '季节·冬' }
+] as const
+
+export type ThemeId = (typeof THEMES)[number]['id']
+
+/** 'system' restores the default behavior: follow the OS light/dark setting. */
+export type ThemeChoice = ThemeId | 'system'
+
+// Color values are the canonical tokens from docs/design/prototypes/tokens.css;
+// only the fields the RN palette needs are carried over.
+export const THEME_PALETTES: Record<ThemeId, Palette> = {
+  brand: { bg: '#f5f6f8', card: '#ffffff', text: '#1f2329', muted: '#646a73', border: '#dee0e3', primary: '#2f66d0', primaryText: '#ffffff', danger: '#d83931' },
+  dark: { bg: '#121417', card: '#1b1f24', text: '#e6e9ec', muted: '#9aa3ad', border: '#333b45', primary: '#6a96f0', primaryText: '#0e1116', danger: '#ef5350' },
+  cny: { bg: '#fff5f2', card: '#ffffff', text: '#3a1214', muted: '#a35a4d', border: '#f3d3c8', primary: '#c62828', primaryText: '#ffffff', danger: '#e2503f' },
+  lantern: { bg: '#fff8f4', card: '#fffdfb', text: '#4a2a1c', muted: '#a97b62', border: '#f0dccf', primary: '#e06a3c', primaryText: '#ffffff', danger: '#d8433a' },
+  dragonboat: { bg: '#eef6f3', card: '#ffffff', text: '#123c30', muted: '#5c8577', border: '#cfe2da', primary: '#0f7a5c', primaryText: '#ffffff', danger: '#d8543f' },
+  midautumn: { bg: '#101626', card: '#1a2236', text: '#eef1f8', muted: '#93a0bd', border: '#2f3a55', primary: '#e3b548', primaryText: '#1a2236', danger: '#f2726a' },
+  national: { bg: '#fff7f5', card: '#ffffff', text: '#3d1414', muted: '#a06a5f', border: '#f5d5cc', primary: '#d8322a', primaryText: '#ffffff', danger: '#e2503f' },
+  spring: { bg: '#fdf6f9', card: '#ffffff', text: '#33262e', muted: '#8a6d7c', border: '#f2dde8', primary: '#e0688f', primaryText: '#ffffff', danger: '#d8433a' },
+  summer: { bg: '#f0fafb', card: '#ffffff', text: '#123c44', muted: '#5b8890', border: '#cbe7eb', primary: '#0f9bb0', primaryText: '#ffffff', danger: '#d8433a' },
+  autumn: { bg: '#fbf5ec', card: '#fffdf9', text: '#3c2a18', muted: '#997748', border: '#ecdcc4', primary: '#b4622a', primaryText: '#ffffff', danger: '#d8433a' },
+  winter: { bg: '#f3f6f9', card: '#ffffff', text: '#1c2833', muted: '#6b7f8e', border: '#d8e2ea', primary: '#3d7ea6', primaryText: '#ffffff', danger: '#d8433a' }
 }
 
-const dark: Palette = {
-  bg: '#111318',
-  card: '#1b1e26',
-  text: '#f2f3f5',
-  muted: '#9aa1ad',
-  border: '#2a2e38',
-  primary: '#4d7ff0',
-  primaryText: '#ffffff',
-  danger: '#e06c5a'
+const THEME_KEY = 'doggo.theme'
+
+let override: ThemeId | null = null
+const listeners = new Set<() => void>()
+
+function notify() {
+  for (const listener of listeners) listener()
 }
 
-/** Follows the system color scheme (mobile hard requirement: dark-mode follow). */
+function subscribe(onChange: () => void) {
+  listeners.add(onChange)
+  return () => {
+    listeners.delete(onChange)
+  }
+}
+
+function isThemeId(value: unknown): value is ThemeId {
+  return typeof value === 'string' && THEMES.some((theme) => theme.id === value)
+}
+
+function paletteFor(scheme: 'light' | 'dark' | null | undefined, choice: ThemeChoice): Palette {
+  if (choice !== 'system') return THEME_PALETTES[choice]
+  return scheme === 'dark' ? THEME_PALETTES.dark : THEME_PALETTES.brand
+}
+
+/** Current choice; 'system' until a theme is picked or a persisted one is hydrated. */
+export function themeChoice(): ThemeChoice {
+  return override ?? 'system'
+}
+
+/** Persists the choice; 'system' clears the override and resumes following the OS scheme. */
+export function setThemeChoice(choice: ThemeChoice): void {
+  override = choice === 'system' ? null : choice
+  AsyncStorage.setItem(THEME_KEY, JSON.stringify(choice)).catch(() => {})
+  notify()
+}
+
+/**
+ * Restores the persisted choice; call once at startup before the first render.
+ * A corrupt value is ignored and the app stays on system follow.
+ */
+export async function hydrateTheme(): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(THEME_KEY)
+    const value: unknown = raw ? JSON.parse(raw) : null
+    if (isThemeId(value)) {
+      override = value
+      notify()
+    }
+  } catch {
+    // Unreadable storage: stay on system follow.
+  }
+}
+
+/** The active palette; re-renders on both manual picks and OS scheme flips. */
 export function useTheme(): Palette {
   const scheme = useColorScheme()
-  return scheme === 'dark' ? dark : light
+  const choice = useSyncExternalStore(subscribe, themeChoice)
+  return paletteFor(scheme, choice)
+}
+
+/** Current choice plus its setter, for theme pickers. */
+export function useThemeChoice(): { choice: ThemeChoice; setChoice: (choice: ThemeChoice) => void } {
+  const choice = useSyncExternalStore(subscribe, themeChoice)
+  return { choice, setChoice: setThemeChoice }
 }
