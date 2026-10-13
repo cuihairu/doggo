@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Doggo
-  text: 开源游戏资讯与社区平台
+  text: 开源游戏资讯平台
   tagline: CS2 / Dota 2 资讯聚合、饰品行情、开箱模拟,基于 C# / .NET 构建,支持 Linux 与 Docker 部署
   image:
     src: /logo.svg

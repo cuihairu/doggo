@@ -54,8 +54,9 @@ doggo/
 │   ├── Doggo.slnx
 │   ├── src/
 │   │   ├── Doggo.Api/         # REST API 与业务服务
-│   │   ├── Doggo.Scraper/     # 资讯爬虫(Worker Service)
+│   │   ├── Doggo.Scraper/     # 资讯爬虫(Worker Service,挂载价格爬虫)
 │   │   ├── Doggo.Worker/      # 定时任务与后台作业
+│   │   ├── Doggo.PriceCrawler/ # 第三方站点价格爬虫(独立类库)
 │   │   ├── Doggo.Domain/      # 领域模型
 │   │   └── Doggo.Infrastructure/ # EF Core、Redis、外部集成
 │   └── tests/

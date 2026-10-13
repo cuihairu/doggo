@@ -1,32 +1,18 @@
-# React + TypeScript + Vite
+# Doggo web 用户站
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+C 端 Web 用户站（React 19 + Vite + TypeScript）：资讯、行情、商品与开箱下单、订单支付、roll 房、用户中心。
 
-Currently, two official plugins are available:
+## 命令
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+pnpm install
+pnpm dev      # 本地开发，/api 走 Vite 代理
+pnpm build    # tsc -b && vite build，产物到 dist/
+pnpm lint     # oxlint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## 说明
+
+- 请求封装在 `src/api/client.ts`，事件埋点在 `src/api/events.ts`（漏斗上报）。
+- 主题与设计令牌见 `docs/design/ui-system.md`。
+- 生产部署：`deploy/docker-compose.prod.yml` 的 web 服务（宿主默认 8080），镜像由每日构建发布到 GHCR（`.github/workflows/daily.yml`）。

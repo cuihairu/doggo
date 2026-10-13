@@ -1,6 +1,6 @@
 # 价格爬虫模块设计
 
-> 状态：设计稿（先设计后实现），2026-10-12 需求，本轮只交付本文档。
+> 状态：已实现（2026-10-13，提交 0b08b2c）。本文为设计输入，实现期记录见 §11。
 > 关联文档：`docs/design/overview.md`、`docs/design/data-model.md`。
 
 ## 1. 目标与非目标
@@ -355,7 +355,7 @@ var points = await db.PriceCrawlSeries
 
 ## 8. 接口面（admin 草图）
 
-路由组 `/api/admin/price-crawl`（沿用 Admin 策略）。仅路由与 JSON 草图，不实现。
+路由组 `/api/admin/price-crawl`（沿用 Admin 策略）。已实现（maps 列表与审阅、prices 序列、spread-report 比价），鉴权沿用 Admin 策略。
 
 ```
 GET /api/admin/price-crawl/maps?siteKey=&mapStatus=&page=&pageSize=
@@ -421,3 +421,9 @@ POST /api/admin/price-crawl/maps/{mapId}/reject    { } → 200 { mapId, mapStatu
 | 8 | 数据保留策略（原始记录保留天数、序列保留、清理任务） | 原始 90 天、序列永久；后补清理任务 | 用户 |
 | 9 | 目标站点合规授权（robots/ToS 是否允许价格抓取） | 逐站点人工确认后才启用 | 用户 |
 | 10 | 首批监控范围（全量 MarketItem vs 白名单） | 按 game 全量 + 配置白名单 | 用户 |
+
+## 11. 实现状态（2026-10-13，提交 0b08b2c）
+
+待拍板 2-10 已按默认建议落地：仅 Confirmed 映射进序列与比价；趋势查询时算、未物化；未启用 Playwright（仅 HttpClient + AngleSharp）；宿主并入 Scraper 进程；汇率方向 1 外币 = Rate CNY，缺失不换算保留原值、未知币种丢弃计数；站点默认 60 分钟间隔、夜间窗口已实现；原始行 90 天批量清理；robots 门禁默认开；监控按 game 全量 + 配置白名单。1（目标站点清单）仍待用户给出，站点适配器为配置驱动，配置即接入。
+
+实体落库为 ItemMap / Raw / Series / SiteState 四表（设计草表中的 Trend 物化表未建，趋势查询时算）；比价对照走 `RecentCompareCentsAsync` 滚动 20 点做疑点判定。模块 81 例 + Api 5 例测试先写后绿。

@@ -65,3 +65,5 @@ pnpm docs:build
 - [x] 开箱模拟玩法(`server/src/Doggo.Infrastructure/Cases`)
 - [x] REST API 与用户体系(`server/src/Doggo.Api`,JWT + Steam OpenID)
 - [x] 管理后台(`admin/` 前端 + `/api/admin`)
+- [x] 外部价格爬虫(`server/src/Doggo.PriceCrawler`,并入 Scraper 进程)
+- [x] 漏斗数据分析(事件通道 + 每日聚合 + 后台漏斗页)

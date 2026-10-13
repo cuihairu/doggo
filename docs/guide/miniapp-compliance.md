@@ -18,7 +18,7 @@
 | 用户协议 | 需站点提供 | 同上 |
 | `getUserProfile` / 手机号 | 未使用 | 小程序仅用 `wx.login` 换 openid,不取头像昵称(昵称为用户手填,可空),不申请手机号授权,不触发隐私接口告警 |
 | 位置/相册等敏感权限 | 未使用 | 无 `getLocation`、`chooseImage` 等调用 |
-| 用户数据存储 | 服务端 | openid 存服务端 `user_accounts.wechat_open_id`(唯一索引),本地仅存 JWT accessToken/refreshToken(`Taro.setStorage`) |
+| 用户数据存储 | 服务端 | openid 存服务端 `user_accounts.wechat_open_id`(唯一索引),本地登录态仅存 JWT accessToken/refreshToken,另存本地会话与渠道键(`Taro.setStorage`) |
 
 ## 支付与虚拟物品
 
@@ -26,7 +26,7 @@
 | --- | --- | --- |
 | 微信支付 | 未接入 | `miniapp/src/api/endpoints.ts` 的 `payOrder` 调 `POST /api/orders/{id}/pay`(余额/积分扣减语义),未拉起 `wx.requestPayment`;接入 `wx.requestPayment` 前,虚拟商品类目与支付资质必须先过 |
 | iOS 虚拟支付限制 | 不涉及 iOS 端拉起支付 | 若后续接入 `wx.requestPayment`,iOS 端虚拟商品需走合规方案,否则提审会被拒 |
-| 开箱/抽奖玩法 | 服务端生成 | 开箱结果由服务端订单履约产生(`GET /api/prizes/mine`),前端不做概率演示;如审核认定为抽奖类玩法,需按平台要求补充概率公示页 |
+| 开箱/抽奖玩法 | 服务端生成 | 开箱结果由服务端订单履约产生(`GET /api/users/{userId}/prizes`),前端不做概率演示;如审核认定为抽奖类玩法,需按平台要求补充概率公示页 |
 
 ## 内容与技术自查
 

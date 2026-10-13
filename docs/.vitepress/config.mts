@@ -9,7 +9,7 @@ export default defineConfig({
   title: 'Doggo',
   base,
   description:
-    '开源游戏资讯与社区平台 —— CS2 / Dota 2 资讯聚合、饰品行情、开箱模拟,基于 .NET 构建',
+    '开源游戏资讯平台 —— CS2 / Dota 2 资讯聚合、饰品行情、开箱模拟,基于 .NET 构建',
   head: [['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }]],
 
   themeConfig: {
@@ -39,7 +39,11 @@ export default defineConfig({
             { text: '设计总览', link: '/design/overview' },
             { text: '原有平台功能分析', link: '/design/legacy-analysis' },
             { text: '开箱系统设计', link: '/design/case-opening' },
-            { text: '数据模型', link: '/design/data-model' }
+            { text: '数据模型', link: '/design/data-model' },
+            { text: '价格爬虫模块设计', link: '/design/price-crawler-design' },
+            { text: '漏斗数据分析设计', link: '/design/analytics-funnel-design' },
+            { text: 'UI 体系', link: '/design/ui-system' },
+            { text: '四端原型', link: '/design/prototypes/README' }
           ]
         }
       ]

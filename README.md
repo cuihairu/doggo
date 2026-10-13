@@ -4,7 +4,7 @@
 
 # Doggo
 
-**An open-source gaming info & community platform — CS2 / Dota 2 news aggregation, skin market data, case opening**
+**An open-source gaming info platform — CS2 / Dota 2 news aggregation, skin market data, case opening**
 
 [English](README.md) | [简体中文](README.zh.md)
 
@@ -23,7 +23,7 @@
 
 </div>
 
-Doggo is an open-source gaming info & community platform focused on **CS2 (Counter-Strike 2)** and **Dota 2**. It covers news aggregation, skin market data, case opening, and Steam automation. All server-side components are written in **C# / .NET**, run natively on Linux, and deploy with Docker.
+Doggo is an open-source gaming info platform focused on **CS2 (Counter-Strike 2)** and **Dota 2**. It covers news aggregation, skin market data, case opening, and Steam automation. All server-side components are written in **C# / .NET**, run natively on Linux, and deploy with Docker.
 
 ## Features
 
@@ -84,7 +84,7 @@ doggo/
 
 ## Status
 
-The server (news, market, orders, cases, auth with Steam and WeChat login), admin console, WeChat miniapp, the Android app and the Docker deploy stack are implemented; all 159 checklist items in [TODO.md](TODO.md) are done. Tests run on every push (see `.github/workflows/ci.yml`) and nightly images publish to GHCR. Discussions and contributions are welcome via Issues and Pull Requests.
+The server (news, market, orders, cases, auth with Steam and WeChat login), admin console, WeChat miniapp, the Android app and the Docker deploy stack are implemented; all 185 checklist items in [TODO.md](TODO.md) are done, with the open items listed at the bottom of that file. Tests run on every push (see `.github/workflows/ci.yml`) and nightly images publish to GHCR. Discussions and contributions are welcome via Issues and Pull Requests.
 
 ## License
 
