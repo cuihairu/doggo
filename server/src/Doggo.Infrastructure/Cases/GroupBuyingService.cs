@@ -31,7 +31,7 @@ public sealed class CaseOpeningUnavailableException(string message) : Exception(
 
 public sealed record BatchSeatInput(string CrateAssetId, string? KeyAssetId);
 
-public sealed record CreateBatchCommand(Guid ProductId, string Lot, IReadOnlyList<BatchSeatInput> Seats);
+public sealed record CreateBatchCommand(Guid ProductId, string Lot, string VaporCaseId, IReadOnlyList<BatchSeatInput> Seats);
 
 public sealed record CreateBatchResult(Guid BatchId, string Lot, int SeatCount);
 
@@ -68,7 +68,7 @@ public sealed record OpeningResultApplied(bool Applied, Guid? PrizeId);
 /// Batch/seat lifecycle for platform-side case opening. Seats are sold from a batch with an
 /// optimistic-lock guard on the batch row (Version is a concurrency token, so two workers
 /// claiming the last seat cannot both win), the opening dispatch goes through the vapor
-/// CaseOpening action, and the drop result arrives as an event that creates the UserPrize
+/// case_open action, and the drop result arrives as an event that creates the UserPrize
 /// and advances the seat. Seat moves are linear through <see cref="SeatStateMachine"/>.
 /// </summary>
 public sealed partial class GroupBuyingService(
@@ -81,6 +81,11 @@ public sealed partial class GroupBuyingService(
         if (string.IsNullOrWhiteSpace(command.Lot))
         {
             throw new CaseValidationException("Batch lot is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(command.VaporCaseId))
+        {
+            throw new CaseValidationException("Batch vapor case id is required.");
         }
 
         if (command.Seats.Count == 0)
@@ -115,6 +120,7 @@ public sealed partial class GroupBuyingService(
             Id = Guid.CreateVersion7(),
             ProductId = command.ProductId,
             Lot = lot,
+            VaporCaseId = command.VaporCaseId.Trim(),
             SeatCount = command.Seats.Count,
             Version = 1
         };
@@ -220,7 +226,7 @@ public sealed partial class GroupBuyingService(
     }
 
     /// <summary>
-    /// Submits the seat's crate to vapor's CaseOpening action. The seat is moved to Opening
+    /// Submits the seat's crate to vapor's case_open action. The seat is moved to Opening
     /// first; if the dispatch fails it returns to Paid for retry. The drop itself arrives
     /// later as an event handled by <see cref="ApplyOpeningResultAsync"/>.
     /// </summary>
@@ -233,6 +239,18 @@ public sealed partial class GroupBuyingService(
 
         var (batch, seat) = await LoadSeatAsync(command.BatchId, command.SeatNo, cancellationToken);
 
+        // Real opens burn one crate + one key, so vapor needs both asset ids together
+        // with the case's catalog id; validate before the seat leaves Paid.
+        if (string.IsNullOrWhiteSpace(seat.CrateAssetId) || string.IsNullOrWhiteSpace(seat.KeyAssetId))
+        {
+            throw new CaseValidationException($"Seat {seat.SeatNo} needs crate and key asset ids before opening.");
+        }
+
+        if (string.IsNullOrWhiteSpace(batch.VaporCaseId))
+        {
+            throw new CaseValidationException($"Batch {batch.Lot} has no vapor case id.");
+        }
+
         SeatStateMachine.RequireTransition(seat.Status, SeatStatus.Opening);
         seat.Status = SeatStatus.Opening;
         await db.SaveChangesAsync(cancellationToken);
@@ -240,10 +258,8 @@ public sealed partial class GroupBuyingService(
         try
         {
             var job = await vapor.DispatchAndWaitAsync(
-                "open_crate",
-                new OpeningDispatchPayload(
-                    seat.CrateAssetId ?? throw new CaseValidationException($"Seat {seat.SeatNo} has no crate asset."),
-                    seat.KeyAssetId),
+                "case_open",
+                new CaseOpenDispatchPayload(batch.VaporCaseId, seat.CrateAssetId, seat.KeyAssetId),
                 cancellationToken: cancellationToken);
 
             var failed = (job.Tasks ?? [])
@@ -400,6 +416,12 @@ public sealed partial class GroupBuyingService(
     private partial void LogSeatAdvanced(string lot, int seatNo, SeatStatus status);
 }
 
-internal sealed record OpeningDispatchPayload(
-    [property: JsonPropertyName("asset_id")] string AssetId,
-    [property: JsonPropertyName("key_asset_id")] string? KeyAssetId);
+/// <summary>
+/// case_open dispatch payload. Keys are the exact camelCase names vapor's CaseOpenAction
+/// reads: caseId resolves the case catalog entry, and explicit asset ids switch the action
+/// to the real game-coordinator path (one crate + one key burned per dispatch).
+/// </summary>
+internal sealed record CaseOpenDispatchPayload(
+    [property: JsonPropertyName("caseId")] string CaseId,
+    [property: JsonPropertyName("crateAssetId")] string CrateAssetId,
+    [property: JsonPropertyName("keyAssetId")] string KeyAssetId);

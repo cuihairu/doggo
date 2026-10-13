@@ -796,7 +796,12 @@ public class OrderServiceTests
         Assert.Contains("send_trade_offer", dispatched);
         Assert.Contains("trade_url", dispatched);
         Assert.Contains("items_to_give", dispatched);
-        Assert.Contains("12345", dispatched);
+        // vapor reads items_to_give entry keys with an exact dictionary lookup:
+        // assetid/classid spellings would be silently dropped.
+        Assert.Contains("\"asset_id\":\"12345\"", dispatched);
+        Assert.Contains("\"app_id\":\"730\"", dispatched);
+        Assert.DoesNotContain("assetid", dispatched);
+        Assert.DoesNotContain("classid", dispatched);
         Assert.Contains("steam1", dispatched);
     }
 

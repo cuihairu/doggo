@@ -36,6 +36,7 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         {
             productId,
             lot = $"lot-{Guid.NewGuid():N}",
+            vaporCaseId = "case-1",
             seats = Enumerable.Range(1, seats).Select(i => new { crateAssetId = $"crate-{i}", keyAssetId = $"key-{i}" })
         });
         response.EnsureSuccessStatusCode();
@@ -83,6 +84,7 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         {
             productId = Guid.CreateVersion7(),
             lot = $"lot-{Guid.NewGuid():N}",
+            vaporCaseId = "case-1",
             seats = new[] { new { crateAssetId = "crate-1" } }
         });
         Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);

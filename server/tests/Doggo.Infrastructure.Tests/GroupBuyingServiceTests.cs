@@ -60,7 +60,7 @@ public class GroupBuyingServiceTests
         JsonSerializer.Serialize(new
         {
             id = jobId,
-            action = "open_crate",
+            action = "case_open",
             state = status,
             createdAt = "2026-10-11T12:00:00Z",
             tasks = new object[]
@@ -132,6 +132,7 @@ public class GroupBuyingServiceTests
             Id = Guid.CreateVersion7(),
             ProductId = product.Id,
             Lot = $"lot-{Guid.NewGuid():N}",
+            VaporCaseId = "case-1",
             SeatCount = seatCount,
             Version = 1
         };
@@ -175,13 +176,14 @@ public class GroupBuyingServiceTests
         var (service, _) = CreateService(db);
 
         var result = await service.CreateBatchAsync(new CreateBatchCommand(
-            product.Id, "lot-42",
+            product.Id, "lot-42", "case-42",
             [new BatchSeatInput("crate-1", "key-1"), new BatchSeatInput("crate-2", "key-2")]));
 
         Assert.Equal(2, result.SeatCount);
         var batch = db.GroupBuyings.First(b => b.Id == result.BatchId);
         Assert.Equal(1, batch.Version);
         Assert.Equal(GroupBuyingStatus.OnSale, batch.Status);
+        Assert.Equal("case-42", batch.VaporCaseId);
 
         var seats = await db.GroupBuyingSeats
             .Where(s => s.GroupBuyingId == batch.Id)
@@ -202,17 +204,19 @@ public class GroupBuyingServiceTests
         var (service, _) = CreateService(db);
 
         await Assert.ThrowsAsync<CaseValidationException>(() =>
-            service.CreateBatchAsync(new CreateBatchCommand(product.Id, " ", [new BatchSeatInput("c", null)])));
+            service.CreateBatchAsync(new CreateBatchCommand(product.Id, " ", "case-1", [new BatchSeatInput("c", null)])));
         await Assert.ThrowsAsync<CaseValidationException>(() =>
-            service.CreateBatchAsync(new CreateBatchCommand(product.Id, "lot", [])));
+            service.CreateBatchAsync(new CreateBatchCommand(product.Id, "lot", " ", [new BatchSeatInput("c", null)])));
         await Assert.ThrowsAsync<CaseValidationException>(() =>
-            service.CreateBatchAsync(new CreateBatchCommand(product.Id, "lot", [new BatchSeatInput(" ", null)])));
+            service.CreateBatchAsync(new CreateBatchCommand(product.Id, "lot", "case-1", [])));
         await Assert.ThrowsAsync<CaseValidationException>(() =>
-            service.CreateBatchAsync(new CreateBatchCommand(Guid.CreateVersion7(), "lot", [new BatchSeatInput("c", null)])));
+            service.CreateBatchAsync(new CreateBatchCommand(product.Id, "lot", "case-1", [new BatchSeatInput(" ", null)])));
+        await Assert.ThrowsAsync<CaseValidationException>(() =>
+            service.CreateBatchAsync(new CreateBatchCommand(Guid.CreateVersion7(), "lot", "case-1", [new BatchSeatInput("c", null)])));
 
-        await service.CreateBatchAsync(new CreateBatchCommand(product.Id, "dup-lot", [new BatchSeatInput("c", null)]));
+        await service.CreateBatchAsync(new CreateBatchCommand(product.Id, "dup-lot", "case-1", [new BatchSeatInput("c", null)]));
         await Assert.ThrowsAsync<CaseValidationException>(() =>
-            service.CreateBatchAsync(new CreateBatchCommand(product.Id, "dup-lot", [new BatchSeatInput("c", null)])));
+            service.CreateBatchAsync(new CreateBatchCommand(product.Id, "dup-lot", "case-1", [new BatchSeatInput("c", null)])));
     }
 
     [Fact]
@@ -339,9 +343,29 @@ public class GroupBuyingServiceTests
 
         var body = Assert.Single(bodies);
         using var payload = JsonDocument.Parse(body);
-        Assert.Equal("open_crate", payload.RootElement.GetProperty("action").GetString());
-        Assert.Equal("crate-1", payload.RootElement.GetProperty("payload").GetProperty("asset_id").GetString());
-        Assert.Equal("key-1", payload.RootElement.GetProperty("payload").GetProperty("key_asset_id").GetString());
+        Assert.Equal("case_open", payload.RootElement.GetProperty("action").GetString());
+        Assert.Equal("case-1", payload.RootElement.GetProperty("payload").GetProperty("caseId").GetString());
+        Assert.Equal("crate-1", payload.RootElement.GetProperty("payload").GetProperty("crateAssetId").GetString());
+        Assert.Equal("key-1", payload.RootElement.GetProperty("payload").GetProperty("keyAssetId").GetString());
+    }
+
+    [Fact]
+    public async Task SubmitOpening_rejects_incomplete_assets_before_touching_the_seat()
+    {
+        using var db = CreateDb();
+        var batch = await SeedBatchAsync(db);
+        var (service, _) = CreateService(db);
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, Guid.CreateVersion7()));
+        await service.MarkSeatPaidAsync(batch.Id, 1);
+
+        var seat = db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1);
+        seat.KeyAssetId = null;
+        db.GroupBuyings.First(b => b.Id == batch.Id).VaporCaseId = " ";
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<CaseValidationException>(() =>
+            service.SubmitOpeningAsync(new SubmitOpeningCommand(batch.Id, 1)));
+        Assert.Equal(SeatStatus.Paid, (db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1)).Status);
     }
 
     [Fact]

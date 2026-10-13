@@ -23,6 +23,7 @@ public static class CaseEndpoints
                 var result = await batches.CreateBatchAsync(new CreateBatchCommand(
                     request.ProductId,
                     request.Lot,
+                    request.VaporCaseId,
                     request.Seats
                         .Select(s => new BatchSeatInput(s.CrateAssetId, s.KeyAssetId))
                         .ToList()), cancellationToken);
@@ -209,7 +210,7 @@ public static class CaseEndpoints
     }
 }
 
-public sealed record CreateBatchRequest(Guid ProductId, string Lot, IReadOnlyList<BatchSeatRequest> Seats);
+public sealed record CreateBatchRequest(Guid ProductId, string Lot, string VaporCaseId, IReadOnlyList<BatchSeatRequest> Seats);
 
 public sealed record BatchSeatRequest(string CrateAssetId, string? KeyAssetId);
 

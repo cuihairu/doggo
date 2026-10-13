@@ -8,10 +8,13 @@ using Microsoft.Extensions.Logging;
 namespace Doggo.Infrastructure.Cases;
 
 /// <summary>
-/// Applies vapor webhook events for the CaseOpening flow onto batch seats. The payload
-/// shape is provisional until vapor 联调 lands; unknown or malformed payloads are logged
-/// and swallowed (the webhook is already idempotency-claimed, so vapor retries would be
-/// deduped anyway) instead of failing the webhook call.
+/// Applies vapor webhook events for the CaseOpening flow onto batch seats. The
+/// envelope and HMAC scheme match vapor's verified webhook push; the case_opening
+/// event category is a doggo-side convention — vapor's notification service
+/// currently emits only job/session/auth events, so seat results arrive through
+/// the seat result endpoint meanwhile. Unknown or malformed payloads are logged
+/// and swallowed (the webhook is already idempotency-claimed, so vapor retries
+/// would be deduped anyway) instead of failing the webhook call.
 ///
 /// Handled types:
 /// - opening_result: the drop — payload {batch_id, seat_no, history_id, item{...}} creates

@@ -600,7 +600,7 @@ public sealed partial class OrderService(
         var job = await vapor.DispatchAndWaitAsync("send_trade_offer", new TradeOfferPayload(
             tradeUrl.Url,
             $"doggo order {order.OrderNo}",
-            [.. itemsToGive.Select(asset => new TradeOfferAsset(asset.AssetId, asset.AppId, asset.ClassId, asset.InstanceId))]),
+            [.. itemsToGive.Select(asset => new TradeOfferAsset(asset.AssetId, asset.AppId))]),
             cancellationToken: cancellationToken);
 
         var tasks = job.Tasks ?? [];
@@ -718,8 +718,11 @@ internal sealed record TradeOfferPayload(
     [property: JsonPropertyName("message")] string Message,
     [property: JsonPropertyName("items_to_give")] TradeOfferAsset[] ItemsToGive);
 
+/// <summary>
+/// One items_to_give entry. Vapor reads these keys with an exact, case-sensitive dictionary
+/// lookup, so the underscore spellings matter; context_id/amount are omitted and fall back
+/// to vapor's CS2 inventory defaults (context 2, quantity 1).
+/// </summary>
 internal sealed record TradeOfferAsset(
-    [property: JsonPropertyName("assetid")] string AssetId,
-    [property: JsonPropertyName("appid")] string AppId,
-    [property: JsonPropertyName("classid")] string ClassId,
-    [property: JsonPropertyName("instanceid")] string InstanceId);
+    [property: JsonPropertyName("asset_id")] string AssetId,
+    [property: JsonPropertyName("app_id")] string AppId);

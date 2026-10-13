@@ -63,11 +63,14 @@ public enum RollPrizeType
 /// <summary>
 /// One batch = a series of cases loaded on a single Steam account.
 /// Version is a manual concurrency token incremented by the seat-claiming flow.
+/// VaporCaseId names the case in vapor's case_open catalog (the crate type this
+/// batch sells; every seat dispatches it with its own crate/key asset ids).
 /// </summary>
 public class GroupBuying : Entity
 {
     public Guid ProductId { get; set; }
     public string Lot { get; set; } = string.Empty;
+    public string VaporCaseId { get; set; } = string.Empty;
     public int SeatCount { get; set; }
     public int SoldCount { get; set; }
     public GroupBuyingStatus Status { get; set; } = GroupBuyingStatus.OnSale;
