@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Doggo.Domain.Analytics;
 using Doggo.Domain.Orders;
 using Doggo.Domain.Products;
 using Doggo.Domain.Users;
@@ -56,7 +57,7 @@ public class OrderServiceTests
 
         var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
         var coupons = new CouponService(db, ledger, NullLogger<CouponService>.Instance);
-        return (new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), client, coupons, ledger, new InviteService(db, ledger, Options.Create(new InviteOptions()), NullLogger<InviteService>.Instance), NullLogger<OrderService>.Instance), handler);
+        return (new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), client, coupons, ledger, new InviteService(db, ledger, Options.Create(new InviteOptions()), NullLogger<InviteService>.Instance), NewRecorder(db), NullLogger<OrderService>.Instance), handler);
     }
 
     private static HttpResponseMessage Response(HttpStatusCode code, string json) =>
@@ -806,7 +807,7 @@ public class OrderServiceTests
         var (orders, _) = CreateService(db, VaporStub());
         var unconfigured = new VaporClient(new HttpClient(new StubHandler { Responder = VaporStub() }) { BaseAddress = new Uri("http://vapor.test/") }, Options.Create(new VaporOptions()));
         var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
-        var plain = new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), unconfigured, new CouponService(db, ledger, NullLogger<CouponService>.Instance), ledger, new InviteService(db, ledger, Options.Create(new InviteOptions()), NullLogger<InviteService>.Instance), NullLogger<OrderService>.Instance);
+        var plain = new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), unconfigured, new CouponService(db, ledger, NullLogger<CouponService>.Instance), ledger, new InviteService(db, ledger, Options.Create(new InviteOptions()), NullLogger<InviteService>.Instance), NewRecorder(db), NullLogger<OrderService>.Instance);
 
         var product = await SeedProductAsync(db);
         var link = await SeedTradeUrlAsync(db);
@@ -926,4 +927,59 @@ public class OrderServiceTests
             var (orders, _) = CreateService(db);
             return orders.FindOrderAsync(Guid.CreateVersion7());
         });
+
+    // ---- funnel events (server-authoritative, design §6) ----
+
+    private static Doggo.Infrastructure.Analytics.AnalyticsRecorder NewRecorder(DoggoDbContext db) =>
+        new(db, new Microsoft.AspNetCore.Http.HttpContextAccessor(), NullLogger<Doggo.Infrastructure.Analytics.AnalyticsRecorder>.Instance);
+
+    [Fact]
+    public async Task Create_order_writes_the_order_created_event()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db);
+
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+
+        var evt = await db.AnalyticsEvents.SingleAsync(e => e.EventName == "order_created");
+        Assert.Equal(UserId, evt.UserId);
+        var props = JsonDocument.Parse(evt.PropertiesJson).RootElement;
+        Assert.Equal(result.OrderId.ToString(), props.GetProperty("orderId").GetString());
+        Assert.Equal(product.Id.ToString(), props.GetProperty("productId").GetString());
+        Assert.Equal(result.TotalPriceCents, props.GetProperty("totalPriceCents").GetInt64());
+    }
+
+    [Fact]
+    public async Task Successful_callback_writes_the_order_paid_event_once()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db);
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+
+        Assert.True(await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), null));
+        // Duplicate delivery: idempotent, no second event.
+        Assert.False(await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId, amountCents: 10000), null));
+
+        var events = await db.AnalyticsEvents.Where(e => e.EventName == "order_paid").ToListAsync();
+        var evt = Assert.Single(events);
+        Assert.Equal(UserId, evt.UserId);
+        var props = JsonDocument.Parse(evt.PropertiesJson).RootElement;
+        Assert.Equal(result.OrderId.ToString(), props.GetProperty("orderId").GetString());
+        Assert.Equal(10000, props.GetProperty("amountCents").GetInt64());
+    }
+
+    [Fact]
+    public async Task Failed_callback_writes_no_order_paid_event()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db);
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+
+        Assert.False(await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId, success: false), null));
+
+        Assert.False(await db.AnalyticsEvents.AnyAsync(e => e.EventName == "order_paid"));
+    }
 }

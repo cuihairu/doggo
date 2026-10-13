@@ -1,11 +1,13 @@
 using Doggo.Domain.Orders;
 using Doggo.Infrastructure;
+using Doggo.Infrastructure.Analytics;
 using Doggo.Infrastructure.Cases;
 using Doggo.Infrastructure.Market;
 using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Orders;
 using Doggo.Infrastructure.Vapor;
 using Doggo.Worker;
+using Doggo.Worker.Analytics;
 using Doggo.Worker.Cases;
 using Doggo.Worker.Market;
 using Doggo.Worker.Marketing;
@@ -34,6 +36,8 @@ builder.Services.AddHttpClient<VaporClient>(http =>
     http.Timeout = TimeSpan.FromSeconds(Math.Max(options.TimeoutSeconds, 1));
 });
 builder.Services.AddScoped<MarketStore>();
+builder.Services.AddScoped<IAnalyticsRecorder, AnalyticsRecorder>();
+builder.Services.AddScoped<FunnelAggregator>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<RollService>();
 builder.Services.AddScoped<CoinService>();
@@ -48,6 +52,7 @@ builder.Services.AddHostedService<OrderTimeoutWorker>();
 builder.Services.AddHostedService<OrderReconciliationWorker>();
 builder.Services.AddHostedService<RollRoomWorker>();
 builder.Services.AddHostedService<CoinExpiryWorker>();
+builder.Services.AddHostedService<FunnelAggregateWorker>();
 
 var host = builder.Build();
 host.Run();

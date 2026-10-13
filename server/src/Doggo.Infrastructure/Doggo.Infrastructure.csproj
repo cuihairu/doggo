@@ -6,6 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- IHttpContextAccessor feeds the analytics recorder's context fields. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Doggo.Domain\Doggo.Domain.csproj" />
     <ProjectReference Include="..\Doggo.PriceCrawler\Doggo.PriceCrawler.csproj" />
   </ItemGroup>

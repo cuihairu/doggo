@@ -2,6 +2,7 @@ using Doggo.Api;
 using Doggo.Api.Endpoints;
 using Doggo.Domain.Orders;
 using Doggo.Infrastructure;
+using Doggo.Infrastructure.Analytics;
 using Doggo.Infrastructure.Auth;
 using Doggo.Infrastructure.Cases;
 using Doggo.Infrastructure.Market;
@@ -81,6 +82,12 @@ builder.Services.AddScoped<CaseOpeningWebhookHandler>();
 // Payment channels land with the deployment milestone; mock covers development and tests.
 builder.Services.AddSingleton<IPaymentProvider, MockPaymentProvider>();
 
+// Funnel analytics: recorder shares the scoped DbContext for same-batch order events;
+// /api/events ingest is anonymous but rate limited per visitor.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAnalyticsRecorder, AnalyticsRecorder>();
+builder.Services.AddSingleton<EventRateLimiter>();
+
 // Webhook replays are dropped via Redis SET NX; when Redis cannot be reached the factory
 // falls back to process-local claims so webhook handling never hard-fails on Redis.
 builder.Services.AddSingleton<InMemoryWebhookIdempotencyStore>();
@@ -120,6 +127,7 @@ app.MapMarketEndpoints();
 app.MapProductEndpoints();
 app.MapVaporEndpoints();
 app.MapOrderEndpoints();
+app.MapEventEndpoints();
 app.MapTradeUrlEndpoints();
 app.MapCaseEndpoints();
 app.MapPrizeEndpoints();

@@ -19,6 +19,121 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            modelBuilder.Entity("Doggo.Domain.Analytics.AnalyticsEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("Client")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("EventName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("PropertiesJson")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("VisitorKey")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("EventName", "OccurredAtUtc");
+
+                    b.HasIndex("SessionId", "OccurredAtUtc");
+
+                    b.HasIndex("VisitorKey", "OccurredAtUtc");
+
+                    b.ToTable("AnalyticsEvents");
+                });
+
+            modelBuilder.Entity("Doggo.Domain.Analytics.FunnelDailyStat", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<long>("CheckoutIntentUv")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Client")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<long>("OrderCreatedUv")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OrderPaidUv")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("ViewProductUv")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date", "Client", "Channel")
+                        .IsUnique();
+
+                    b.ToTable("FunnelDailyStats");
+                });
+
             modelBuilder.Entity("Doggo.Domain.Cases.GroupBuying", b =>
                 {
                     b.Property<Guid>("Id")

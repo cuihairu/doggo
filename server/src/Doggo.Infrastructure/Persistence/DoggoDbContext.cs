@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Doggo.Domain.Analytics;
 using Doggo.Domain.Cases;
 using Doggo.Domain.Common;
 using Doggo.Domain.Market;
@@ -73,6 +74,9 @@ public class DoggoDbContext(DbContextOptions<DoggoDbContext> options) : DbContex
     public DbSet<PriceCrawlRaw> PriceCrawlRaws => Set<PriceCrawlRaw>();
     public DbSet<PriceCrawlSeries> PriceCrawlSeriesPoints => Set<PriceCrawlSeries>();
     public DbSet<PriceCrawlSiteState> PriceCrawlSiteStates => Set<PriceCrawlSiteState>();
+
+    public DbSet<AnalyticsEvent> AnalyticsEvents => Set<AnalyticsEvent>();
+    public DbSet<FunnelDailyStat> FunnelDailyStats => Set<FunnelDailyStat>();
 
     public DbSet<AdminAccount> AdminAccounts => Set<AdminAccount>();
     public DbSet<AdminRole> AdminRoles => Set<AdminRole>();

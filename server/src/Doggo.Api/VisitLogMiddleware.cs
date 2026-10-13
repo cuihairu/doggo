@@ -1,7 +1,6 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using Doggo.Domain.Users;
+using Doggo.Infrastructure.Analytics;
 using Doggo.Infrastructure.Persistence;
 using Microsoft.Extensions.Logging;
 
@@ -53,12 +52,10 @@ public sealed partial class VisitLogMiddleware(
     private static bool IsGuid(string? value, out Guid userId) => Guid.TryParse(value, out userId);
 
     /// <summary>Stable per (ip, user agent) key, hashed so raw addresses are not stored.</summary>
-    private static string VisitorKey(HttpContext context)
-    {
-        var ip = context.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
-        var agent = context.Request.Headers.UserAgent.ToString();
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{ip}|{agent}")))[..32];
-    }
+    private static string VisitorKey(HttpContext context) =>
+        VisitorKeys.Compute(
+            context.Connection.RemoteIpAddress?.ToString(),
+            context.Request.Headers.UserAgent.ToString());
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "visit log for {Path} failed: {Reason}")]
     private partial void LogWriteFailed(string? path, string reason);

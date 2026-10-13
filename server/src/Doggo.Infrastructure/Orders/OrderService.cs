@@ -59,6 +59,7 @@ public sealed partial class OrderService(
     Marketing.CouponService coupons,
     Marketing.CoinService coins,
     Marketing.InviteService invites,
+    Analytics.IAnalyticsRecorder analytics,
     ILogger<OrderService> logger)
 {
     private readonly OrderOptions _options = options.Value;
@@ -150,6 +151,9 @@ public sealed partial class OrderService(
 
         order.TotalCostCents = Math.Max(total - order.CoinDeduction - order.CouponDeductionCents, 0);
 
+        // Same SaveChanges batch as the order row: the funnel's authoritative third step.
+        analytics.EnqueueOrderCreated(order);
+
         await db.SaveChangesAsync(cancellationToken);
 
         LogOrderCreated(logger, order.OrderNo, command.UserId, promotion is not null);
@@ -209,7 +213,7 @@ public sealed partial class OrderService(
         order.PayTradeNo = callback.ProviderTradeNo;
         order.PaidAtUtc = now;
 
-        db.PaymentRecords.Add(new PaymentRecord
+        var record = new PaymentRecord
         {
             Id = Guid.CreateVersion7(),
             OrderId = orderId,
@@ -220,7 +224,13 @@ public sealed partial class OrderService(
             Status = PaymentStatus.Success,
             CallbackPayload = payload,
             PaidAtUtc = now
-        });
+        };
+        db.PaymentRecords.Add(record);
+
+        // Same SaveChanges batch as the settlement transition: the funnel's authoritative
+        // fourth step, written only on the first successful callback.
+        analytics.EnqueueOrderPaid(order, record);
+
         await db.SaveChangesAsync(cancellationToken);
 
         LogPaymentApplied(logger, order.OrderNo, callback.AmountCents);

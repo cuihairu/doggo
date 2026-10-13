@@ -1,3 +1,4 @@
+using Doggo.Domain.Analytics;
 using Doggo.Domain.Cases;
 using Doggo.Domain.Market;
 using Doggo.Domain.News;
@@ -286,4 +287,34 @@ public class PriceCrawlSiteStateConfiguration : IEntityTypeConfiguration<PriceCr
 {
     public void Configure(EntityTypeBuilder<PriceCrawlSiteState> builder) =>
         builder.HasIndex(x => x.SiteKey).IsUnique();
+}
+
+public class AnalyticsEventConfiguration : IEntityTypeConfiguration<AnalyticsEvent>
+{
+    public void Configure(EntityTypeBuilder<AnalyticsEvent> builder)
+    {
+        // Idempotent ingest: offline catch-up and client retries replay the same key.
+        builder.HasIndex(x => x.IdempotencyKey).IsUnique();
+        builder.HasIndex(x => new { x.EventName, x.OccurredAtUtc });
+        builder.HasIndex(x => new { x.SessionId, x.OccurredAtUtc });
+        builder.HasIndex(x => new { x.VisitorKey, x.OccurredAtUtc });
+        builder.Property(x => x.PropertiesJson).HasColumnType("longtext");
+    }
+}
+
+public class FunnelDailyStatConfiguration : IEntityTypeConfiguration<FunnelDailyStat>
+{
+    public void Configure(EntityTypeBuilder<FunnelDailyStat> builder)
+    {
+        // One row per (day, client, channel); the rolling recompute upserts by this key.
+        builder.HasIndex(x => new { x.Date, x.Client, x.Channel }).IsUnique();
+
+        // MySql.EntityFrameworkCore materializes DATE columns as DateTime and chokes on
+        // DateOnly, so convert explicitly and keep the date column type.
+        builder.Property(x => x.Date)
+            .HasConversion(
+                date => date.ToDateTime(TimeOnly.MinValue),
+                dateTime => DateOnly.FromDateTime(dateTime))
+            .HasColumnType("date");
+    }
 }
