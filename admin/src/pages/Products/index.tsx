@@ -1,7 +1,41 @@
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components'
 import { request } from '@umijs/max'
 import { useEffect, useRef, useState } from 'react'
-import { Button, Drawer, message, Switch, Tabs, Table, Tag } from 'antd'
+import {
+  Button,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Switch,
+  Tabs,
+  Tag,
+  message,
+} from 'antd'
+
+const TYPE_OPTIONS = [
+  { value: 0, label: '钥匙' },
+  { value: 1, label: '箱子' },
+  { value: 2, label: '箱子组件' },
+]
+
+const STATUS_OPTIONS = [
+  { value: 0, label: '下架' },
+  { value: 1, label: '仅自开' },
+  { value: 2, label: '仅合开' },
+  { value: 3, label: '上架' },
+]
+
+const QUALITY_OPTIONS = [
+  { value: 1, label: '消费级' },
+  { value: 2, label: '工业级' },
+  { value: 3, label: '军规' },
+  { value: 4, label: '受限' },
+  { value: 5, label: '机密' },
+  { value: 6, label: '隐秘' },
+  { value: 7, label: '罕见特殊' },
+]
 
 interface ProductRow {
   id: string
@@ -14,17 +48,15 @@ interface ProductRow {
   sortOrder: number
 }
 
-interface PlanOption {
-  id: string
+interface PlanOptionEdit {
+  upliftBps: number
   quantity: number
   minQuantity: number
   priceCents: number
-  upliftBps: number
   enabled: boolean
 }
 
-interface PlanRow {
-  id: string
+interface PlanEdit {
   title: string
   minQuantity: number
   maxQuantity: number
@@ -32,19 +64,30 @@ interface PlanRow {
   canUseCoin: boolean
   cashbackBps: number
   enabled: boolean
-  options: PlanOption[]
-}
-
-interface QuantityOption {
-  id: string
-  quantity: number
-  priceCents: number
-  alarmThreshold: number
+  options: PlanOptionEdit[]
 }
 
 interface PlanDetail {
-  plans: PlanRow[]
-  quantityOptions: QuantityOption[]
+  plans: PlanEdit[]
+  quantityOptions: { id: string; quantity: number; priceCents: number; alarmThreshold: number }[]
+  contents: {
+    id: string
+    title: string
+    quality: number
+    color: string
+    imageUrl: string
+    referencePriceCents: number
+    sortOrder: number
+  }[]
+}
+
+interface ContentEdit {
+  title: string
+  quality: number
+  color: string
+  imageUrl: string
+  referencePriceCents: number
+  sortOrder: number
 }
 
 interface PromotionRow {
@@ -73,72 +116,424 @@ const STATUS_LABEL: Record<number, string> = {
   3: '上架',
 }
 
-function PlanDrawer({ product, onClose }: { product: ProductRow | null; onClose: () => void }) {
+const toYuan = (cents: number) => Number(cents) / 100
+const toCents = (yuan: number) => Math.round(Number(yuan) * 100)
+
+function Num({ value, onChange, width = 96 }: { value: number; onChange: (v: number) => void; width?: number }) {
+  return (
+    <InputNumber
+      size="small"
+      value={value}
+      min={0}
+      style={{ width }}
+      onChange={(v) => onChange(Number(v) ?? 0)}
+    />
+  )
+}
+
+/** Create/edit drawer for the product's basic fields. */
+function ProductFormDrawer({
+  product,
+  open,
+  onClose,
+  onSaved,
+}: {
+  product: ProductRow | null
+  open: boolean
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (product) {
+      form.setFieldsValue({ ...product })
+    } else {
+      form.setFieldsValue({ type: 1, status: 0, sortOrder: 0 })
+    }
+  }, [product, form])
+
+  const submit = async () => {
+    const values = await form.validateFields()
+    setSaving(true)
+    try {
+      if (product) {
+        await request(`/api/admin/products/${product.id}`, {
+          method: 'PUT',
+          data: { ...values, type: Number(values.type), status: Number(values.status) },
+        })
+        message.success('已保存')
+      } else {
+        await request('/api/admin/products', {
+          method: 'POST',
+          data: { ...values, type: Number(values.type), status: Number(values.status) },
+        })
+        message.success('已创建')
+      }
+      onSaved()
+      onClose()
+    } catch {
+      message.error('保存失败')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Drawer
+      title={product ? `编辑商品：${product.name}` : '新建商品'}
+      width={520}
+      open={open}
+      onClose={onClose}
+      extra={
+        <Button type="primary" loading={saving} onClick={submit}>
+          保存
+        </Button>
+      }
+    >
+      <Form form={form} layout="vertical">
+        <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Input placeholder="如：梦魇武器箱" />
+        </Form.Item>
+        <Form.Item name="type" label="类型">
+          <Select options={TYPE_OPTIONS} />
+        </Form.Item>
+        <Form.Item name="classId" label="ClassId">
+          <Input placeholder="Steam 物品 classId" />
+        </Form.Item>
+        <Form.Item name="iconUrl" label="图标地址">
+          <Input placeholder="https://…" />
+        </Form.Item>
+        <Form.Item label="价格（元）">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            <Form.Item name="purchasePriceCents" label="采购价" style={{ marginBottom: 0 }}>
+              <InputNumber style={{ width: 110 }} min={0} precision={2} />
+            </Form.Item>
+            <Form.Item name="referencePriceCents" label="参考价" style={{ marginBottom: 0 }}>
+              <InputNumber style={{ width: 110 }} min={0} precision={2} />
+            </Form.Item>
+            <Form.Item name="adjustPriceCents" label="价格修正" style={{ marginBottom: 0 }}>
+              <InputNumber style={{ width: 110 }} min={0} precision={2} />
+            </Form.Item>
+            <Form.Item name="finalPriceCents" label="最终价" style={{ marginBottom: 0 }}>
+              <InputNumber style={{ width: 110 }} min={0} precision={2} />
+            </Form.Item>
+            <Form.Item name="regularPriceCents" label="原价" style={{ marginBottom: 0 }}>
+              <InputNumber style={{ width: 110 }} min={0} precision={2} />
+            </Form.Item>
+          </div>
+        </Form.Item>
+        <Form.Item name="status" label="上架状态">
+          <Select options={STATUS_OPTIONS} />
+        </Form.Item>
+        <Form.Item name="planFlags" label="套餐标记（逗号分隔）">
+          <Input placeholder="如：hot,new" />
+        </Form.Item>
+        <Form.Item name="buyNotice" label="购买须知">
+          <Input.TextArea rows={2} />
+        </Form.Item>
+        <Form.Item name="sortOrder" label="排序值">
+          <InputNumber style={{ width: 110 }} />
+        </Form.Item>
+      </Form>
+    </Drawer>
+  )
+}
+
+function PlanSection({
+  product,
+  plans,
+  setPlans,
+  onSaved,
+}: {
+  product: ProductRow
+  plans: PlanEdit[]
+  setPlans: (plans: PlanEdit[]) => void
+  onSaved: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+
+  const update = (i: number, patch: Partial<PlanEdit>) =>
+    setPlans(plans.map((p, idx) => (idx === i ? { ...p, ...patch } : p)))
+
+  const updateOption = (i: number, j: number, patch: Partial<PlanOptionEdit>) =>
+    setPlans(plans.map((p, idx) => (idx === i ? { ...p, options: p.options.map((o, k) => (k === j ? { ...o, ...patch } : o)) } : p)))
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await request(`/api/admin/products/${product.id}/plans`, {
+        method: 'PUT',
+        data: { plans },
+      })
+      message.success('套餐已保存')
+      onSaved()
+    } catch {
+      message.error('保存失败')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section style={{ marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <b>套餐与选项</b>
+        <span style={{ display: 'flex', gap: 8 }}>
+          <Button
+            size="small"
+            onClick={() =>
+              setPlans([
+                ...plans,
+                { title: '', minQuantity: 1, maxQuantity: 1, canUseCoupon: false, canUseCoin: false, cashbackBps: 0, enabled: true, options: [] },
+              ])
+            }
+          >
+            添加套餐
+          </Button>
+          <Button size="small" type="primary" loading={saving} onClick={save}>
+            保存套餐
+          </Button>
+        </span>
+      </div>
+      {plans.length === 0 && <p style={{ color: 'var(--muted)' }}>暂无套餐。点「添加套餐」新建。</p>}
+      {plans.map((plan, i) => (
+        <div
+          key={i}
+          style={{ border: '1px solid var(--border)', borderRadius: 6, padding: 12, marginBottom: 8 }}
+        >
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <Input size="small" value={plan.title} placeholder="套餐名，如 3连开" style={{ width: 140 }} onChange={(e) => update(i, { title: e.target.value })} />
+            <span style={{ fontSize: 12 }}>
+              起批 <Num value={plan.minQuantity} onChange={(v) => update(i, { minQuantity: v })} width={72} /> ~
+              <Num value={plan.maxQuantity} onChange={(v) => update(i, { maxQuantity: v })} width={72} /> 止
+            </span>
+            <span style={{ fontSize: 12 }}>返现 bps</span>
+            <Num value={plan.cashbackBps} onChange={(v) => update(i, { cashbackBps: v })} width={72} />
+            <label style={{ fontSize: 12 }}>
+              用券
+              <Switch size="small" checked={plan.canUseCoupon} style={{ marginLeft: 4 }} onChange={(v) => update(i, { canUseCoupon: v })} />
+            </label>
+            <label style={{ fontSize: 12 }}>
+              用币
+              <Switch size="small" checked={plan.canUseCoin} style={{ marginLeft: 4 }} onChange={(v) => update(i, { canUseCoin: v })} />
+            </label>
+            <label style={{ fontSize: 12 }}>
+              启用
+              <Switch size="small" checked={plan.enabled} style={{ marginLeft: 4 }} onChange={(v) => update(i, { enabled: v })} />
+            </label>
+            <Button size="small" danger onClick={() => setPlans(plans.filter((_, idx) => idx !== i))}>
+              删除
+            </Button>
+          </div>
+          {plan.options.length > 0 && (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                选项（数量 / 最小数量 / 价格元 / 加价 bps）
+              </span>
+              {plan.options.map((option, j) => (
+                <div key={j} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <Num value={option.quantity} onChange={(v) => updateOption(i, j, { quantity: v })} width={72} />
+                  <Num value={option.minQuantity} onChange={(v) => updateOption(i, j, { minQuantity: v })} width={72} />
+                  <Num value={toYuan(option.priceCents)} onChange={(v) => updateOption(i, j, { priceCents: toCents(v) })} width={84} />
+                  <Num value={option.upliftBps} onChange={(v) => updateOption(i, j, { upliftBps: v })} width={72} />
+                  <Switch size="small" checked={option.enabled} onChange={(v) => updateOption(i, j, { enabled: v })} />
+                  <Button size="small" danger onClick={() => update(i, { options: plan.options.filter((_, k) => k !== j) })}>
+                    删除
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button
+            size="small"
+            style={{ marginTop: 8 }}
+            onClick={() => update(i, { options: [...plan.options, { upliftBps: 0, quantity: 1, minQuantity: 1, priceCents: 0, enabled: true }] })}
+          >
+            添加选项
+          </Button>
+        </div>
+      ))}
+    </section>
+  )
+}
+
+function TierSection({
+  product,
+  tiers,
+  setTiers,
+  onSaved,
+}: {
+  product: ProductRow
+  tiers: { quantity: number; priceCents: number; alarmThreshold: number }[]
+  setTiers: (tiers: { quantity: number; priceCents: number; alarmThreshold: number }[]) => void
+  onSaved: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+
+  const update = (i: number, patch: Partial<{ quantity: number; priceCents: number; alarmThreshold: number }>) =>
+    setTiers(tiers.map((t, idx) => (idx === i ? { ...t, ...patch } : t)))
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await request(`/api/admin/products/${product.id}/quantity-options`, {
+        method: 'PUT',
+        data: { options: tiers },
+      })
+      message.success('数量档已保存')
+      onSaved()
+    } catch {
+      message.error('保存失败')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section style={{ marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <b>数量档位与库存告警</b>
+        <span style={{ display: 'flex', gap: 8 }}>
+          <Button size="small" onClick={() => setTiers([...tiers, { quantity: 1, priceCents: 0, alarmThreshold: 0 }])}>
+            添加档位
+          </Button>
+          <Button size="small" type="primary" loading={saving} onClick={save}>
+            保存档位
+          </Button>
+        </span>
+      </div>
+      {tiers.length === 0 && <p style={{ color: 'var(--muted)' }}>暂无档位。</p>}
+      {tiers.map((tier, i) => (
+        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: 12 }}>数量</span>
+          <Num value={tier.quantity} onChange={(v) => update(i, { quantity: v })} width={72} />
+          <span style={{ fontSize: 12 }}>价格 (元)</span>
+          <Num value={toYuan(tier.priceCents)} onChange={(v) => update(i, { priceCents: toCents(v) })} width={84} />
+          <span style={{ fontSize: 12 }}>告警阈值</span>
+          <Num value={tier.alarmThreshold} onChange={(v) => update(i, { alarmThreshold: v })} width={72} />
+          <Button size="small" danger onClick={() => setTiers(tiers.filter((_, idx) => idx !== i))}>
+            删除
+          </Button>
+        </div>
+      ))}
+    </section>
+  )
+}
+
+function ContentSection({
+  product,
+  contents,
+  setContents,
+  onSaved,
+}: {
+  product: ProductRow
+  contents: ContentEdit[]
+  setContents: (contents: ContentEdit[]) => void
+  onSaved: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+
+  const update = (i: number, patch: Partial<ContentEdit>) =>
+    setContents(contents.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await request(`/api/admin/products/${product.id}/contents`, {
+        method: 'PUT',
+        data: { contents },
+      })
+      message.success('内容物已保存')
+      onSaved()
+    } catch {
+      message.error('保存失败')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <b>箱子内容物（仅展示，不参与掉落判定）</b>
+        <span style={{ display: 'flex', gap: 8 }}>
+          <Button
+            size="small"
+            onClick={() => setContents([...contents, { title: '', quality: 1, color: '', imageUrl: '', referencePriceCents: 0, sortOrder: contents.length + 1 }])}
+          >
+            添加内容物
+          </Button>
+          <Button size="small" type="primary" loading={saving} onClick={save}>
+            保存内容物
+          </Button>
+        </span>
+      </div>
+      {contents.length === 0 && <p style={{ color: 'var(--muted)' }}>暂无内容物。</p>}
+      {contents.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>标题 / 品质 / 颜色 / 参考价元 / 排序 / 图片</span>
+          {contents.map((content, i) => (
+            <div key={i} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <Input size="small" value={content.title} placeholder="如 AK-47 | Redline" style={{ width: 180 }} onChange={(e) => update(i, { title: e.target.value })} />
+              <Select size="small" value={content.quality} options={QUALITY_OPTIONS} style={{ width: 100 }} onChange={(v) => update(i, { quality: Number(v) })} />
+              <Input size="small" value={content.color} placeholder="#eb4b4b" style={{ width: 80 }} onChange={(e) => update(i, { color: e.target.value })} />
+              <Num value={toYuan(content.referencePriceCents)} onChange={(v) => update(i, { referencePriceCents: toCents(v) })} width={84} />
+              <Num value={content.sortOrder} onChange={(v) => update(i, { sortOrder: v })} width={56} />
+              <Input size="small" value={content.imageUrl} placeholder="https://…" style={{ width: 160 }} onChange={(e) => update(i, { imageUrl: e.target.value })} />
+              <Button size="small" danger onClick={() => setContents(contents.filter((_, idx) => idx !== i))}>
+                删除
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** Editable view of plans, quantity tiers and contents; one PUT per group (full-set replace). */
+function DataDrawer({
+  product,
+  onClose,
+  onSaved,
+}: {
+  product: ProductRow | null
+  onClose: () => void
+  onSaved: () => void
+}) {
   const [detail, setDetail] = useState<PlanDetail | null>(null)
+  const [plans, setPlans] = useState<PlanEdit[]>([])
+  const [tiers, setTiers] = useState<{ quantity: number; priceCents: number; alarmThreshold: number }[]>([])
+  const [contents, setContents] = useState<ContentEdit[]>([])
 
   useEffect(() => {
     setDetail(null)
     if (product) {
       request<PlanDetail>(`/api/admin/products/${product.id}/plans`)
-        .then(setDetail)
-        .catch(() => setDetail({ plans: [], quantityOptions: [] }))
+        .then((data) => {
+          setDetail(data)
+          setPlans(data.plans)
+          setTiers(data.quantityOptions)
+          setContents(data.contents)
+        })
+        .catch(() => message.error('加载失败'))
     }
   }, [product])
 
   return (
-    <Drawer title={product ? `套餐与选项：${product.name}` : ''} width={720} open={product !== null} onClose={onClose}>
+    <Drawer title={product ? `商品资料：${product.name}` : ''} width={880} open={product !== null} onClose={onClose}>
       {!detail ? (
         <p>加载中…</p>
       ) : (
-        <>
-          <Table<PlanRow>
-            rowKey="id"
-            size="small"
-            pagination={false}
-            dataSource={detail.plans}
-            columns={[
-              { title: '套餐', dataIndex: 'title' },
-              { title: '数量范围', width: 90, render: (_, r) => `${r.minQuantity}-${r.maxQuantity}` },
-              { title: '返现 (bps)', dataIndex: 'cashbackBps', width: 90 },
-              { title: '可用券', dataIndex: 'canUseCoupon', width: 70, render: (v) => (v ? '是' : '否') },
-              { title: '可用币', dataIndex: 'canUseCoin', width: 70, render: (v) => (v ? '是' : '否') },
-              {
-                title: '状态',
-                dataIndex: 'enabled',
-                width: 70,
-                render: (v) => (v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
-              },
-            ]}
-            expandable={{
-              expandedRowRender: (plan) => (
-                <Table<PlanOption>
-                  rowKey="id"
-                  size="small"
-                  pagination={false}
-                  dataSource={plan.options}
-                  columns={[
-                    { title: '数量', dataIndex: 'quantity', width: 80 },
-                    { title: '最小数量', dataIndex: 'minQuantity', width: 90 },
-                    { title: '价格 (元)', dataIndex: 'priceCents', render: (v) => (Number(v) / 100).toFixed(2) },
-                    { title: '加价 (bps)', dataIndex: 'upliftBps', width: 90 },
-                  ]}
-                />
-              ),
-            }}
-          />
-          <Table<QuantityOption>
-            rowKey="id"
-            size="small"
-            pagination={false}
-            style={{ marginTop: 16 }}
-            dataSource={detail.quantityOptions}
-            columns={[
-              { title: '数量档', dataIndex: 'quantity', width: 100 },
-              { title: '价格 (元)', dataIndex: 'priceCents', render: (v) => (Number(v) / 100).toFixed(2) },
-              { title: '告警阈值', dataIndex: 'alarmThreshold', width: 100 },
-            ]}
-          />
-        </>
+        product && (
+          <>
+            <PlanSection product={product} plans={plans} setPlans={setPlans} onSaved={onSaved} />
+            <TierSection product={product} tiers={tiers} setTiers={setTiers} onSaved={onSaved} />
+            <ContentSection product={product} contents={contents} setContents={setContents} onSaved={onSaved} />
+          </>
+        )
       )}
     </Drawer>
   )
@@ -147,6 +542,8 @@ function PlanDrawer({ product, onClose }: { product: ProductRow | null; onClose:
 function ProductTable() {
   const actionRef = useRef<ActionType>()
   const [planProduct, setPlanProduct] = useState<ProductRow | null>(null)
+  const [formProduct, setFormProduct] = useState<ProductRow | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<ProductRow>[] = [
@@ -163,10 +560,20 @@ function ProductTable() {
     {
       title: '操作',
       valueType: 'option',
-      width: 130,
+      width: 200,
       render: (_, row) => [
-        <Button key="plans" size="small" onClick={() => setPlanProduct(row)}>
-          套餐
+        <Button
+          key="edit"
+          size="small"
+          onClick={() => {
+            setFormProduct(row)
+            setFormOpen(true)
+          }}
+        >
+          编辑
+        </Button>,
+        <Button key="data" size="small" onClick={() => setPlanProduct(row)}>
+          资料
         </Button>,
         <Switch
           key="shelf"
@@ -193,8 +600,21 @@ function ProductTable() {
         }}
         search={false}
         pagination={{ pageSize: 20 }}
+        toolBarRender={() => [
+          <Button
+            key="create"
+            type="primary"
+            onClick={() => {
+              setFormProduct(null)
+              setFormOpen(true)
+            }}
+          >
+            新建商品
+          </Button>,
+        ]}
       />
-      <PlanDrawer product={planProduct} onClose={() => setPlanProduct(null)} />
+      <ProductFormDrawer product={formProduct} open={formOpen} onClose={() => setFormOpen(false)} onSaved={reload} />
+      <DataDrawer product={planProduct} onClose={() => setPlanProduct(null)} onSaved={reload} />
     </>
   )
 }
@@ -238,6 +658,7 @@ function PromotionTable() {
         return { data: rows, total: rows.length, success: true }
       }}
       search={false}
+      pagination={{ pageSize: 20 }}
     />
   )
 }
@@ -292,6 +713,7 @@ function RateTable() {
         return { data: rows, total: rows.length, success: true }
       }}
       search={false}
+      pagination={{ pageSize: 20 }}
     />
   )
 }
