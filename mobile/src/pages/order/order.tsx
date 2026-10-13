@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro from '@tarojs/taro'
 import { cancelOrder, fetchOrder, OrderView, ApiError, kvGet, kvSet, payOrder, yuan } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted } from '../../ui'
-import { useTheme } from '../../theme'
+import { useTheme, type Palette } from '../../theme'
 
 const STATUS_TEXT: Record<number, string> = {
   0: '待支付',
@@ -122,7 +122,7 @@ export default function OrderPage() {
                 <>
                   <View style={styles.row}>
                     <Text style={{ color: t.text }}>{order.orderNo}</Text>
-                    <Text style={{ color: STATUS_COLOR[order.status] ?? t.text }}>{STATUS_TEXT[order.status] ?? `状态 ${order.status}`}</Text>
+                    <Text style={{ color: STATUS_COLOR(t)[order.status] ?? t.text }}>{STATUS_TEXT[order.status] ?? `状态 ${order.status}`}</Text>
                   </View>
                   <View style={styles.row}>
                     <Muted>实付 ¥{yuan(order.totalCostCents)}</Muted>
@@ -146,12 +146,13 @@ export default function OrderPage() {
   )
 }
 
-const STATUS_COLOR: Record<number, string> = {
-  0: '#b7791f',
-  4: '#2e9e5b',
-  5: '#8a8f99',
-  6: '#8a8f99'
-}
+// Status colors come from the active theme (gold = pending money, success = done).
+const STATUS_COLOR: (t: Palette) => Record<number, string> = (t) => ({
+  0: t.gold,
+  4: t.success,
+  5: t.muted,
+  6: t.muted
+})
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
