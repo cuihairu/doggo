@@ -300,6 +300,12 @@
 - [x] admin:antd token 映射 + rootContainer ConfigProvider + 顶栏下拉
 - [x] 按原型逐屏对照并给差异清单(ui-system.md §10)
 
+### 状态组件矩阵落地(ui-system.md §10.3 结构性差异 1)
+- [x] web:components/States.tsx(Skeleton/EmptyState/ErrorBox/SuccessBox),九页接入骨架/空态/错误重试/支付成功下一步,差异清单同步
+- [ ] mobile:同套状态组件(骨架屏、空态、错误重试、成功下一步)
+- [ ] miniapp:同套状态组件
+- [ ] admin:同套状态组件(Skeleton/Spin/Alert/Result 接入)
+
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目
 - [x] 调度:per-site 串行循环、夜间窗口、IntervalMinutes 频控、robots 门禁、发现任务、熔断、指数退避、原始行清理

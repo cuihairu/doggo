@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { ErrorBox, Skeleton } from '../components/States'
 
 interface SeatView {
   seatNo: number
@@ -47,7 +48,9 @@ export default function CaseOpeningPage() {
     return () => clearInterval(timer)
   }, [reload])
 
-  if (!batch) return <p className="muted">{error || '加载中…'}</p>
+  if (!batch) {
+    return error ? <ErrorBox detail={error} onRetry={reload} /> : <Skeleton lines={5} />
+  }
 
   return (
     <div>

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import NewsCard, { type NewsItem } from '../components/NewsCard'
+import { EmptyState, ErrorBox, Skeleton } from '../components/States'
 
 interface NewsListResult {
   total: number
@@ -31,13 +32,17 @@ export default function NewsListPage() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api<NewsListResult>('/api/news?page=1&pageSize=12')
       .then(setResult)
       .catch((err) => setError(String(err.message ?? err)))
+  }, [])
+
+  useEffect(() => {
+    load()
     api<NoticeView[]>('/api/notices').then(setNotices).catch(() => {})
     api<BannerView[]>('/api/banners').then(setBanners).catch(() => {})
-  }, [])
+  }, [load])
 
   function openBanner(link: string) {
     if (link.startsWith('/')) {
@@ -50,7 +55,7 @@ export default function NewsListPage() {
   return (
     <div>
       <h1 className="page-title">资讯</h1>
-      {error && <p className="error-text">{error}</p>}
+      {error && <ErrorBox detail={error} onRetry={load} />}
       {banners.length > 0 && (
         <div style={{ display: 'flex', gap: 12, overflowX: 'auto', marginBottom: 16 }}>
           {banners.map((banner) => (
@@ -81,10 +86,11 @@ export default function NewsListPage() {
           ))}
         </div>
       )}
+      {!result && !error && <Skeleton lines={6} />}
       <div className="grid cols-3">
         {result?.items.map((item) => <NewsCard key={item.id} item={item} />)}
       </div>
-      {result && result.items.length === 0 && <p className="muted">暂无资讯</p>}
+      {result && result.items.length === 0 && <EmptyState title="暂无资讯" hint="资讯发布后会出现在这里" />}
     </div>
   )
 }

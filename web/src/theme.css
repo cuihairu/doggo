@@ -142,6 +142,23 @@ a {
   color: var(--primary-text);
 }
 
+.btn.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.btn.sm {
+  padding: 5px 12px;
+  font-size: var(--fs-min);
+}
+
+.btn svg {
+  width: 12px;
+  height: 12px;
+  vertical-align: -1px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -171,6 +188,83 @@ a {
 .muted {
   color: var(--muted);
   font-size: 13px;
+}
+
+/* ---------- 状态组件（骨架屏 / 空态 / 错误 / 成功）— ui-system.md §6 ---------- */
+
+.skel {
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+  border-radius: var(--radius-s);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skel-line {
+  height: 12px;
+  margin: 8px 0;
+}
+
+.skel-block {
+  height: 70px;
+}
+
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: var(--sp-4) var(--sp-2);
+  text-align: center;
+}
+
+.state-box > svg {
+  width: 34px;
+  height: 34px;
+  flex: none;
+}
+
+.state-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin: 0;
+}
+
+.state-hint {
+  font-size: var(--fs-min);
+  color: var(--muted);
+  margin: 0;
+}
+
+.empty {
+  color: var(--muted);
+}
+
+.error-box {
+  color: var(--danger);
+}
+
+.success-box {
+  color: var(--success);
 }
 
 .table {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, getAccessToken } from '../api/client'
+import { EmptyState } from '../components/States'
 
 interface RollRoom {
   id: string
@@ -101,7 +102,9 @@ export default function RollRoomsPage() {
           </div>
         ))}
       </div>
-      {rooms.length === 0 && !error && <p className="muted">暂无进行中的房间</p>}
+      {rooms.length === 0 && !error && (
+        <EmptyState title="暂无进行中的房间" hint="房间开启后会出现在这里" />
+      )}
 
       {openRoom && (
         <div className="card" style={{ marginTop: 20 }}>

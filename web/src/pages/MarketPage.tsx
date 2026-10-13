@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
+import { EmptyState, ErrorBox, Skeleton } from '../components/States'
 
 interface MarketListResult {
   total: number
@@ -35,13 +36,16 @@ export default function MarketPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  function buildUrl(page: number) {
-    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
-    if (q.trim()) params.set('q', q.trim())
-    if (game) params.set('game', game)
-    if (type) params.set('type', type)
-    return `/api/market/items?${params}`
-  }
+  const buildUrl = useCallback(
+    (page: number) => {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
+      if (q.trim()) params.set('q', q.trim())
+      if (game) params.set('game', game)
+      if (type) params.set('type', type)
+      return `/api/market/items?${params}`
+    },
+    [q, game, type],
+  )
 
   useEffect(() => {
     api<ExchangeRate[]>('/api/exchange-rates')
@@ -49,20 +53,25 @@ export default function MarketPage() {
       .catch(() => {})
   }, [])
 
+  const load = useCallback(
+    (page: number) => {
+      setBusy(true)
+      api<MarketListResult>(buildUrl(page))
+        .then((result) => {
+          setItems(result.items)
+          setTotal(result.total)
+          setError('')
+        })
+        .catch((err) => setError(String(err.message ?? err)))
+        .finally(() => setBusy(false))
+    },
+    [buildUrl],
+  )
+
   // Any filter change restarts from page 1.
   useEffect(() => {
-    setBusy(true)
-    api<MarketListResult>(buildUrl(1))
-      .then((result) => {
-        setItems(result.items)
-        setTotal(result.total)
-        setError('')
-      })
-      .catch((err) => setError(String(err.message ?? err)))
-      .finally(() => setBusy(false))
-    // buildUrl closes over q/game/type; only re-run when they change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, game, type])
+    load(1)
+  }, [load])
 
   function loadMore() {
     // Items always fill complete pages, so the next page is derived from the count.
@@ -83,10 +92,17 @@ export default function MarketPage() {
     return `≈ ¥${((cents / 100) * rate).toFixed(2)}`
   }
 
+  function clearFilters() {
+    setQ('')
+    setSearchInput('')
+    setGame('')
+    setType('')
+  }
+
   return (
     <div>
       <h1 className="page-title">行情</h1>
-      {error && <p className="error-text">{error}</p>}
+      {error && <ErrorBox detail={error} onRetry={() => load(1)} />}
       <form
         style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}
         onSubmit={(event) => {
@@ -124,32 +140,43 @@ export default function MarketPage() {
         <button className="btn" type="submit">搜索</button>
       </form>
       <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>饰品</th>
-              <th>最新价</th>
-              <th>更新时间</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <Link to={`/market/${item.id}`}>{item.marketHashName}</Link>
-                </td>
-                <td>
-                  {(item.latestPriceCents / 100).toFixed(2)} {item.currency}{' '}
-                  {cnyApprox(item.latestPriceCents, item.currency) && (
-                    <span className="muted">{cnyApprox(item.latestPriceCents, item.currency)}</span>
-                  )}
-                </td>
-                <td className="muted">{item.priceUpdatedAtUtc?.slice(0, 19).replace('T', ' ')}</td>
+        {busy && items.length === 0 ? (
+          <Skeleton lines={5} />
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>饰品</th>
+                <th>最新价</th>
+                <th>更新时间</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {items.length === 0 && !busy && <p className="muted">没有符合条件的饰品</p>}
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <Link to={`/market/${item.id}`}>{item.marketHashName}</Link>
+                  </td>
+                  <td>
+                    {(item.latestPriceCents / 100).toFixed(2)} {item.currency}{' '}
+                    {cnyApprox(item.latestPriceCents, item.currency) && (
+                      <span className="muted">{cnyApprox(item.latestPriceCents, item.currency)}</span>
+                    )}
+                  </td>
+                  <td className="muted">{item.priceUpdatedAtUtc?.slice(0, 19).replace('T', ' ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {items.length === 0 && !busy && !error && (
+          <EmptyState
+            title="没有符合条件的饰品"
+            hint="试试清空搜索词或切换游戏与类型"
+            actionLabel="清空筛选条件"
+            onAction={clearFilters}
+          />
+        )}
       </div>
       {items.length < total && (
         <div style={{ marginTop: 12, textAlign: 'center' }}>

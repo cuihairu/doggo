@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { ErrorBox, Skeleton, SuccessBox } from '../components/States'
 
 interface OrderView {
   id: string
@@ -26,8 +27,10 @@ const STATUS_TEXT: Record<number, string> = {
 /** Order payment page: pay, watch the status, or cancel while unpaid. */
 export default function OrderPayPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [order, setOrder] = useState<OrderView | null>(null)
   const [error, setError] = useState('')
+  const [paid, setPaid] = useState(false)
 
   const reload = useCallback(() => {
     if (!id) return
@@ -44,6 +47,7 @@ export default function OrderPayPage() {
     if (!id) return
     try {
       await api(`/api/orders/${id}/pay`, { body: {} })
+      setPaid(true)
       reload()
     } catch (err) {
       setError(String((err as Error).message ?? err))
@@ -54,17 +58,28 @@ export default function OrderPayPage() {
     if (!id) return
     try {
       await api(`/api/orders/${id}/cancel`, { body: { reason: 'user cancelled' } })
+      setPaid(false)
       reload()
     } catch (err) {
       setError(String((err as Error).message ?? err))
     }
   }
 
-  if (!order) return <p className="muted">{error || '加载中…'}</p>
+  if (!order) {
+    return error ? <ErrorBox detail={error} onRetry={reload} /> : <Skeleton lines={4} />
+  }
 
   return (
     <div>
       <h1 className="page-title">订单支付</h1>
+      {paid && order.status !== 0 && (
+        <SuccessBox
+          title="支付成功"
+          detail={`¥ ${(order.totalCostCents / 100).toFixed(2)} · 已进入开箱流程`}
+          actionLabel="查看我的奖品"
+          onAction={() => navigate('/prizes')}
+        />
+      )}
       <div className="card">
         <p>订单号 {order.orderNo}</p>
         <p>

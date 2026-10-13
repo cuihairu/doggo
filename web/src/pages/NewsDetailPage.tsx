@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { ErrorBox, Skeleton } from '../components/States'
 
 interface NewsDetail {
   meta: {
@@ -18,15 +19,19 @@ export default function NewsDetailPage() {
   const [detail, setDetail] = useState<NewsDetail | null>(null)
   const [error, setError] = useState('')
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!id) return
     api<NewsDetail>(`/api/news/${id}`)
       .then(setDetail)
       .catch((err) => setError(String(err.message ?? err)))
   }, [id])
 
-  if (error) return <p className="error-text">{error}</p>
-  if (!detail) return <p className="muted">加载中…</p>
+  useEffect(() => {
+    load()
+  }, [load])
+
+  if (error) return <ErrorBox detail={error} onRetry={load} />
+  if (!detail) return <Skeleton lines={5} />
 
   return (
     <article className="card">

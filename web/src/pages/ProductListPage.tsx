@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
+import { EmptyState, ErrorBox, Skeleton } from '../components/States'
 
 interface ProductListResult {
   total: number
@@ -37,31 +38,39 @@ export default function ProductListPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  function buildUrl(page: number) {
-    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
-    if (q.trim()) params.set('q', q.trim())
-    if (type) params.set('type', type)
-    return `/api/products?${params}`
-  }
+  const buildUrl = useCallback(
+    (page: number) => {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
+      if (q.trim()) params.set('q', q.trim())
+      if (type) params.set('type', type)
+      return `/api/products?${params}`
+    },
+    [q, type],
+  )
 
   useEffect(() => {
     api<RecommendView[]>('/api/recommends').then(setRecommends).catch(() => {})
   }, [])
 
+  const load = useCallback(
+    (page: number) => {
+      setBusy(true)
+      api<ProductListResult>(buildUrl(page))
+        .then((result) => {
+          setItems(result.items)
+          setTotal(result.total)
+          setError('')
+        })
+        .catch((err) => setError(String(err.message ?? err)))
+        .finally(() => setBusy(false))
+    },
+    [buildUrl],
+  )
+
   // Any filter change restarts from page 1.
   useEffect(() => {
-    setBusy(true)
-    api<ProductListResult>(buildUrl(1))
-      .then((result) => {
-        setItems(result.items)
-        setTotal(result.total)
-        setError('')
-      })
-      .catch((err) => setError(String(err.message ?? err)))
-      .finally(() => setBusy(false))
-    // buildUrl closes over q/type; only re-run when they change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, type])
+    load(1)
+  }, [load])
 
   function loadMore() {
     // Items always fill complete pages, so the next page is derived from the count.
@@ -76,12 +85,18 @@ export default function ProductListPage() {
       .finally(() => setBusy(false))
   }
 
+  function clearFilters() {
+    setQ('')
+    setSearchInput('')
+    setType('')
+  }
+
   const onShelf = items.filter((product) => product.status === 3)
 
   return (
     <div>
       <h1 className="page-title">商店</h1>
-      {error && <p className="error-text">{error}</p>}
+      {error && <ErrorBox detail={error} onRetry={() => load(1)} />}
       <form
         style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}
         onSubmit={(event) => {
@@ -130,30 +145,41 @@ export default function ProductListPage() {
           ))}
         </div>
       )}
-      <div className="grid cols-4">
-        {onShelf.map((product) => (
-          <Link
-            key={product.id}
-            to={`/products/${product.id}`}
-            className="card"
-            style={{ color: 'inherit', textAlign: 'center' }}
-          >
-            {product.iconUrl && (
-              <img src={product.iconUrl} alt="" style={{ width: 110, height: 110, objectFit: 'contain' }} />
-            )}
-            <div style={{ fontSize: 14, margin: '8px 0 4px' }}>{product.name}</div>
-            <div style={{ color: 'var(--primary)', fontWeight: 600 }}>
-              ¥{(product.finalPriceCents / 100).toFixed(2)}
-            </div>
-            {product.regularPriceCents > product.finalPriceCents && (
-              <div className="muted" style={{ textDecoration: 'line-through' }}>
-                ¥{(product.regularPriceCents / 100).toFixed(2)}
+      {busy && items.length === 0 ? (
+        <Skeleton lines={5} />
+      ) : (
+        <div className="grid cols-4">
+          {onShelf.map((product) => (
+            <Link
+              key={product.id}
+              to={`/products/${product.id}`}
+              className="card"
+              style={{ color: 'inherit', textAlign: 'center' }}
+            >
+              {product.iconUrl && (
+                <img src={product.iconUrl} alt="" style={{ width: 110, height: 110, objectFit: 'contain' }} />
+              )}
+              <div style={{ fontSize: 14, margin: '8px 0 4px' }}>{product.name}</div>
+              <div style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                ¥{(product.finalPriceCents / 100).toFixed(2)}
               </div>
-            )}
-          </Link>
-        ))}
-      </div>
-      {onShelf.length === 0 && !busy && <p className="muted">没有符合条件的商品</p>}
+              {product.regularPriceCents > product.finalPriceCents && (
+                <div className="muted" style={{ textDecoration: 'line-through' }}>
+                  ¥{(product.regularPriceCents / 100).toFixed(2)}
+                </div>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
+      {onShelf.length === 0 && !busy && !error && (
+        <EmptyState
+          title="没有符合条件的商品"
+          hint="试试清空搜索词或切换类型"
+          actionLabel="清空筛选条件"
+          onAction={clearFilters}
+        />
+      )}
       {/* Gate on rows fetched, not the on-shelf subset: total also covers
           self-open/group-open products, so the subset would disagree with it
           and "load more" would refetch the last page. */}

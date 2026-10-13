@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { EmptyState, ErrorBox, Skeleton } from '../components/States'
 
 interface PriceHistory {
   item: string
@@ -19,15 +20,19 @@ export default function MarketDetailPage() {
   const [history, setHistory] = useState<PriceHistory | null>(null)
   const [error, setError] = useState('')
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!id) return
     api<PriceHistory>(`/api/market/items/${id}/prices`)
       .then(setHistory)
       .catch((err) => setError(String(err.message ?? err)))
   }, [id])
 
-  if (error) return <p className="error-text">{error}</p>
-  if (!history) return <p className="muted">加载中…</p>
+  useEffect(() => {
+    load()
+  }, [load])
+
+  if (error) return <ErrorBox detail={error} onRetry={load} />
+  if (!history) return <Skeleton lines={5} />
 
   const points = history.points
   const width = 720
@@ -50,7 +55,7 @@ export default function MarketDetailPage() {
       <h1 className="page-title">价格趋势</h1>
       <div className="card">
         {points.length === 0 ? (
-          <p className="muted">暂无价格数据</p>
+          <EmptyState title="暂无价格数据" hint="行情同步后会生成价格序列" />
         ) : (
           <>
             <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="price trend">
