@@ -89,3 +89,15 @@ The server (news, market, orders, cases, auth with Steam and WeChat login), admi
 ## License
 
 [Apache License 2.0](LICENSE)
+
+## 本地测试口径
+
+CI 与本地开发按改动面三路分流——改一行文档不该全量编译。
+
+1. **文档改动**（`*.md`、`docs/**`、图片）：不编译。主 CI workflow 的
+   `paths-ignore` 已跳过这些路径。
+2. **代码改动**：只跑改动子集，不全量。
+   - `dotnet test server/<改动 csproj>`
+3. **全量**（`dotnet test server/Doggo.slnx`）：仅以下情形触发——*.csproj / Doggo.slnx、
+   `.github/**`、Docker/Compose 配置、发布前。
+
