@@ -5,7 +5,7 @@ import {
   createOrder, fetchMyCoupons, fetchProduct, fetchProfile, payOrder,
   ApiError, getAccessToken, kvGet, kvSet, MyCoupon, ProductDetail, trackEvent, yuan
 } from '@doggo/shared'
-import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
+import { SafeTop, Btn, Card, Msg, Muted, Price, Skeleton } from '../../ui'
 import { useTheme } from '../../theme'
 
 /** Product detail: contents, plans with option prices, and the buy → pay → results flow. */
@@ -105,7 +105,7 @@ export default function ProductPage() {
       <View style={[styles.page, { backgroundColor: t.bg }]}>
         <SafeTop style={{ backgroundColor: t.bg }} />
         <View style={{ padding: 16 }}>
-          <Msg text="加载中…" />
+          <Skeleton cards={3} />
         </View>
       </View>
     )

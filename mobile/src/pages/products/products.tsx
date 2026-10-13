@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro from '@tarojs/taro'
 import { fetchProducts, ApiError, ProductView, yuan } from '@doggo/shared'
-import { SafeTop, Btn, Card, Msg, Muted } from '../../ui'
+import { SafeTop, Btn, Card, EmptyState, Msg, Muted, Skeleton } from '../../ui'
 import { useTheme } from '../../theme'
 import { loadCache, saveCache } from '../../cache'
 
@@ -54,6 +54,11 @@ export default function ProductsPage() {
 
   const busy = loading
 
+  function clearSearch() {
+    setSearchInput('')
+    setQ('')
+  }
+
   return (
     <View style={[styles.page, { backgroundColor: t.bg }]}>
       <SafeTop style={{ backgroundColor: t.bg }} />
@@ -73,8 +78,15 @@ export default function ProductsPage() {
         </Card>
         {stale ? <Msg text="网络不佳，正在展示缓存内容" /> : null}
         {error && !stale ? <Msg text={error} onRetry={() => loadPage(1, false, q)} /> : null}
-        {items.length === 0 && !error && loading ? <Msg text="加载中…" /> : null}
-        {items.length === 0 && !error && !loading ? <Msg text="没有符合条件的商品" /> : null}
+        {items.length === 0 && !error && loading ? <Skeleton cards={4} /> : null}
+        {items.length === 0 && !error && !loading ? (
+          <EmptyState
+            title="没有符合条件的商品"
+            hint={q ? `搜索词「${q}」没有命中商品` : '货架上还没有商品'}
+            actionLabel={q ? '清空搜索词' : undefined}
+            onAction={q ? clearSearch : undefined}
+          />
+        ) : null}
         {items.map((item) => (
           <Card key={item.id}>
             <View

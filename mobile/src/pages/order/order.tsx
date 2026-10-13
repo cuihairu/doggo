@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro from '@tarojs/taro'
 import { cancelOrder, fetchOrder, OrderView, ApiError, kvGet, kvSet, payOrder, yuan } from '@doggo/shared'
-import { SafeTop, Btn, Card, Msg, Muted } from '../../ui'
+import { SafeTop, Btn, Card, EmptyState, Muted, SuccessBox } from '../../ui'
 import { useTheme, type Palette } from '../../theme'
 
 const STATUS_TEXT: Record<number, string> = {
@@ -26,6 +26,8 @@ export default function OrderPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [manualId, setManualId] = useState('')
   const [busyId, setBusyId] = useState('')
+  // Orders paid during this session: show a success receipt until cancelled.
+  const [paidIds, setPaidIds] = useState<Record<string, boolean>>({})
 
   const loadIds = useCallback(() => {
     setIds(kvGet<string[]>('doggo.orderIds') ?? [])
@@ -69,8 +71,10 @@ export default function OrderPage() {
     try {
       if (action === 'pay') {
         await payOrder(id)
+        setPaidIds((prev) => ({ ...prev, [id]: true }))
       } else {
         await cancelOrder(id)
+        setPaidIds((prev) => ({ ...prev, [id]: false }))
       }
       refresh(id)
     } catch (e) {
@@ -107,13 +111,29 @@ export default function OrderPage() {
           <Muted style={{ marginTop: 8 }}>下单后的订单会自动记录在这里</Muted>
         </Card>
 
-        {ids.length === 0 ? <Msg text="还没有订单记录" /> : null}
+        {ids.length === 0 ? (
+          <EmptyState
+            title="还没有订单记录"
+            hint="下单后的订单会自动记录，也可用上方输入框按 ID 查询"
+            actionLabel="去逛商品"
+            onAction={() => Taro.navigateTo({ url: '/pages/products/products' })}
+          />
+        ) : null}
 
         {ids.map((id) => {
           const order = orders[id]
           const err = errors[id]
           return (
-            <Card key={id}>
+            <View key={id}>
+              {order && paidIds[id] && order.status !== 0 ? (
+                <SuccessBox
+                  title="支付成功"
+                  detail={`¥${yuan(order.totalCostCents)} · 已进入开箱流程`}
+                  actionLabel="查看奖品"
+                  onAction={() => Taro.navigateTo({ url: '/pages/opening/opening' })}
+                />
+              ) : null}
+              <Card>
               <View style={styles.row}>
                 <Muted style={{ flex: 1 }} >{id.slice(0, 8)}…</Muted>
                 <Btn tone="plain" onPress={() => refresh(id)} style={{ paddingHorizontal: 12 }}>刷新</Btn>
@@ -138,7 +158,8 @@ export default function OrderPage() {
                 </>
               ) : null}
               {err ? <Muted style={{ color: t.danger }}>{err}</Muted> : null}
-            </Card>
+              </Card>
+            </View>
           )
         })}
       </ScrollView>

@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 import Taro from '@tarojs/taro'
 import { fetchMarket, fetchMarketPrices, ApiError, MarketItemView, PricePoint, yuan } from '@doggo/shared'
-import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
+import { SafeTop, Btn, Card, EmptyState, Msg, Muted, Price, Skeleton } from '../../ui'
 import { useTheme } from '../../theme'
 import { loadCache, saveCache } from '../../cache'
 
@@ -94,7 +94,10 @@ export default function MarketPage() {
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {stale ? <Msg text="网络不佳，正在展示缓存内容" /> : null}
         {error && !stale ? <Msg text={error} onRetry={load} /> : null}
-        {items.length === 0 && !error && loading ? <Msg text="加载中…" /> : null}
+        {items.length === 0 && !error && loading ? <Skeleton cards={4} /> : null}
+        {items.length === 0 && !error && !loading ? (
+          <EmptyState title="暂无行情数据" hint="行情同步后会出现在这里" />
+        ) : null}
         {items.map((item) => (
           <Card key={item.id}>
             <View

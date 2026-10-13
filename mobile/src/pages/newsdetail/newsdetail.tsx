@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import Taro, { useRouter } from '@tarojs/taro'
 import { api, ApiError } from '@doggo/shared'
-import { SafeTop, Card, Msg, Muted } from '../../ui'
+import { SafeTop, Card, Msg, Muted, Skeleton } from '../../ui'
 import { useTheme } from '../../theme'
 
 interface NewsDetail {
@@ -58,7 +58,7 @@ export default function NewsDetailPage() {
       <SafeTop style={{ backgroundColor: t.bg }} />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {error ? <Msg text={error} onRetry={() => load((router.params ?? {})?.id)} /> : null}
-        {!detail && !error ? <Msg text="加载中…" /> : null}
+        {!detail && !error ? <Skeleton cards={3} /> : null}
         {detail && (
           <>
             <Card>

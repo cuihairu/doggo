@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Taro from '@tarojs/taro'
 import { fetchMyPrizes, fetchProfile, ApiError, getAccessToken, PrizeView, yuan } from '@doggo/shared'
-import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
+import { SafeTop, Btn, Card, EmptyState, Msg, Muted, Price, Skeleton } from '../../ui'
 import { useTheme } from '../../theme'
 import { loadCache, saveCache } from '../../cache'
 
@@ -61,8 +61,15 @@ export default function OpeningPage() {
         {needLogin ? (
           <Btn onPress={() => Taro.navigateTo({ url: '/pages/login/login' })}>去登录</Btn>
         ) : null}
-        {prizes.length === 0 && !error && loading ? <Msg text="加载中…" /> : null}
-        {prizes.length === 0 && !error && !loading ? <Msg text="还没有奖品，去开一箱吧" /> : null}
+        {prizes.length === 0 && !error && loading ? <Skeleton cards={3} /> : null}
+        {prizes.length === 0 && !error && !loading && !needLogin ? (
+          <EmptyState
+            title="还没有奖品"
+            hint="开箱或参与 Roll 房可获得奖品"
+            actionLabel="去开一箱"
+            onAction={() => Taro.navigateTo({ url: '/pages/products/products' })}
+          />
+        ) : null}
         {prizes.map((prize) => (
           <Card key={prize.id}>
             <View style={styles.row}>

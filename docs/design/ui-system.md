@@ -146,7 +146,7 @@
 | product | 有差异 | 无 180px hero 大图、套餐为文字 Btn 非 plan-row、无金币抵扣行、优惠券为列表非 chip、无 rarity 徽章格、无底部 buybar |
 | order | 有差异 | 无订单列表端点（本地记忆最近 10 个 id + 手动输入）；无待支付倒计时与继续支付/取消双按钮；多出 4s 轮询；状态 7 种（原型 4 种） |
 | profile | 有差异 | 无 me-head 头像头、stat-row 三格、周签到进度；「外观与主题」卡已实现且更完整（11 色板 + 跟随系统）；无设置页 |
-| states | 有差异 | 同 miniapp：无骨架屏、空态无图标/按钮、错误态单按钮；开箱成功态无独立屏 |
+| states | 有差异 | 骨架屏（脉冲卡）、空态（图标+说明+行动）、错误框（警示图标+重试）、支付成功框已落地；开箱结果独立成功屏属下单/开箱闭环（§10.3-2） |
 
 **admin**（原型 6 屏）
 
@@ -164,7 +164,7 @@
 
 **结构性差异（原型有、实现无，按优先级）**
 
-1. 状态组件矩阵（§6）：web 已落地（`components/States.tsx`：Skeleton/EmptyState/ErrorBox/SuccessBox，九页接入）；mobile / miniapp / admin 未落地——目前各页为纯文本 + toast。
+1. 状态组件矩阵（§6）：web、mobile 已落地（web `components/States.tsx` 九页接入；mobile `ui.tsx` StateIco/Skeleton/EmptyState/SuccessBox，Msg 升级为错误框，商品/行情/开箱/商品详情/资讯详情/订单接入）；miniapp / admin 未落地——目前各页为纯文本 + toast。
 2. 下单/开箱闭环：无独立确认订单页、支付方式选择、超时倒计时、开箱结果卡（open-glow/稀有 badge/存奖品/取回）。
 3. 商品详情：无「包含内容」徽章网格、行情参考价表、金币抵扣/优惠券选择、底部 buybar。
 4. admin 设置页（站点参数/支付渠道/主题运营日历/爬虫总览）未实现。
