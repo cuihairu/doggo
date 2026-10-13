@@ -101,6 +101,97 @@
 
 规范：空态必须说明原因并给下一步动作；错误必须可重试或给替代路径；成功必须给明确下一步；轻提示只做瞬时反馈，状态变化落页面元素。
 
+## 10. 实现状态（2026-10-13）
+
+四端令牌化均已落地，逐屏对照如下。状态口径：**已对上** = 结构与组件语义一致；**有差异** = 存在但缺项/形态不同；**未实现** = 无对应实现。
+
+### 10.1 令牌化落地
+
+| 端 | 令牌源 | 切换机制 | 入口 |
+|---|---|---|---|
+| web | `web/src/tokens.css`（结构 `:root` + 11 主题块） | `theme.ts`：`#theme=xxx` > localStorage > brand，写 `<html data-theme>` | 顶栏 select + 个人中心「外观与主题」卡 |
+| mobile | `mobile/src/theme.ts`（11 套 Palette） | 跟随系统为默认，手动选择写 AsyncStorage 覆盖；「跟随系统」为第 12 项 | 个人中心「外观与主题」卡 |
+| miniapp | `miniapp/src/app.scss`（`page` 结构令牌 + 11 主题块） | `theme.ts`：Taro 存储 + `setBackgroundColor`/`setNavigationBarColor` 同步原生 chrome；页根由 `ThemeRoot` 写 `data-theme` | 我的 → 主题外观 |
+| admin | `admin/src/theme.ts`（11 套 → antd token 映射） | `ThemeGate`（umi `rootContainer`）包 `ConfigProvider`；dark/midautumn 走 `darkAlgorithm` | 顶栏下拉（`actionsRender`） |
+
+### 10.2 逐屏对照
+
+**web**（原型 5 屏）
+
+| 屏 | 状态 | 差异 |
+|---|---|---|
+| home | 有差异 | 原型双拼大 Banner → 实现横向滚动图；行情速览无涨跌列；分类 chip → select；资讯无双栏迷你列表 |
+| product | 有差异 | 无面包屑、缩略图、「包含内容」徽章网格、行情参考价表、金币/优惠券选择、划线原价（详情页） |
+| checkout | 有差异 | 无支付方式选择卡、金额明细分行表、协议勾选、底部流程说明；倒计时为静态文本 |
+| account | 有差异 | 主题卡每项 1 个色点（原型 6 色 swatch 网格）；无「自动切换/同步四端」chip 与当前主题名提示；领券中心为实现新增 |
+| states | 未实现 | 无骨架屏/shimmer；空态无图标+行动按钮；错误态无 error-box 结构；无 success-box 组件 |
+
+**miniapp**（原型 6 屏）
+
+| 屏 | 状态 | 差异 |
+|---|---|---|
+| home | 有差异 | 无 appbar、banner 活动位、四宫格入口、运营推荐行；行情速览无涨跌列且不可点进 market；多出公告卡与资讯流 |
+| market | 有差异 | 无筛选 select、涨跌%、站内 vs 外部参考价对照表；列表渲染 classId 而非磨损度；无入口跳 market（页面成孤儿） |
+| product | 有差异 | 无划线原价、CS2 badge、库存文案、套餐语义（单开/三开/十开）、金币抵扣/优惠券选择、底部 buybar；「包含内容」为文本行非星级格 |
+| order | 大部分未实现 | 无独立确认订单页（product 页直接下单）；无支付方式、超时倒计时；opening 页是奖品库存列表非开箱结果（无 open-glow、稀有 badge、存奖品/取回） |
+| profile | 有差异 | 无头像/手机掩码、stat-row 三格、周签到进度；主题外观为内联 11 色板卡（原型为入口行，功能等价）；菜单组缺订单记录/设置 |
+| states | 有差异 | 加载仅「加载中…」文本无骨架；空态无图标/清筛选按钮；错误态无 warn 图标与双按钮；成功态仅 toast |
+
+**mobile**（原型 6 屏）
+
+| 屏 | 状态 | 差异 |
+|---|---|---|
+| home | 有差异 | 无 banner、四宫格（实现为 6 个文字 Btn 网格）、运营推荐；行情速览无涨跌%；多出资讯卡；原型 tabbar 未实现（§9-1） |
+| market | 有差异 | 无筛选下拉、站内 vs 外部参考价对照、涨跌红绿%；多出 30 日收盘 SVG 趋势线（原型无） |
+| product | 有差异 | 无 180px hero 大图、套餐为文字 Btn 非 plan-row、无金币抵扣行、优惠券为列表非 chip、无 rarity 徽章格、无底部 buybar |
+| order | 有差异 | 无订单列表端点（本地记忆最近 10 个 id + 手动输入）；无待支付倒计时与继续支付/取消双按钮；多出 4s 轮询；状态 7 种（原型 4 种） |
+| profile | 有差异 | 无 me-head 头像头、stat-row 三格、周签到进度；「外观与主题」卡已实现且更完整（11 色板 + 跟随系统）；无设置页 |
+| states | 有差异 | 同 miniapp：无骨架屏、空态无图标/按钮、错误态单按钮；开箱成功态无独立屏 |
+
+**admin**（原型 6 屏）
+
+| 屏 | 状态 | 差异 |
+|---|---|---|
+| dashboard | 有差异 | KPI 口径不同（用户/订单 vs 原型 PV/UV）；趋势为折线非柱状；排行 Top10 营收非 Top5 热销；缺漏斗速览卡、系统状态卡 |
+| funnel | 有差异 | 原型 3 张分组表（端/渠道/按日柱图）→ 实现单行表 + 分日/周筛选；无「整体转化/最大流失」结论行；步骤文案「加购(下单意图)」 |
+| orders | 有差异 | 无顶部 4 KPI、筛选（订单号/状态/日期+刷新）；列缺用户/内容、多金币/券抵扣+奖品；状态枚举 0-6（原型 5 态）；退款 modal 无预置原因与退回券/金币 chips |
+| products | 有差异 | 无筛选与「新建商品」；列缺游戏/类型/库存；状态为纯文本非 badge；抽屉无掉落表/价格历史/外部参考价；汇率修正用 window.prompt |
+| settings | 未实现 | 仅占位（当前账号+env 说明）；缺站点参数、支付渠道、主题运营位日历（§9-6）、爬虫站点总览 |
+| states | 未实现 | 无 Skeleton/Spin/Alert/Result；加载为 '-' 占位；错误全部静默 catch 无重试入口；空态无「清空筛选」动作 |
+| Users/Articles/Rolls/Login | 无原型对照 | 实现多出页面（原型侧栏仅占位链接） |
+
+### 10.3 差异清单（按类）
+
+**结构性差异（原型有、实现无，按优先级）**
+
+1. 状态组件矩阵（§6）四端均未落地：骨架屏、空态图标+行动按钮、错误态重试/替代路径、成功态下一步——目前各页为纯文本 + toast。
+2. 下单/开箱闭环：无独立确认订单页、支付方式选择、超时倒计时、开箱结果卡（open-glow/稀有 badge/存奖品/取回）。
+3. 商品详情：无「包含内容」徽章网格、行情参考价表、金币抵扣/优惠券选择、底部 buybar。
+4. admin 设置页（站点参数/支付渠道/主题运营日历/爬虫总览）未实现。
+5. 行情页：无站内 vs 外部参考价对照表、涨跌%、筛选。
+
+**令牌化差异**
+
+6. web：结构令牌未完全消费（nav 高 52px 未用 `--topbar-h`，padding/字号散落硬编码 px）；`--gold`/`--accent-2` 无消费方；涨跌色用 `--danger`/`--success`（A 股语义，无 `--up`/`--down` 令牌）。
+7. mobile：`--pattern` 图案层在 RN 不渲染（无 CSS 伪元素），仅颜色/圆角令牌生效；原生导航栏 `navigationBarBackgroundColor` 静态白底（暗色主题不变）。
+8. miniapp：原生 tabBar 色（color/selectedColor/backgroundColor）静态，切主题不更新（§9-2）；`backgroundTextStyle` 静态 light；`--pattern-opacity` 无消费方（alpha 烘进渐变）。
+9. admin：sider `navTheme` 只在路由变化时经 runtime config 重算（生成代码限制），页面内容经 ConfigProvider 即时换肤。
+
+**已知限制（实现期决策，非缺陷）**
+
+10. web 切换主题不写回 URL hash（原型写 hash 为截图可复现），改用 localStorage 持久化，避免应用内导航污染 URL。
+11. miniapp 图案层用 `.app-root` background-image 叠加替代 `body::before`（wxss 的 `::before` 属定位元素会压在内容之上）。
+12. admin 顶栏下拉为 11 主题全量（原型仅 brand/dark 快捷切换的设想见 §9-3，待拍板）。
+
+### 10.4 待拍板（承接 §9）
+
+- §9-1 小程序 tabBar 3→4（+行情）、mobile 底部 tab：影响 home/market 两屏结构。
+- §9-2 小程序原生 tabbar 色：保持原生默认 / 自定义 tabbar / （折中）保留原生但用 `Taro.setTabBarStyle` 同步主题色——折中方案未实施，待拍板。
+- §9-3 admin 是否默认提供暗色快捷切换（原型只在顶栏放下拉）。
+- §9-4 季节主题是否默认启用。
+- §9-5 mobile「跟随系统」第 12 项：已按推荐实现。
+- §9-6 主题运营日历区间以哪年农历为准、由谁维护（依赖 admin 设置页）。
+
 ## 7. 哪端用哪套主题
 
 | 端 | 默认 | 用户可选 | 说明 |
