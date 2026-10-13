@@ -111,7 +111,7 @@ public class FunnelDailyStat : Entity
 
 - `PropertiesJson` 显式 `HasColumnType("longtext")`(超过默认 varchar(255) 的列都走配置,先例:`NewsItemConfiguration`)。
 - `DateOnly` 列沿用 `MarketPriceDailyConfiguration` 的显式 DATE 转换先例(MySql.EntityFrameworkCore 对 DateOnly 需要转换)。
-- 事件表单量级估算:四端每天 PV 数万级,一行约 300 字节,年亿级以内,MySQL 单表可用。分区取舍:MySQL RANGE 分区要求所有唯一键含分区列,会迫使 `(Id, OccurredAtUtc)` 复合主键并破坏 IdempotencyKey 唯一索引,**不采用**;改为"聚合完成后的保留期归档"(§10 待拍板),聚合一旦落 `FunnelDailyStat`,明细过期即可删。
+- 事件表单量级估算:四端每天 PV 数万级,一行约 300 字节,年亿级以内,MySQL 单表可用。分区取舍:MySQL RANGE 分区要求所有唯一键含分区列,会迫使 `(Id, OccurredAtUtc)` 复合主键并破坏 IdempotencyKey 唯一索引,**不采用**;改为"聚合完成后的保留期归档",聚合一旦落 `FunnelDailyStat`,明细过期即可删(§10 #9 已实现:`AnalyticsRetentionWorker` 每日 02:00 UTC 运行,`FunnelDailyStat` 永久保留)。
 
 ### 4.3 会话定义
 
@@ -465,4 +465,4 @@ UserVisitLog 目前没有 Client 列,分端 PV 口径暂时缺位;建议后续�
 | 9 | 事件明细保留期 | 聚合落表后明细保留 90 天,过期删除 | 保留期与是否归档(归档到哪) |
 | 10 | 迟到事件窗口 | 接受 7 天,重算 T-7…T-1 | 7 天是否合适 |
 
-实现状态（2026-10-13，提交 69da251 服务端 + 1b47726 客户端/后台）：1-7、10 已按本文建议实现；8（UserVisitLog 补 Client 列）与 9（事件明细保留期清理）未做，仍为开放项。实现期两处与草表不同：order_created 的 OccurredAtUtc 用入队时 UtcNow（审计管线在 SaveChanges 时才盖 CreatedAtUtc，同一时刻）；漏斗实例按身份（UserId 否则 VisitorKey）而非会话匹配（服务端 order_paid 无会话上下文，§7.3 本就以身份为口径）。
+实现状态（2026-10-13，提交 69da251 服务端 + 1b47726 客户端/后台）：1-7、9、10 已按本文建议实现；仅 8（UserVisitLog 补 Client 列）未做，仍为开放项。9 事件明细保留期清理：`AnalyticsRetentionWorker` 每日 02:00 UTC 运行（在 00:30 聚合之后），删除 `OccurredAtUtc` 与 `ReceivedAtUtc` 均早于 cutoff 的明细，cutoff 取 `Analytics:EventRetentionDays`（默认 90 天）；只按单时间戳判旧会误删迟到事件，故取双条件交集；`FunnelDailyStat` 不参与保留期。实现期两处与草表不同：order_created 的 OccurredAtUtc 用入队时 UtcNow（审计管线在 SaveChanges 时才盖 CreatedAtUtc，同一时刻）；漏斗实例按身份（UserId 否则 VisitorKey）而非会话匹配（服务端 order_paid 无会话上下文，§7.3 本就以身份为口径）。

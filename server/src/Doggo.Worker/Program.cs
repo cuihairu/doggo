@@ -23,6 +23,7 @@ builder.Services.AddOptions<MarketSyncOptions>().Bind(builder.Configuration.GetS
 builder.Services.AddOptions<OrderOptions>().Bind(builder.Configuration.GetSection(OrderOptions.SectionName));
 builder.Services.AddOptions<RollOptions>().Bind(builder.Configuration.GetSection(RollOptions.SectionName));
 builder.Services.AddOptions<CoinOptions>().Bind(builder.Configuration.GetSection(CoinOptions.SectionName));
+builder.Services.AddOptions<AnalyticsOptions>().Bind(builder.Configuration.GetSection(AnalyticsOptions.SectionName));
 builder.Services.AddHttpClient<VaporClient>(http =>
 {
     var options = builder.Configuration
@@ -38,6 +39,7 @@ builder.Services.AddHttpClient<VaporClient>(http =>
 builder.Services.AddScoped<MarketStore>();
 builder.Services.AddScoped<IAnalyticsRecorder, AnalyticsRecorder>();
 builder.Services.AddScoped<FunnelAggregator>();
+builder.Services.AddScoped<AnalyticsRetention>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<RollService>();
 builder.Services.AddScoped<CoinService>();
@@ -53,6 +55,7 @@ builder.Services.AddHostedService<OrderReconciliationWorker>();
 builder.Services.AddHostedService<RollRoomWorker>();
 builder.Services.AddHostedService<CoinExpiryWorker>();
 builder.Services.AddHostedService<FunnelAggregateWorker>();
+builder.Services.AddHostedService<AnalyticsRetentionWorker>();
 
 var host = builder.Build();
 host.Run();
