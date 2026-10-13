@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { fetchMarket, fetchMarketPrices, MarketItemView, PricePoint } from '../../api/endpoints'
 import { ApiError, yuan } from '../../api/client'
 import ThemeRoot from '../../ThemeRoot'
+import { EmptyState, ErrorBox, Skeleton } from '../../states'
 
 interface ItemWithTrend {
   item: MarketItemView
@@ -15,11 +16,18 @@ export default function MarketPage() {
   const [items, setItems] = useState<MarketItemView[]>([])
   const [trends, setTrends] = useState<Record<string, ItemWithTrend[]>>({})
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(true)
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setBusy(true)
     fetchMarket(1).then((page) => { setItems(page.items); setError('') })
       .catch((e) => setError(e instanceof ApiError ? e.message : '加载失败'))
+      .finally(() => setBusy(false))
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   function change(points: PricePoint[]): { latest: number; pct: number | null } {
     if (points.length === 0) return { latest: 0, pct: null }
@@ -40,8 +48,11 @@ export default function MarketPage() {
   return (
     <ThemeRoot>
       <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
-      {error && <View className="card"><Text className="muted">{error}</Text></View>}
-      {items.length === 0 && <View className="card"><Text className="muted">加载中…</Text></View>}
+      {error && !busy ? <ErrorBox text={error} onRetry={load} /> : null}
+      {items.length === 0 && !error && busy ? <Skeleton cards={4} /> : null}
+      {items.length === 0 && !error && !busy ? (
+        <EmptyState title="暂无行情数据" hint="行情同步后会出现在这里" />
+      ) : null}
       {items.map((item) => (
         <View key={item.id} className="card" onClick={() => loadTrend(item)}>
           <View className="row" style={{ justifyContent: 'space-between' }}>

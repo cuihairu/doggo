@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { View, Text, ScrollView, Image, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { createOrder, fetchProduct, fetchProfile, payOrder, ProductDetail } from '../../api/endpoints'
 import { ApiError, getAccessToken, trackEvent, yuan } from '../../api/client'
 import ThemeRoot from '../../ThemeRoot'
+import { ErrorBox, Skeleton } from '../../states'
 
 /** Product detail: contents, plans with option prices, and the buy → pay → results flow. */
 export default function ProductPage() {
@@ -11,13 +12,17 @@ export default function ProductPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     const params = Taro.getCurrentInstance().router?.params ?? {}
     if (!params.id) return
     fetchProduct(params.id).then(setDetail).catch((e) => setError(e instanceof ApiError ? e.message : '加载失败'))
     // Funnel step 1: the detail page rendered with a concrete product (design §3.2).
     trackEvent('page_view_product', { productId: params.id, source: 'direct' }, `/pages/product/product?id=${params.id}`)
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   async function buy(planId?: string, optionId?: string) {
     if (!getAccessToken()) {
@@ -41,8 +46,20 @@ export default function ProductPage() {
     }
   }
 
-  if (error) return <View className="card"><Text className="muted">{error}</Text></View>
-  if (!detail) return <View className="card"><Text className="muted">加载中…</Text></View>
+  if (error) {
+    return (
+      <ThemeRoot>
+        <ErrorBox text={error} onRetry={load} />
+      </ThemeRoot>
+    )
+  }
+  if (!detail) {
+    return (
+      <ThemeRoot>
+        <Skeleton cards={3} />
+      </ThemeRoot>
+    )
+  }
 
   return (
     <ThemeRoot>

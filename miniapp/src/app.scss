@@ -324,6 +324,102 @@ page {
   font-size: var(--fs-min);
 }
 
+/* 状态组件（骨架屏 / 空态 / 错误 / 成功）— ui-system.md §6 */
+
+.skel-card {
+  position: relative;
+  z-index: 1;
+  background: var(--card);
+  border-radius: 24rpx;
+  padding: var(--sp-3);
+  margin: 32rpx 40rpx;
+  animation: skel-pulse 1.4s ease-in-out infinite;
+}
+
+.skel-line {
+  height: 28rpx;
+  border-radius: 8rpx;
+  background: var(--surface-2);
+  margin-top: 20rpx;
+}
+
+@keyframes skel-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  padding: 36rpx 16rpx;
+  text-align: center;
+}
+
+.state-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid var(--border);
+  color: var(--muted);
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 8rpx;
+}
+
+.state-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.state-hint {
+  font-size: var(--fs-min);
+  color: var(--muted);
+}
+
+.error-box .state-badge {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.error-box .state-title {
+  color: var(--danger);
+}
+
+.success-box .state-badge {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.success-box .state-title {
+  color: var(--success);
+}
+
+.btn-ghost {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  color: var(--text);
+  border: 2rpx solid var(--border);
+  border-radius: 20rpx;
+  text-align: center;
+  padding: 16rpx 32rpx;
+  font-size: 26rpx;
+  margin-top: 16rpx;
+}
+
 .row {
   display: flex;
   align-items: center;

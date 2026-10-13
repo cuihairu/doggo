@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { View, Text, RichText, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import ThemeRoot from '../../ThemeRoot'
+import { ErrorBox, Skeleton } from '../../states'
 
 interface NewsDetail {
   meta: { title: string; source: string; category: string; publishedAtUtc: string; summary?: string | null }
@@ -12,17 +13,33 @@ interface NewsDetail {
 /** News article: meta plus the scraped body rendered as rich text. */
 export default function NewsDetailPage() {
   const [detail, setDetail] = useState<NewsDetail | null>(null)
+  const [error, setError] = useState('')
 
-  useEffect(() => {
+  const load = useCallback(() => {
     const params = Taro.getCurrentInstance().router?.params ?? {}
     if (!params.id) return
     Taro.request({ url: `${process.env.TARO_APP_API_BASE ?? ''}/api/news/${params.id}` })
       .then((res) => setDetail(res.data as NewsDetail))
-      .catch(() => undefined)
+      .catch(() => setError('加载失败，请重试'))
   }, [])
 
+  useEffect(() => {
+    load()
+  }, [load])
+
+  if (error) {
+    return (
+      <ThemeRoot>
+        <ErrorBox text={error} onRetry={load} />
+      </ThemeRoot>
+    )
+  }
   if (!detail) {
-    return <View className="card"><Text className="muted">加载中…</Text></View>
+    return (
+      <ThemeRoot>
+        <Skeleton cards={2} />
+      </ThemeRoot>
+    )
   }
 
   const { meta, author, contentHtml } = detail

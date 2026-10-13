@@ -135,7 +135,7 @@
 | product | 有差异 | 无划线原价、CS2 badge、库存文案、套餐语义（单开/三开/十开）、金币抵扣/优惠券选择、底部 buybar；「包含内容」为文本行非星级格 |
 | order | 大部分未实现 | 无独立确认订单页（product 页直接下单）；无支付方式、超时倒计时；opening 页是奖品库存列表非开箱结果（无 open-glow、稀有 badge、存奖品/取回） |
 | profile | 有差异 | 无头像/手机掩码、stat-row 三格、周签到进度；主题外观为内联 11 色板卡（原型为入口行，功能等价）；菜单组缺订单记录/设置 |
-| states | 有差异 | 加载仅「加载中…」文本无骨架；空态无图标/清筛选按钮；错误态无 warn 图标与双按钮；成功态仅 toast |
+| states | 有差异 | 骨架屏（脉冲卡）、空态（徽章+说明+行动按钮）、错误框（警示徽章+重试/替代路径）已落地；成功框仅订单支付流程接入，其余反馈仍为 toast |
 
 **mobile**（原型 6 屏）
 
@@ -164,7 +164,7 @@
 
 **结构性差异（原型有、实现无，按优先级）**
 
-1. 状态组件矩阵（§6）：web、mobile 已落地（web `components/States.tsx` 九页接入；mobile `ui.tsx` StateIco/Skeleton/EmptyState/SuccessBox，Msg 升级为错误框，商品/行情/开箱/商品详情/资讯详情/订单接入）；miniapp / admin 未落地——目前各页为纯文本 + toast。
+1. 状态组件矩阵（§6）：web、mobile、miniapp 已落地（web `components/States.tsx` 九页接入；mobile `ui.tsx` StateIco/Skeleton/EmptyState/SuccessBox，Msg 升级为错误框，商品/行情/开箱/商品详情/资讯详情/订单接入；miniapp `src/states.tsx` Skeleton/EmptyState/ErrorBox/SuccessBox，小程序无 SVG 组件，徽章用描边圆 + 字形，商品/行情/商品详情/资讯详情/开箱五页接入，开箱页无登录时错误框带「去登录」替代路径）；admin 未落地——目前各页为纯文本 + toast。
 2. 下单/开箱闭环：无独立确认订单页、支付方式选择、超时倒计时、开箱结果卡（open-glow/稀有 badge/存奖品/取回）。
 3. 商品详情：无「包含内容」徽章网格、行情参考价表、金币抵扣/优惠券选择、底部 buybar。
 4. admin 设置页（站点参数/支付渠道/主题运营日历/爬虫总览）未实现。

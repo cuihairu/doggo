@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { fetchProducts, ProductView } from '../../api/endpoints'
 import { ApiError, yuan } from '../../api/client'
 import ThemeRoot from '../../ThemeRoot'
+import { EmptyState, ErrorBox, Skeleton } from '../../states'
 
 const PAGE_SIZE = 20
 
@@ -57,9 +58,22 @@ export default function ProductsPage() {
           </Button>
         </View>
       </View>
-      {error && <View className="card"><Text className="muted">{error}</Text></View>}
+      {error && !busy ? <ErrorBox text={error} onRetry={() => loadPage(1, false, q)} /> : null}
+      {items.length === 0 && !error && busy ? <Skeleton cards={4} /> : null}
       {items.length === 0 && !error && !busy && (
-        <View className="card"><Text className="muted">没有符合条件的商品</Text></View>
+        <EmptyState
+          title="没有符合条件的商品"
+          hint={q ? `搜索词「${q}」没有命中商品` : '货架上还没有商品'}
+          actionLabel={q ? '清空搜索词' : undefined}
+          onAction={
+            q
+              ? () => {
+                  setSearchInput('')
+                  setQ('')
+                }
+              : undefined
+          }
+        />
       )}
       {items.map((item) => (
         <View

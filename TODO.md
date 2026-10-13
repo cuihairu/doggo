@@ -303,7 +303,7 @@
 ### 状态组件矩阵落地(ui-system.md §10.3 结构性差异 1)
 - [x] web:components/States.tsx(Skeleton/EmptyState/ErrorBox/SuccessBox),九页接入骨架/空态/错误重试/支付成功下一步,差异清单同步
 - [x] mobile:ui.tsx 增加 StateIco/Skeleton/EmptyState/SuccessBox,Msg 升级为错误框;商品/行情/开箱/商品详情/资讯详情/订单六页接入,订单页支付成功给下一步
-- [ ] miniapp:同套状态组件
+- [x] miniapp:states.tsx(Skeleton/EmptyState/ErrorBox/SuccessBox),商品/行情/商品详情/资讯详情/开箱五页接入,加载/错误/空态替换文本,开箱页带登录引导
 - [ ] admin:同套状态组件(Skeleton/Spin/Alert/Result 接入)
 
 ### 价格爬虫独立模块
