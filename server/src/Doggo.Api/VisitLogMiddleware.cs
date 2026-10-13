@@ -39,7 +39,8 @@ public sealed partial class VisitLogMiddleware(
                 Date = DateOnly.FromDateTime(DateTime.UtcNow),
                 UserId = IsGuid(context.User.FindFirstValue("sub"), out var userId) ? userId : null,
                 VisitorKey = VisitorKey(context),
-                Path = context.Request.Path.Value ?? string.Empty
+                Path = context.Request.Path.Value ?? string.Empty,
+                Client = AnalyticsClients.ParseClient(context.Request.Headers[AnalyticsClients.ClientHeader])
             });
             await db.SaveChangesAsync();
         }

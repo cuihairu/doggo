@@ -1,3 +1,4 @@
+using Doggo.Domain.Analytics;
 using Doggo.Domain.Common;
 
 namespace Doggo.Domain.Users;
@@ -217,6 +218,10 @@ public class UserVisitLog : Entity
     public Guid? UserId { get; set; }
     public string VisitorKey { get; set; } = string.Empty;
     public string Path { get; set; } = string.Empty;
+
+    /// <summary>Client that made the request, read from the X-Doggo-Client header (funnel design §9.3).
+    /// Rows written before this column existed are backfilled with the default.</summary>
+    public AnalyticsClient Client { get; set; } = AnalyticsClient.Web;
 }
 
 public class InviteRewardLog : Entity

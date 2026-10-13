@@ -416,7 +416,7 @@ admin.MapGet("/funnel", async (
 4. 参数风格:`[FromQuery]` + 默认值 + `Math.Clamp` 限幅(如 days 限 1–90);
 5. 返回:匿名对象、camelCase,与 stats 区一致。
 
-UserVisitLog 目前没有 Client 列,分端 PV 口径暂时缺位;建议后续补列(§10 待拍板),补列前漏斗页的分端数据只来自事件表。
+UserVisitLog 已补 Client 列(见下节实现状态):VisitLogMiddleware 与事件上报、服务端权威打点共用 `AnalyticsClients.ParseClient` 解析 X-Doggo-Client 头(缺省 web),存量行回填 web;四端客户端均已发送该头(web/admin 为静态值,小程序与手机端在启动时 setClient)。分端 PV 口径自此可对齐,漏斗页的分端数据在事件表之外也可由本表推出。
 
 ## 10. 隐私与合规
 
@@ -465,4 +465,4 @@ UserVisitLog 目前没有 Client 列,分端 PV 口径暂时缺位;建议后续�
 | 9 | 事件明细保留期 | 聚合落表后明细保留 90 天,过期删除 | 保留期与是否归档(归档到哪) |
 | 10 | 迟到事件窗口 | 接受 7 天,重算 T-7…T-1 | 7 天是否合适 |
 
-实现状态（2026-10-13，提交 69da251 服务端 + 1b47726 客户端/后台）：1-7、9、10 已按本文建议实现；仅 8（UserVisitLog 补 Client 列）未做，仍为开放项。9 事件明细保留期清理：`AnalyticsRetentionWorker` 每日 02:00 UTC 运行（在 00:30 聚合之后），删除 `OccurredAtUtc` 与 `ReceivedAtUtc` 均早于 cutoff 的明细，cutoff 取 `Analytics:EventRetentionDays`（默认 90 天）；只按单时间戳判旧会误删迟到事件，故取双条件交集；`FunnelDailyStat` 不参与保留期。实现期两处与草表不同：order_created 的 OccurredAtUtc 用入队时 UtcNow（审计管线在 SaveChanges 时才盖 CreatedAtUtc，同一时刻）；漏斗实例按身份（UserId 否则 VisitorKey）而非会话匹配（服务端 order_paid 无会话上下文，§7.3 本就以身份为口径）。
+实现状态（2026-10-13，提交 69da251 服务端 + 1b47726 客户端/后台）：1-10 均已按本文建议实现；8、9 为后续提交，其余事项见上表。8 UserVisitLog 补 Client 列：`VisitLogMiddleware` 与事件上报、服务端权威打点共用 `AnalyticsClients.ParseClient` 解析 X-Doggo-Client 头（缺省 web），存量行回填 web；四端客户端均已发送该头。9 事件明细保留期清理：`AnalyticsRetentionWorker` 每日 02:00 UTC 运行（在 00:30 聚合之后），删除 `OccurredAtUtc` 与 `ReceivedAtUtc` 均早于 cutoff 的明细，cutoff 取 `Analytics:EventRetentionDays`（默认 90 天）；只按单时间戳判旧会误删迟到事件，故取双条件交集；`FunnelDailyStat` 不参与保留期。实现期两处与草表不同：order_created 的 OccurredAtUtc 用入队时 UtcNow（审计管线在 SaveChanges 时才盖 CreatedAtUtc，同一时刻）；漏斗实例按身份（UserId 否则 VisitorKey）而非会话匹配（服务端 order_paid 无会话上下文，§7.3 本就以身份为口径）。

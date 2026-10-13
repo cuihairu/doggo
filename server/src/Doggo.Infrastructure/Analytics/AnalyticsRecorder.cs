@@ -29,7 +29,6 @@ public sealed partial class AnalyticsRecorder(
     ILogger<AnalyticsRecorder> logger) : IAnalyticsRecorder
 {
     private const string SessionHeader = "X-Doggo-Session";
-    private const string ClientHeader = "X-Doggo-Client";
     private const string ChannelHeader = "X-Doggo-Channel";
 
     public void EnqueueOrderCreated(UserOrder order)
@@ -104,7 +103,7 @@ public sealed partial class AnalyticsRecorder(
                 : VisitorKeys.Compute(
                     context.Connection.RemoteIpAddress?.ToString(),
                     context.Request.Headers.UserAgent.ToString()),
-            Client = ParseClient(context?.Request.Headers[ClientHeader]),
+            Client = AnalyticsClients.ParseClient(context?.Request.Headers[AnalyticsClients.ClientHeader]),
             Channel = NormalizeChannel(context?.Request.Headers[ChannelHeader]),
             IdempotencyKey = $"{eventName}:{Guid.NewGuid():N}",
             SchemaVersion = AnalyticsEventDictionary.CurrentSchemaVersion
@@ -116,14 +115,6 @@ public sealed partial class AnalyticsRecorder(
         var sub = context?.User.FindFirstValue("sub");
         return Guid.TryParse(sub, out var userId) ? userId : null;
     }
-
-    private static AnalyticsClient ParseClient(string? value) => value?.Trim().ToLowerInvariant() switch
-    {
-        "miniapp" => AnalyticsClient.Miniapp,
-        "mobile" => AnalyticsClient.Mobile,
-        "admin" => AnalyticsClient.Admin,
-        _ => AnalyticsClient.Web
-    };
 
     private static string NormalizeChannel(string? value)
     {

@@ -97,11 +97,26 @@ interface RequestOptions {
   skipAuth?: boolean
 }
 
+/**
+ * Client identity sent as the X-Doggo-Client header, so server-side rows (visit logs,
+ * funnel events) can be split per client (funnel design §6, §9.3). Apps call setClient
+ * once at startup; while it is unset nothing is sent, so the server keeps defaulting to
+ * web instead of storing a wrong value.
+ */
+let client: string | null = null
+
+export function setClient(value: string) {
+  client = value
+}
+
 async function rawRequest<T>(path: string, options: RequestOptions): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     // Server-authoritative funnel events (order_created) read the client session from here.
     'X-Doggo-Session': getSessionId()
+  }
+  if (client) {
+    headers['X-Doggo-Client'] = client
   }
   const token = getAccessToken()
   if (token && !options.skipAuth) {

@@ -53,7 +53,9 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 async function request(path: string, options: RequestOptions): Promise<Response> {
   const headers: Record<string, string> = {
     // Server-authoritative funnel events (order_created) read the client session from here.
-    'X-Doggo-Session': getSessionId()
+    'X-Doggo-Session': getSessionId(),
+    // Funnel design §9.3: server-side visit logs and events split per client.
+    'X-Doggo-Client': 'web'
   }
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'

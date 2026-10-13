@@ -60,7 +60,7 @@ public static class EventEndpoints
                 return Results.Problem("Too many event batches.", statusCode: StatusCodes.Status429TooManyRequests);
             }
 
-            var client = ParseClient(context.Request.Headers["X-Doggo-Client"]);
+            var client = AnalyticsClients.ParseClient(context.Request.Headers[AnalyticsClients.ClientHeader]);
             var headerChannel = context.Request.Headers["X-Doggo-Channel"].ToString();
             var userId = Guid.TryParse(context.User.FindFirstValue("sub"), out var sub) ? sub : (Guid?)null;
 
@@ -162,14 +162,6 @@ public static class EventEndpoints
             .ToDictionary(kv => kv.Key, kv => (object?)kv.Value);
         return filtered.Count == 0 ? "{}" : JsonSerializer.Serialize(filtered);
     }
-
-    private static AnalyticsClient ParseClient(string? value) => value?.Trim().ToLowerInvariant() switch
-    {
-        "miniapp" => AnalyticsClient.Miniapp,
-        "mobile" => AnalyticsClient.Mobile,
-        "admin" => AnalyticsClient.Admin,
-        _ => AnalyticsClient.Web
-    };
 
     private static string NormalizeChannel(string? itemChannel, string headerChannel)
     {

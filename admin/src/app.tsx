@@ -22,6 +22,11 @@ export const request: RequestConfig = {
   requestInterceptors: [
     (url, options) => {
       const token = getToken()
+      options.headers = {
+        ...options.headers,
+        // Funnel design §9.3: server-side visit logs and events split per client.
+        'X-Doggo-Client': 'admin'
+      }
       if (token) {
         options.headers = { ...options.headers, Authorization: `Bearer ${token}` }
       }
