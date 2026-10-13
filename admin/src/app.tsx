@@ -1,5 +1,11 @@
+import type { ReactNode } from 'react'
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max'
 import { history } from '@umijs/max'
+import ThemeGate, { ThemeSwitch } from './ThemeGate'
+import { getTheme, initTheme } from './theme'
+
+// Reads the persisted pick before the first render so no wrong theme flashes.
+initTheme()
 
 const ADMIN_TOKEN_KEY = 'doggo.admin.accessToken'
 
@@ -71,6 +77,10 @@ export async function getInitialState(): Promise<{ isAdmin: boolean; nickname?: 
 
 export const layout: RunTimeLayoutConfig = ({ initialState }) => ({
   menuHeaderRender: undefined,
+  // Sider follows the pick on the next navigation (the generated Layout only
+  // re-evaluates this config when the route changes); page content re-themes at once.
+  navTheme: getTheme() === 'dark' || getTheme() === 'midautumn' ? 'dark' : 'light',
+  actionsRender: () => [<ThemeSwitch key="theme" />],
   onPageChange: () => {
     const { location } = history
     if (!initialState?.isAdmin && location.pathname !== '/login') {
@@ -78,3 +88,8 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => ({
     }
   },
 })
+
+/** Wraps the app so every antd surface consumes the picked theme's tokens. */
+export function rootContainer(container: ReactNode) {
+  return <ThemeGate>{container}</ThemeGate>
+}

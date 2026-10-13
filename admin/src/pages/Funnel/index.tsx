@@ -1,7 +1,7 @@
 import { PageContainer, ProCard } from '@ant-design/pro-components'
 import { request } from '@umijs/max'
 import { useCallback, useEffect, useState } from 'react'
-import { Col, DatePicker, Row, Select, Space, Table, Typography } from 'antd'
+import { Col, DatePicker, Row, Select, Space, Table, Typography, theme as antdTheme } from 'antd'
 import dayjs, { Dayjs } from 'dayjs'
 
 interface FunnelStep {
@@ -42,18 +42,21 @@ const STEP_NAMES = ['page_view_product', 'checkout_intent', 'order_created', 'or
 /** Horizontal step bars, pure div rectangles (funnel design §8.2): bar length = UV,
  * tail shows the UV and the step-over-step conversion. No chart library. */
 function FunnelBars({ steps }: { steps: FunnelStep[] }) {
+  const { token } = antdTheme.useToken()
+  // Brand ramp: solid → hover → border → bg, so it follows any theme's primary.
+  const ramp = [token.colorPrimary, token.colorPrimaryHover, token.colorPrimaryBorder, token.colorPrimaryBg]
   const max = Math.max(...steps.map((s) => s.uv), 1)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {steps.map((step, i) => (
         <div key={step.step} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 64, textAlign: 'right', color: '#666' }}>{step.label}</span>
+          <span style={{ width: 64, textAlign: 'right', color: token.colorTextSecondary }}>{step.label}</span>
           <div
             style={{
               height: 28,
               width: `${Math.max((step.uv / max) * 100, 2)}%`,
               minWidth: 40,
-              background: i === 0 ? '#2f66d0' : i === 1 ? '#4c86e0' : i === 2 ? '#7aa7ea' : '#a8c6f2',
+              background: ramp[i] ?? token.colorPrimary,
               borderRadius: 4,
             }}
           />

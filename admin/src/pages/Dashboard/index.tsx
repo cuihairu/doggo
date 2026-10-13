@@ -1,7 +1,7 @@
 import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components'
 import { request, useModel } from '@umijs/max'
 import { useEffect, useState } from 'react'
-import { Table, Typography } from 'antd'
+import { Table, Typography, theme as antdTheme } from 'antd'
 
 interface Stats {
   users: number
@@ -27,6 +27,9 @@ interface TopProduct {
 
 /** SVG polyline over the last N days; two series share the y scale (counts). */
 function TrendChart({ points }: { points: TrendPoint[] }) {
+  const {
+    token: { colorPrimary, colorSuccess }
+  } = antdTheme.useToken()
   if (points.length < 2) {
     return <Typography.Text type="secondary">数据不足，暂无走势。</Typography.Text>
   }
@@ -47,11 +50,11 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
   return (
     <div>
       <svg width={width} height={height} style={{ maxWidth: '100%' }}>
-        <path d={toPath((p) => p.newUsers, maxUsers)} fill="none" stroke="#2f66d0" strokeWidth={2} />
-        <path d={toPath((p) => p.orders, maxOrders)} fill="none" stroke="#52c41a" strokeWidth={2} />
+        <path d={toPath((p) => p.newUsers, maxUsers)} fill="none" stroke={colorPrimary} strokeWidth={2} />
+        <path d={toPath((p) => p.orders, maxOrders)} fill="none" stroke={colorSuccess} strokeWidth={2} />
       </svg>
-      <Typography.Text style={{ color: '#2f66d0' }}>— 新增用户</Typography.Text>{' '}
-      <Typography.Text style={{ color: '#52c41a' }}>— 订单</Typography.Text>
+      <Typography.Text style={{ color: colorPrimary }}>— 新增用户</Typography.Text>{' '}
+      <Typography.Text style={{ color: colorSuccess }}>— 订单</Typography.Text>
     </div>
   )
 }
