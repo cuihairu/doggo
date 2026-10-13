@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View, Text, RichText, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import ThemeRoot from '../../ThemeRoot'
 
 interface NewsDetail {
   meta: { title: string; source: string; category: string; publishedAtUtc: string; summary?: string | null }
@@ -26,7 +27,8 @@ export default function NewsDetailPage() {
 
   const { meta, author, contentHtml } = detail
   return (
-    <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
+    <ThemeRoot>
+      <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
       <View className="card">
         <Text style={{ fontSize: '34rpx', fontWeight: 700 }}>{meta.title}</Text>
         <View className="row" style={{ justifyContent: 'space-between', marginTop: '12rpx' }}>
@@ -36,6 +38,7 @@ export default function NewsDetailPage() {
         {author && <Text className="muted">作者:{author}</Text>}
       </View>
       <RichText className="card" nodes={contentHtml} />
-    </ScrollView>
+      </ScrollView>
+    </ThemeRoot>
   )
 }

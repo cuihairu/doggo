@@ -7,6 +7,8 @@ import {
   logout, redeemCode, Profile, signToday, TradeUrlEntry, CoinLogEntry, ClaimableCoupon, InviteRewardView
 } from '../../api/endpoints'
 import { ApiError, getAccessToken } from '../../api/client'
+import ThemeRoot from '../../ThemeRoot'
+import { THEMES, THEME_SWATCH, useTheme, setTheme } from '../../theme'
 
 interface CouponLite {
   id: string
@@ -21,6 +23,7 @@ const COIN_LOG_TYPE: Record<number, string> = { 0: '发放', 1: '消费', 2: '�
 
 /** User center: identity, coins, coupons, weekly sign-in. */
 export default function UserPage() {
+  const theme = useTheme()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [coins, setCoins] = useState<number | null>(null)
   const [coupons, setCoupons] = useState<CouponLite[]>([])
@@ -122,7 +125,8 @@ export default function UserPage() {
   }
 
   return (
-    <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
+    <ThemeRoot>
+      <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
       <View className="card">
         <Text style={{ fontSize: '32rpx', fontWeight: 700 }}>{profile?.nickname ?? '加载中…'}</Text>
         {profile && <Text className="muted">邀请码 {profile.inviteCode}</Text>}
@@ -143,7 +147,7 @@ export default function UserPage() {
             {coinLogs.map((log) => (
               <View key={log.id} className="row" style={{ justifyContent: 'space-between', marginTop: '8rpx' }}>
                 <Text className="muted">{COIN_LOG_TYPE[log.type] ?? log.type} · {log.createdAtUtc.slice(0, 10)}</Text>
-                <Text style={{ color: log.delta >= 0 ? '#2f6fed' : '#c0392b', fontWeight: 600 }}>
+                <Text style={{ color: log.delta >= 0 ? 'var(--primary)' : 'var(--danger)', fontWeight: 600 }}>
                   {log.delta >= 0 ? `+${log.delta}` : log.delta}
                 </Text>
               </View>
@@ -165,7 +169,7 @@ export default function UserPage() {
           placeholder="粘贴 Steam 交易链接"
           value={tradeInput}
           onInput={(e) => setTradeInput(e.detail.value)}
-          style={{ border: '1rpx solid #eee', borderRadius: '8rpx', padding: '12rpx', margin: '20rpx 0' }}
+          style={{ border: '1rpx solid var(--border)', borderRadius: '8rpx', padding: '12rpx', margin: '20rpx 0' }}
         />
         <Button size="mini" className="btn-primary" disabled={!tradeInput.trim()} onClick={doAddTradeUrl}>
           保存
@@ -178,7 +182,7 @@ export default function UserPage() {
           placeholder="输入兑换码"
           value={redeemInput}
           onInput={(e) => setRedeemInput(e.detail.value)}
-          style={{ border: '1rpx solid #eee', borderRadius: '8rpx', padding: '12rpx', margin: '20rpx 0' }}
+          style={{ border: '1rpx solid var(--border)', borderRadius: '8rpx', padding: '12rpx', margin: '20rpx 0' }}
         />
         <Button size="mini" className="btn-primary" disabled={!redeemInput.trim()} onClick={doRedeem}>
           兑换
@@ -230,6 +234,24 @@ export default function UserPage() {
       </View>
 
       <View className="card">
+        <Text style={{ fontWeight: 700 }}>主题外观</Text>
+        <Text className="muted">选择后立即生效并记住到本机；布局不变，只换颜色。</Text>
+        <View className="theme-grid">
+          {THEMES.map((item) => (
+            <View
+              key={item.id}
+              className="theme-opt"
+              aria-pressed={theme === item.id}
+              onClick={() => setTheme(item.id)}
+            >
+              <View className="theme-swatch" style={{ background: THEME_SWATCH[item.id] }} />
+              <Text>{item.label}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View className="card">
         <View className="row" style={{ justifyContent: 'space-between' }}>
           <View className="btn-primary" style={{ flex: 1, marginRight: '8rpx' }} onClick={() => Taro.navigateTo({ url: '/pages/opening/opening' })}>
             我的奖品
@@ -239,6 +261,7 @@ export default function UserPage() {
           </View>
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </ThemeRoot>
   )
 }

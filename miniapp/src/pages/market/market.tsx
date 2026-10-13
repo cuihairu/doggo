@@ -3,6 +3,7 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { fetchMarket, fetchMarketPrices, MarketItemView, PricePoint } from '../../api/endpoints'
 import { ApiError, yuan } from '../../api/client'
+import ThemeRoot from '../../ThemeRoot'
 
 interface ItemWithTrend {
   item: MarketItemView
@@ -37,7 +38,8 @@ export default function MarketPage() {
   }
 
   return (
-    <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
+    <ThemeRoot>
+      <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
       {error && <View className="card"><Text className="muted">{error}</Text></View>}
       {items.length === 0 && <View className="card"><Text className="muted">加载中…</Text></View>}
       {items.map((item) => (
@@ -64,6 +66,7 @@ export default function MarketPage() {
         })}
         {Object.keys(trends).length === 0 && <Text className="muted">点击上方行情查看走势</Text>}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </ThemeRoot>
   )
 }

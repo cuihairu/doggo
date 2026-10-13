@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { fetchMyPrizes, fetchProfile, PrizeView } from '../../api/endpoints'
 import { ApiError, getAccessToken, yuan } from '../../api/client'
+import ThemeRoot from '../../ThemeRoot'
 
 /** Opening results: the prizes inventory, newest first. */
 export default function OpeningPage() {
@@ -21,7 +22,8 @@ export default function OpeningPage() {
   }, [])
 
   return (
-    <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
+    <ThemeRoot>
+      <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
       {error && (
         <View className="card">
           <Text className="muted">{error}</Text>
@@ -43,6 +45,7 @@ export default function OpeningPage() {
           <Text className="price">¥{yuan(prize.marketPriceCents ?? prize.priceCents)}</Text>
         </View>
       ))}
-    </ScrollView>
+      </ScrollView>
+    </ThemeRoot>
   )
 }

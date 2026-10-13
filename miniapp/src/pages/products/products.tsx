@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Image, Input, Button } from '@tarojs/components
 import Taro from '@tarojs/taro'
 import { fetchProducts, ProductView } from '../../api/endpoints'
 import { ApiError, yuan } from '../../api/client'
+import ThemeRoot from '../../ThemeRoot'
 
 const PAGE_SIZE = 20
 
@@ -39,7 +40,8 @@ export default function ProductsPage() {
   }, [loadPage, q])
 
   return (
-    <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
+    <ThemeRoot>
+      <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
       <View className="card">
         <View className="row">
           <Input
@@ -48,7 +50,7 @@ export default function ProductsPage() {
             onInput={(e) => setSearchInput(e.detail.value)}
             confirmType="search"
             onConfirm={() => setQ(searchInput.trim())}
-            style={{ border: '1rpx solid #eee', borderRadius: '8rpx', padding: '12rpx', flex: 1, marginRight: '12rpx' }}
+            style={{ border: '1rpx solid var(--border)', borderRadius: '8rpx', padding: '12rpx', flex: 1, marginRight: '12rpx' }}
           />
           <Button size="mini" className="btn-primary" onClick={() => setQ(searchInput.trim())}>
             搜索
@@ -78,6 +80,7 @@ export default function ProductsPage() {
           {busy ? '加载中…' : `加载更多（已加载 ${loaded}/${total}）`}
         </Button>
       )}
-    </ScrollView>
+      </ScrollView>
+    </ThemeRoot>
   )
 }

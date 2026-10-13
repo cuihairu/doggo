@@ -3,6 +3,7 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { fetchNews, fetchMarket, fetchNotices, NewsItemView, MarketItemView, NoticeView } from '../../api/endpoints'
 import { ApiError } from '../../api/client'
+import ThemeRoot from '../../ThemeRoot'
 
 /** Home: notices, news feed and a live market glance. */
 export default function IndexPage() {
@@ -19,7 +20,8 @@ export default function IndexPage() {
   }, [])
 
   return (
-    <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
+    <ThemeRoot>
+      <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
       {error && <View className="card"><Text className="muted">{error}</Text></View>}
 
       {notices.length > 0 && (
@@ -56,6 +58,7 @@ export default function IndexPage() {
           </View>
         ))}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </ThemeRoot>
   )
 }

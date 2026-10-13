@@ -3,6 +3,7 @@ import { View, Text, Button, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { wechatLogin } from '../../api/endpoints'
 import { ApiError, getAccessToken } from '../../api/client'
+import ThemeRoot from '../../ThemeRoot'
 
 /**
  * Login = wx.login only. The miniapp never sees credentials; the code goes to
@@ -34,19 +35,21 @@ export default function LoginPage() {
   }
 
   return (
-    <View className="card">
-      <Text style={{ fontWeight: 700, fontSize: '32rpx' }}>微信一键登录</Text>
-      <Text className="muted">登录即同意《用户协议》与《隐私政策》</Text>
-      <Input
-        placeholder="昵称(可选)"
-        value={nickname}
-        onInput={(e) => setNickname(e.detail.value)}
-        style={{ border: '1rpx solid #eee', borderRadius: '8rpx', padding: '12rpx', margin: '20rpx 0' }}
-      />
-      <Button className="btn-primary" disabled={busy} onClick={login}>
-        {busy ? '登录中…' : '微信登录'}
-      </Button>
-      {error && <Text className="muted" style={{ color: '#d0453a' }}>{error}</Text>}
-    </View>
+    <ThemeRoot>
+      <View className="card">
+        <Text style={{ fontWeight: 700, fontSize: '32rpx' }}>微信一键登录</Text>
+        <Text className="muted">登录即同意《用户协议》与《隐私政策》</Text>
+        <Input
+          placeholder="昵称(可选)"
+          value={nickname}
+          onInput={(e) => setNickname(e.detail.value)}
+          style={{ border: '1rpx solid var(--border)', borderRadius: '8rpx', padding: '12rpx', margin: '20rpx 0' }}
+        />
+        <Button className="btn-primary" disabled={busy} onClick={login}>
+          {busy ? '登录中…' : '微信登录'}
+        </Button>
+        {error && <Text className="muted" style={{ color: 'var(--danger)' }}>{error}</Text>}
+      </View>
+    </ThemeRoot>
   )
 }

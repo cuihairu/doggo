@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Image, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { createOrder, fetchProduct, fetchProfile, payOrder, ProductDetail } from '../../api/endpoints'
 import { ApiError, getAccessToken, trackEvent, yuan } from '../../api/client'
+import ThemeRoot from '../../ThemeRoot'
 
 /** Product detail: contents, plans with option prices, and the buy → pay → results flow. */
 export default function ProductPage() {
@@ -44,7 +45,8 @@ export default function ProductPage() {
   if (!detail) return <View className="card"><Text className="muted">加载中…</Text></View>
 
   return (
-    <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
+    <ThemeRoot>
+      <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
       <View className="card">
         {detail.iconUrl && <Image src={detail.iconUrl} style={{ width: '120rpx', height: '120rpx' }} mode="aspectFill" />}
         <Text style={{ fontSize: '34rpx', fontWeight: 700 }}>{detail.name}</Text>
@@ -88,6 +90,7 @@ export default function ProductPage() {
         ))}
         {(detail.contents ?? []).length === 0 && <Text className="muted">暂无物品数据</Text>}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </ThemeRoot>
   )
 }
