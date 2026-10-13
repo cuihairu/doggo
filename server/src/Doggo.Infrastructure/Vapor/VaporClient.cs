@@ -90,14 +90,15 @@ public sealed class VaporClient
 
         await EnsureSuccessAsync(response, "dispatch", cancellationToken).ConfigureAwait(false);
 
-        var view = await response.Content.ReadFromJsonAsync<DispatchResponse>(VaporJson.Options, cancellationToken)
+        var view = await response.Content.ReadFromJsonAsync<VaporJobEnvelope>(VaporJson.Options, cancellationToken)
             .ConfigureAwait(false);
-        if (view is null || view.Id == Guid.Empty)
+        var summary = RequireSummary(view, "dispatch");
+        if (summary.Id == Guid.Empty)
         {
             throw new VaporClientException("vapor dispatch returned no job id");
         }
 
-        return view.Id;
+        return summary.Id;
     }
 
     /// <summary>Fetches the current job view, including per-task statuses and outputs.</summary>
@@ -116,8 +117,11 @@ public sealed class VaporClient
         }
 
         await EnsureSuccessAsync(response, $"get job {jobId}", cancellationToken).ConfigureAwait(false);
-        return await response.Content.ReadFromJsonAsync<VaporJobView>(VaporJson.Options, cancellationToken)
-            .ConfigureAwait(false) ?? throw new VaporClientException($"vapor job {jobId} returned an empty body");
+
+        var view = await response.Content.ReadFromJsonAsync<VaporJobEnvelope>(VaporJson.Options, cancellationToken)
+            ?? throw new VaporClientException($"vapor job {jobId} returned an empty body");
+        var summary = RequireSummary(view, $"get job {jobId}");
+        return new VaporJobView(summary.Id, summary.Action, summary.Status, null, summary.CreatedAt, view.Tasks ?? []);
     }
 
     /// <summary>
@@ -223,5 +227,20 @@ public sealed class VaporClient
 
     private static string Truncate(string value) => value.Length <= 200 ? value : value[..200] + "…";
 
-    private sealed record DispatchResponse(Guid Id);
+    /// <summary>
+    /// Vapor's job reply envelope. POST /v1/jobs answers {job: {...}} and GET /v1/jobs/{id}
+    /// answers {job: {...}, tasks: [...]}; both serialize job/task shapes in camelCase.
+    /// </summary>
+    private sealed record VaporJobEnvelope(
+        VaporJobSummary? Job,
+        IReadOnlyList<VaporJobTaskView>? Tasks);
+
+    private sealed record VaporJobSummary(
+        Guid Id,
+        string Action,
+        string Status,
+        DateTimeOffset CreatedAt);
+
+    private static VaporJobSummary RequireSummary(VaporJobEnvelope? envelope, string what) =>
+        envelope?.Job ?? throw new VaporClientException($"vapor {what} returned no job summary");
 }

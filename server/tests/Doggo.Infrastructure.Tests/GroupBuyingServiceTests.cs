@@ -59,13 +59,16 @@ public class GroupBuyingServiceTests
     private static string JobJson(Guid jobId, string status, string? error = null) =>
         JsonSerializer.Serialize(new
         {
-            id = jobId,
-            action = "case_open",
-            state = status,
-            createdAt = "2026-10-11T12:00:00Z",
+            job = new
+            {
+                id = jobId,
+                action = "case_open",
+                status,
+                createdAt = "2026-10-11T12:00:00Z"
+            },
             tasks = new object[]
             {
-                new { id = Guid.NewGuid(), action = "open_crate", status, target = "steam1", attempt = 1, output = (object?)null, error }
+                new { id = Guid.NewGuid(), jobId, action = "case_open", status, target = "steam1", attempt = 1, output = (object?)null, error }
             }
         });
 
@@ -82,7 +85,7 @@ public class GroupBuyingServiceTests
             if (request.Method == HttpMethod.Post)
             {
                 capturedBodies?.Add(await request.Content.ReadAsStringAsync());
-                return Response(HttpStatusCode.Accepted, JsonSerializer.Serialize(new { id = jobId }));
+                return Response(HttpStatusCode.Accepted, JsonSerializer.Serialize(new { job = new { id = jobId, action = "case_open", status = "queued", createdAt = "2026-10-11T12:00:00Z" } }));
             }
 
             return Response(HttpStatusCode.OK, json);

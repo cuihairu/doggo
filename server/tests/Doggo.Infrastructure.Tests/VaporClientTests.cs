@@ -39,13 +39,14 @@ public class VaporClientTests
     public async Task GetMarketListings_dispatches_polls_and_parses_output()
     {
         var jobId = Guid.NewGuid();
+        var task = Guid.NewGuid();
         var handler = new StubHandler
         {
             Responder = async request =>
             {
                 if (request.Method == HttpMethod.Post)
                 {
-                    return Response(HttpStatusCode.Accepted, $$"""{"id":"{{jobId}}"}""");
+                    return Response(HttpStatusCode.Accepted, $$$"""{"job":{"id":"{{{jobId}}}","action":"get_market_listings","status":"queued","createdAt":"2026-10-11T12:00:00+00:00"}}""");
                 }
 
                 var output = """
@@ -56,11 +57,12 @@ public class VaporClientTests
                        "fetchedAt":"2026-10-11T11:00:00+00:00"}]}
                     """;
                 var job = $$"""
-                    {"id":"{{jobId}}","action":"get_market_listings","state":"completed",
-                     "createdAt":"2026-10-11T12:00:00+00:00","tasks":[{"id":"{{Guid.NewGuid()}}",
+                    {"job":{"id":"{{jobId}}","action":"get_market_listings","status":"finished",
+                     "createdAt":"2026-10-11T12:00:00+00:00"},
+                     "tasks":[{"id":"{{task}}","jobId":"{{jobId}}",
                      "action":"get_market_listings","status":"finished","target":"acc1",
                      "output":{{output}},"error":null,"attempt":1,
-                     "startedAt":"2026-10-11T12:00:00+00:00","finishedAt":"2026-10-11T12:00:01+00:00"}]}
+                     "createdAt":"2026-10-11T12:00:00+00:00","updatedAt":"2026-10-11T12:00:01+00:00"}]}
                     """;
                 return Response(HttpStatusCode.OK, job);
             }
@@ -88,18 +90,47 @@ public class VaporClientTests
     }
 
     [Fact]
+    public async Task GetJob_reads_the_nested_vapor_job_envelope()
+    {
+        var jobId = Guid.NewGuid();
+        var task = Guid.NewGuid();
+        var handler = new StubHandler
+        {
+            Responder = _ => Task.FromResult(Response(HttpStatusCode.OK, $$"""
+                {"job":{"id":"{{jobId}}","action":"get_market_listings","status":"finished",
+                  "createdAt":"2026-10-11T12:00:00+00:00"},
+                 "tasks":[{"id":"{{task}}","jobId":"{{jobId}}","action":"get_market_listings",
+                  "status":"finished","attempt":1,"createdAt":"2026-10-11T12:00:00+00:00",
+                  "updatedAt":"2026-10-11T12:00:01+00:00"}]}
+                """))
+        };
+
+        var client = CreateClient(handler);
+        var view = await client.GetJobAsync(jobId);
+
+        Assert.Equal(jobId, view.Id);
+        Assert.Equal("get_market_listings", view.Action);
+        Assert.Equal("finished", view.State);
+        var taskView = Assert.Single(view.Tasks);
+        Assert.Equal(task, taskView.Id);
+        Assert.Equal("finished", taskView.Status);
+    }
+
+    [Fact]
     public async Task GetMarketListings_throws_when_task_failed()
     {
         var jobId = Guid.NewGuid();
         var handler = new StubHandler
         {
             Responder = request => Task.FromResult(request.Method == HttpMethod.Post
-                ? Response(HttpStatusCode.Accepted, $$"""{"id":"{{jobId}}"}""")
+                ? Response(HttpStatusCode.Accepted, $$$"""{"job":{"id":"{{{jobId}}}","action":"get_market_listings","status":"queued","createdAt":"2026-10-11T12:00:00+00:00"}}""")
                 : Response(HttpStatusCode.OK, $$"""
-                      {"id":"{{jobId}}","action":"get_market_listings","state":"failed",
-                       "createdAt":"2026-10-11T12:00:00+00:00","tasks":[{"id":"{{Guid.NewGuid()}}",
+                      {"job":{"id":"{{jobId}}","action":"get_market_listings","status":"failed",
+                       "createdAt":"2026-10-11T12:00:00+00:00"},
+                       "tasks":[{"id":"{{Guid.NewGuid()}}","jobId":"{{jobId}}",
                        "action":"get_market_listings","status":"failed","target":"acc1","output":null,
-                       "error":"steam request throttled","attempt":3,"startedAt":null,"finishedAt":null}]}
+                       "error":"steam request throttled","attempt":3,
+                       "createdAt":"2026-10-11T12:00:00+00:00","updatedAt":null}]}
                       """))
         };
 
@@ -115,12 +146,14 @@ public class VaporClientTests
         var handler = new StubHandler
         {
             Responder = request => Task.FromResult(request.Method == HttpMethod.Post
-                ? Response(HttpStatusCode.Accepted, $$"""{"id":"{{jobId}}"}""")
+                ? Response(HttpStatusCode.Accepted, $$$"""{"job":{"id":"{{{jobId}}}","action":"get_market_listings","status":"queued","createdAt":"2026-10-11T12:00:00+00:00"}}""")
                 : Response(HttpStatusCode.OK, $$"""
-                      {"id":"{{jobId}}","action":"get_market_listings","state":"running",
-                       "createdAt":"2026-10-11T12:00:00+00:00","tasks":[{"id":"{{Guid.NewGuid()}}",
+                      {"job":{"id":"{{jobId}}","action":"get_market_listings","status":"running",
+                       "createdAt":"2026-10-11T12:00:00+00:00"},
+                       "tasks":[{"id":"{{Guid.NewGuid()}}","jobId":"{{jobId}}",
                        "action":"get_market_listings","status":"running","target":"acc1","output":null,
-                       "error":null,"attempt":1,"startedAt":null,"finishedAt":null}]}
+                       "error":null,"attempt":1,
+                       "createdAt":"2026-10-11T12:00:00+00:00","updatedAt":null}]}
                       """))
         };
 
