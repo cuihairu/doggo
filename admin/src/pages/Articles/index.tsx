@@ -8,8 +8,9 @@ import {
   type ProColumns,
 } from '@ant-design/pro-components'
 import { request } from '@umijs/max'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Button, Popconfirm, Switch, Tabs, Tag, message } from 'antd'
+import { ErrorAlert } from '../../components/States'
 
 interface ArticleRow {
   id: string
@@ -65,6 +66,7 @@ const fmt = (v: unknown) => String(v ?? '').slice(0, 19).replace('T', ' ')
 
 function ArticleTable() {
   const actionRef = useRef<ActionType>()
+  const [error, setError] = useState('')
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<ArticleRow>[] = [
@@ -96,13 +98,21 @@ function ArticleTable() {
   ]
 
   return (
-    <ProTable<ArticleRow>
+    <>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
+      <ProTable<ArticleRow>
       rowKey="id"
       actionRef={actionRef}
       columns={columns}
       request={async () => {
-        const rows = await request<ArticleRow[]>('/api/admin/articles').catch(() => [])
-        return { data: rows, total: rows.length, success: true }
+        try {
+          const rows = await request<ArticleRow[]>('/api/admin/articles')
+          setError('')
+          return { data: rows, total: rows.length, success: true }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return { data: [], total: 0, success: true }
+        }
       }}
       search={false}
       toolBarRender={() => [
@@ -125,11 +135,13 @@ function ArticleTable() {
         </ModalForm>,
       ]}
     />
+    </>
   )
 }
 
 function SourceTable() {
   const actionRef = useRef<ActionType>()
+  const [error, setError] = useState('')
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<SourceRow>[] = [
@@ -167,20 +179,33 @@ function SourceTable() {
   ]
 
   return (
-    <ProTable<SourceRow>
+    <>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
+      <ProTable<SourceRow>
       rowKey="id"
       actionRef={actionRef}
       columns={columns}
       request={async () => {
-        const rows = await request<SourceRow[]>('/api/admin/news-sources').catch(() => [])
-        return { data: rows, total: rows.length, success: true }
+        try {
+          const rows = await request<SourceRow[]>('/api/admin/news-sources')
+          setError('')
+          return { data: rows, total: rows.length, success: true }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return { data: [], total: 0, success: true }
+        }
       }}
       search={false}
     />
+    </>
   )
 }
 
 function NewsItemTable() {
+  const actionRef = useRef<ActionType>()
+  const [error, setError] = useState('')
+  const reload = () => actionRef.current?.reload()
+
   const columns: ProColumns<NewsItemRow>[] = [
     { title: '标题', dataIndex: 'title', ellipsis: true },
     { title: '分类', dataIndex: 'category', width: 110 },
@@ -188,24 +213,34 @@ function NewsItemTable() {
   ]
 
   return (
-    <ProTable<NewsItemRow>
+    <>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
+      <ProTable<NewsItemRow>
       rowKey="id"
       columns={columns}
       request={async (params) => {
-        const data = await request<{ total: number; items: NewsItemRow[] }>('/api/admin/news-items', {
-          method: 'GET',
-          params: { page: params.current ?? 1, pageSize: params.pageSize ?? 20 },
-        }).catch(() => ({ total: 0, items: [] }))
-        return { data: data.items, total: data.total, success: true }
+        try {
+          const data = await request<{ total: number; items: NewsItemRow[] }>('/api/admin/news-items', {
+            method: 'GET',
+            params: { page: params.current ?? 1, pageSize: params.pageSize ?? 20 },
+          })
+          setError('')
+          return { data: data.items, total: data.total, success: true }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return { data: [], total: 0, success: true }
+        }
       }}
       search={false}
       pagination={{ pageSize: 20 }}
     />
+    </>
   )
 }
 
 function NoticeTable() {
   const actionRef = useRef<ActionType>()
+  const [error, setError] = useState('')
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<NoticeRow>[] = [
@@ -242,13 +277,21 @@ function NoticeTable() {
   ]
 
   return (
-    <ProTable<NoticeRow>
+    <>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
+      <ProTable<NoticeRow>
       rowKey="id"
       actionRef={actionRef}
       columns={columns}
       request={async () => {
-        const rows = await request<NoticeRow[]>('/api/admin/notices').catch(() => [])
-        return { data: rows, total: rows.length, success: true }
+        try {
+          const rows = await request<NoticeRow[]>('/api/admin/notices')
+          setError('')
+          return { data: rows, total: rows.length, success: true }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return { data: [], total: 0, success: true }
+        }
       }}
       search={false}
       toolBarRender={() => [
@@ -268,11 +311,13 @@ function NoticeTable() {
         </ModalForm>,
       ]}
     />
+    </>
   )
 }
 
 function BannerTable() {
   const actionRef = useRef<ActionType>()
+  const [error, setError] = useState('')
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<BannerRow>[] = [
@@ -310,13 +355,21 @@ function BannerTable() {
   ]
 
   return (
-    <ProTable<BannerRow>
+    <>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
+      <ProTable<BannerRow>
       rowKey="id"
       actionRef={actionRef}
       columns={columns}
       request={async () => {
-        const rows = await request<BannerRow[]>('/api/admin/banners').catch(() => [])
-        return { data: rows, total: rows.length, success: true }
+        try {
+          const rows = await request<BannerRow[]>('/api/admin/banners')
+          setError('')
+          return { data: rows, total: rows.length, success: true }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return { data: [], total: 0, success: true }
+        }
       }}
       search={false}
       toolBarRender={() => [
@@ -339,6 +392,7 @@ function BannerTable() {
         </ModalForm>,
       ]}
     />
+    </>
   )
 }
 

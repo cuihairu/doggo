@@ -1,6 +1,6 @@
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components'
 import { request } from '@umijs/max'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Button,
   Drawer,
@@ -13,6 +13,7 @@ import {
   Tag,
   message,
 } from 'antd'
+import { ErrorAlert, PageLoading } from '../../components/States'
 
 const TYPE_OPTIONS = [
   { value: 0, label: '钥匙' },
@@ -507,25 +508,34 @@ function DataDrawer({
   const [plans, setPlans] = useState<PlanEdit[]>([])
   const [tiers, setTiers] = useState<{ quantity: number; priceCents: number; alarmThreshold: number }[]>([])
   const [contents, setContents] = useState<ContentEdit[]>([])
+  const [error, setError] = useState('')
+
+  const load = useCallback(() => {
+    if (!product) return
+    setDetail(null)
+    setError('')
+    request<PlanDetail>(`/api/admin/products/${product.id}/plans`)
+      .then((data) => {
+        setDetail(data)
+        setPlans(data.plans)
+        setTiers(data.quantityOptions)
+        setContents(data.contents)
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : '加载失败'))
+  }, [product])
 
   useEffect(() => {
-    setDetail(null)
-    if (product) {
-      request<PlanDetail>(`/api/admin/products/${product.id}/plans`)
-        .then((data) => {
-          setDetail(data)
-          setPlans(data.plans)
-          setTiers(data.quantityOptions)
-          setContents(data.contents)
-        })
-        .catch(() => message.error('加载失败'))
-    }
-  }, [product])
+    load()
+  }, [load])
 
   return (
     <Drawer title={product ? `商品资料：${product.name}` : ''} width={880} open={product !== null} onClose={onClose}>
       {!detail ? (
-        <p>加载中…</p>
+        error ? (
+          <ErrorAlert description={error} onRetry={load} />
+        ) : (
+          <PageLoading />
+        )
       ) : (
         product && (
           <>
@@ -544,6 +554,7 @@ function ProductTable() {
   const [planProduct, setPlanProduct] = useState<ProductRow | null>(null)
   const [formProduct, setFormProduct] = useState<ProductRow | null>(null)
   const [formOpen, setFormOpen] = useState(false)
+  const [error, setError] = useState('')
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<ProductRow>[] = [
@@ -590,13 +601,20 @@ function ProductTable() {
 
   return (
     <>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
       <ProTable<ProductRow>
         rowKey="id"
         actionRef={actionRef}
         columns={columns}
         request={async () => {
-          const rows = await request<ProductRow[]>('/api/admin/products').catch(() => [])
-          return { data: rows, total: rows.length, success: true }
+          try {
+            const rows = await request<ProductRow[]>('/api/admin/products')
+            setError('')
+            return { data: rows, total: rows.length, success: true }
+          } catch (e) {
+            setError(e instanceof Error ? e.message : '加载失败')
+            return { data: [], total: 0, success: true }
+          }
         }}
         search={false}
         pagination={{ pageSize: 20 }}
@@ -621,6 +639,7 @@ function ProductTable() {
 
 function PromotionTable() {
   const actionRef = useRef<ActionType>()
+  const [error, setError] = useState('')
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<PromotionRow>[] = [
@@ -649,22 +668,32 @@ function PromotionTable() {
   ]
 
   return (
-    <ProTable<PromotionRow>
+    <>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
+      <ProTable<PromotionRow>
       rowKey="id"
       actionRef={actionRef}
       columns={columns}
       request={async () => {
-        const rows = await request<PromotionRow[]>('/api/admin/promotions').catch(() => [])
-        return { data: rows, total: rows.length, success: true }
+        try {
+          const rows = await request<PromotionRow[]>('/api/admin/promotions')
+          setError('')
+          return { data: rows, total: rows.length, success: true }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return { data: [], total: 0, success: true }
+        }
       }}
       search={false}
       pagination={{ pageSize: 20 }}
     />
+    </>
   )
 }
 
 function RateTable() {
   const actionRef = useRef<ActionType>()
+  const [error, setError] = useState('')
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<RateRow>[] = [
@@ -704,17 +733,26 @@ function RateTable() {
   ]
 
   return (
-    <ProTable<RateRow>
+    <>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
+      <ProTable<RateRow>
       rowKey="id"
       actionRef={actionRef}
       columns={columns}
       request={async () => {
-        const rows = await request<RateRow[]>('/api/admin/exchange-rates').catch(() => [])
-        return { data: rows, total: rows.length, success: true }
+        try {
+          const rows = await request<RateRow[]>('/api/admin/exchange-rates')
+          setError('')
+          return { data: rows, total: rows.length, success: true }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return { data: [], total: 0, success: true }
+        }
       }}
       search={false}
       pagination={{ pageSize: 20 }}
     />
+    </>
   )
 }
 

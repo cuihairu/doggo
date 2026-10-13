@@ -2,6 +2,7 @@ import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-
 import { request } from '@umijs/max'
 import { useRef, useState } from 'react'
 import { Button, Input, message, Modal } from 'antd'
+import { ErrorAlert } from '../../components/States'
 
 interface OrderRow {
   id: string
@@ -44,6 +45,7 @@ export default function OrdersPage() {
   const [reason, setReason] = useState('')
   const [prizeTarget, setPrizeTarget] = useState<OrderRow | null>(null)
   const [prizes, setPrizes] = useState<PrizeRow[]>([])
+  const [error, setError] = useState('')
   const reload = () => actionRef.current?.reload()
 
   async function confirmRefund() {
@@ -90,16 +92,23 @@ export default function OrdersPage() {
 
   return (
     <PageContainer>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
       <ProTable<OrderRow>
         rowKey="id"
         actionRef={actionRef}
         columns={columns}
         request={async (params) => {
-          const data = await request<{ total: number; items: OrderRow[] }>('/api/admin/orders', {
-            method: 'GET',
-            params: { page: params.current ?? 1, pageSize: params.pageSize ?? 20 },
-          }).catch(() => ({ total: 0, items: [] }))
-          return { data: data.items, total: data.total, success: true }
+          try {
+            const data = await request<{ total: number; items: OrderRow[] }>('/api/admin/orders', {
+              method: 'GET',
+              params: { page: params.current ?? 1, pageSize: params.pageSize ?? 20 },
+            })
+            setError('')
+            return { data: data.items, total: data.total, success: true }
+          } catch (e) {
+            setError(e instanceof Error ? e.message : '加载失败')
+            return { data: [], total: 0, success: true }
+          }
         }}
         search={false}
         pagination={{ pageSize: 20 }}

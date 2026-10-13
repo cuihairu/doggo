@@ -304,7 +304,7 @@
 - [x] web:components/States.tsx(Skeleton/EmptyState/ErrorBox/SuccessBox),九页接入骨架/空态/错误重试/支付成功下一步,差异清单同步
 - [x] mobile:ui.tsx 增加 StateIco/Skeleton/EmptyState/SuccessBox,Msg 升级为错误框;商品/行情/开箱/商品详情/资讯详情/订单六页接入,订单页支付成功给下一步
 - [x] miniapp:states.tsx(Skeleton/EmptyState/ErrorBox/SuccessBox),商品/行情/商品详情/资讯详情/开箱五页接入,加载/错误/空态替换文本,开箱页带登录引导
-- [ ] admin:同套状态组件(Skeleton/Spin/Alert/Result 接入)
+- [x] admin:components/States.tsx(PageLoading/ErrorAlert/EmptyAction),Dashboard/Funnel/商品资料抽屉接入,Orders/Users/Rolls/Products/Articles 13 个 ProTable 错误 Alert+重试,静默 catch 消除
 
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目

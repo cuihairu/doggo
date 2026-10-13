@@ -2,6 +2,7 @@ import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-
 import { request } from '@umijs/max'
 import { useRef, useState } from 'react'
 import { Button, Modal, Switch, Tabs, Tag, message } from 'antd'
+import { ErrorAlert } from '../../components/States'
 
 interface TemplateRow {
   id: string
@@ -52,6 +53,7 @@ const fmt = (v: unknown) => (v ? String(v).slice(0, 19).replace('T', ' ') : '-')
 
 function TemplateTable() {
   const actionRef = useRef<ActionType>()
+  const [error, setError] = useState('')
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<TemplateRow>[] = [
@@ -78,22 +80,34 @@ function TemplateTable() {
   ]
 
   return (
-    <ProTable<TemplateRow>
+    <>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
+      <ProTable<TemplateRow>
       rowKey="id"
       actionRef={actionRef}
       columns={columns}
       request={async () => {
-        const rows = await request<TemplateRow[]>('/api/roll/templates').catch(() => [])
-        return { data: rows, total: rows.length, success: true }
+        try {
+          const rows = await request<TemplateRow[]>('/api/roll/templates')
+          setError('')
+          return { data: rows, total: rows.length, success: true }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return { data: [], total: 0, success: true }
+        }
       }}
       search={false}
     />
+    </>
   )
 }
 
 function RoomTable() {
+  const actionRef = useRef<ActionType>()
   const [prizeRoom, setPrizeRoom] = useState<RoomRow | null>(null)
   const [prizes, setPrizes] = useState<RoomPrizeRow[]>([])
+  const [error, setError] = useState('')
+  const reload = () => actionRef.current?.reload()
 
   async function openPrizes(row: RoomRow) {
     setPrizeRoom(row)
@@ -130,15 +144,22 @@ function RoomTable() {
 
   return (
     <>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
       <ProTable<RoomRow>
         rowKey="id"
         columns={columns}
         request={async (params) => {
-          const data = await request<{ total: number; items: RoomRow[] }>('/api/admin/roll/rooms', {
-            method: 'GET',
-            params: { page: params.current ?? 1, pageSize: params.pageSize ?? 20 },
-          }).catch(() => ({ total: 0, items: [] }))
-          return { data: data.items, total: data.total, success: true }
+          try {
+            const data = await request<{ total: number; items: RoomRow[] }>('/api/admin/roll/rooms', {
+              method: 'GET',
+              params: { page: params.current ?? 1, pageSize: params.pageSize ?? 20 },
+            })
+            setError('')
+            return { data: data.items, total: data.total, success: true }
+          } catch (e) {
+            setError(e instanceof Error ? e.message : '加载失败')
+            return { data: [], total: 0, success: true }
+          }
         }}
         search={false}
         pagination={{ pageSize: 20 }}

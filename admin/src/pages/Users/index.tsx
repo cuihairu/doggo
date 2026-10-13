@@ -2,6 +2,7 @@ import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-
 import { request } from '@umijs/max'
 import { useRef, useState } from 'react'
 import { Button, Drawer, Switch, Tabs, Tag, message } from 'antd'
+import { ErrorAlert } from '../../components/States'
 
 interface UserRow {
   id: string
@@ -36,6 +37,9 @@ interface LoginLogRow {
 const fmt = (v: unknown) => String(v ?? '').slice(0, 19).replace('T', ' ')
 
 function CoinLogs({ userId }: { userId: string }) {
+  const actionRef = useRef<ActionType>()
+  const [error, setError] = useState('')
+
   const columns: ProColumns<CoinLogRow>[] = [
     { title: '变动', dataIndex: 'delta', width: 90, render: (v) => (Number(v) > 0 ? `+${v}` : String(v)) },
     { title: '变动后', dataIndex: 'balanceAfter', width: 90 },
@@ -45,24 +49,38 @@ function CoinLogs({ userId }: { userId: string }) {
     { title: '时间', dataIndex: 'createdAtUtc', width: 150, render: fmt },
   ]
   return (
-    <ProTable<CoinLogRow>
+    <>
+      {error && (
+        <ErrorAlert description={error} onRetry={() => { setError(''); actionRef.current?.reload() }} />
+      )}
+      <ProTable<CoinLogRow>
       rowKey="id"
       columns={columns}
       request={async (params) => {
-        const data = await request<{ total: number; items: CoinLogRow[] }>(`/api/admin/users/${userId}/coin-logs`, {
-          method: 'GET',
-          params: { page: params.current ?? 1, pageSize: params.pageSize ?? 10 },
-        }).catch(() => ({ total: 0, items: [] }))
-        return { data: data.items, total: data.total, success: true }
+        try {
+          const data = await request<{ total: number; items: CoinLogRow[] }>(`/api/admin/users/${userId}/coin-logs`, {
+            method: 'GET',
+            params: { page: params.current ?? 1, pageSize: params.pageSize ?? 10 },
+          })
+          setError('')
+          return { data: data.items, total: data.total, success: true }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return { data: [], total: 0, success: true }
+        }
       }}
       search={false}
       pagination={{ pageSize: 10 }}
       size="small"
     />
+    </>
   )
 }
 
 function LoginLogs({ userId }: { userId: string }) {
+  const actionRef = useRef<ActionType>()
+  const [error, setError] = useState('')
+
   const columns: ProColumns<LoginLogRow>[] = [
     { title: '账号', dataIndex: 'account', width: 130 },
     { title: 'IP', dataIndex: 'ip', width: 120 },
@@ -71,20 +89,31 @@ function LoginLogs({ userId }: { userId: string }) {
     { title: '时间', dataIndex: 'createdAtUtc', width: 150, render: fmt },
   ]
   return (
-    <ProTable<LoginLogRow>
+    <>
+      {error && (
+        <ErrorAlert description={error} onRetry={() => { setError(''); actionRef.current?.reload() }} />
+      )}
+      <ProTable<LoginLogRow>
       rowKey="id"
       columns={columns}
       request={async (params) => {
-        const data = await request<{ total: number; items: LoginLogRow[] }>(`/api/admin/users/${userId}/login-logs`, {
-          method: 'GET',
-          params: { page: params.current ?? 1, pageSize: params.pageSize ?? 10 },
-        }).catch(() => ({ total: 0, items: [] }))
-        return { data: data.items, total: data.total, success: true }
+        try {
+          const data = await request<{ total: number; items: LoginLogRow[] }>(`/api/admin/users/${userId}/login-logs`, {
+            method: 'GET',
+            params: { page: params.current ?? 1, pageSize: params.pageSize ?? 10 },
+          })
+          setError('')
+          return { data: data.items, total: data.total, success: true }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return { data: [], total: 0, success: true }
+        }
       }}
       search={false}
       pagination={{ pageSize: 10 }}
       size="small"
     />
+    </>
   )
 }
 
@@ -92,6 +121,7 @@ function LoginLogs({ userId }: { userId: string }) {
 export default function UsersPage() {
   const actionRef = useRef<ActionType>()
   const [logsUser, setLogsUser] = useState<UserRow | null>(null)
+  const [error, setError] = useState('')
   const reload = () => actionRef.current?.reload()
 
   const columns: ProColumns<UserRow>[] = [
@@ -135,16 +165,23 @@ export default function UsersPage() {
 
   return (
     <PageContainer>
+      {error && <ErrorAlert description={error} onRetry={() => { setError(''); reload() }} />}
       <ProTable<UserRow>
         rowKey="id"
         actionRef={actionRef}
         columns={columns}
         request={async (params) => {
-          const data = await request<{ total: number; items: UserRow[] }>('/api/admin/users', {
-            method: 'GET',
-            params: { page: params.current ?? 1, pageSize: params.pageSize ?? 20 },
-          }).catch(() => ({ total: 0, items: [] }))
-          return { data: data.items, total: data.total, success: true }
+          try {
+            const data = await request<{ total: number; items: UserRow[] }>('/api/admin/users', {
+              method: 'GET',
+              params: { page: params.current ?? 1, pageSize: params.pageSize ?? 20 },
+            })
+            setError('')
+            return { data: data.items, total: data.total, success: true }
+          } catch (e) {
+            setError(e instanceof Error ? e.message : '加载失败')
+            return { data: [], total: 0, success: true }
+          }
         }}
         search={false}
         pagination={{ pageSize: 20 }}

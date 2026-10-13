@@ -3,6 +3,7 @@ import { request } from '@umijs/max'
 import { useCallback, useEffect, useState } from 'react'
 import { Col, DatePicker, Row, Select, Space, Table, Typography, theme as antdTheme } from 'antd'
 import dayjs, { Dayjs } from 'dayjs'
+import { EmptyAction, ErrorAlert, PageLoading } from '../../components/States'
 
 interface FunnelStep {
   step: string
@@ -80,6 +81,8 @@ export default function FunnelPage() {
   const [client, setClient] = useState<string | undefined>()
   const [channel, setChannel] = useState<string | undefined>()
   const [report, setReport] = useState<FunnelReport | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({
@@ -90,10 +93,15 @@ export default function FunnelPage() {
     })
     if (client) params.set('client', client)
     if (channel) params.set('channel', channel)
+    setLoading(true)
+    setError('')
     try {
       setReport(await request<FunnelReport>(`/api/admin/funnel?${params.toString()}`))
-    } catch {
+    } catch (e) {
       setReport(null)
+      setError(e instanceof Error ? e.message : '加载失败')
+    } finally {
+      setLoading(false)
     }
   }, [range, groupBy, grain, client, channel])
 
@@ -159,15 +167,29 @@ export default function FunnelPage() {
       <Row gutter={16}>
         <Col span={24} md={12}>
           <ProCard title="漏斗总览" style={{ marginBottom: 16 }}>
-            {selected ? (
+            {loading ? (
+              <PageLoading />
+            ) : error ? (
+              <ErrorAlert description={error} onRetry={load} />
+            ) : selected ? (
               <FunnelBars steps={[...selected.steps].sort((a, b) => STEP_NAMES.indexOf(a.step) - STEP_NAMES.indexOf(b.step))} />
             ) : (
-              <Typography.Text type="secondary">暂无聚合数据(数据每日 00:30 UTC 出 T-1)。</Typography.Text>
+              <EmptyAction
+                description="暂无聚合数据(数据每日 00:30 UTC 出 T-1)"
+                actionLabel="清空筛选"
+                onAction={() => {
+                  setClient(undefined)
+                  setChannel(undefined)
+                }}
+              />
             )}
           </ProCard>
         </Col>
         <Col span={24} md={12}>
           <ProCard title="步骤明细" style={{ marginBottom: 16 }}>
+            {loading ? (
+              <PageLoading rows={3} />
+            ) : (
             <Table<FunnelStep>
               rowKey="step"
               size="small"
@@ -180,6 +202,7 @@ export default function FunnelPage() {
                 { title: '流失率', dataIndex: 'dropRate', width: 100, render: (v: number) => (v === 0 ? '—' : `${(v * 100).toFixed(1)}%`) },
               ]}
             />
+            )}
           </ProCard>
         </Col>
       </Row>
@@ -190,6 +213,7 @@ export default function FunnelPage() {
           size="small"
           pagination={{ pageSize: 14, showSizeChanger: false }}
           dataSource={report?.rows ?? []}
+          loading={loading}
           columns={[
             { title: '日期', dataIndex: 'date', width: 110, sorter: (a, b) => a.date.localeCompare(b.date) },
             { title: '端', dataIndex: 'client', width: 100 },

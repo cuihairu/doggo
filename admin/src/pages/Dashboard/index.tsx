@@ -1,7 +1,8 @@
 import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components'
 import { request, useModel } from '@umijs/max'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Table, Typography, theme as antdTheme } from 'antd'
+import { ErrorAlert, PageLoading } from '../../components/States'
 
 interface Stats {
   users: number
@@ -65,16 +66,31 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [trend, setTrend] = useState<TrendPoint[]>([])
   const [top, setTop] = useState<TopProduct[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = useCallback(() => {
+    setLoading(true)
+    setError('')
+    Promise.all([
+      request<Stats>('/api/admin/stats').then(setStats).catch(() => setError('统计接口加载失败')),
+      request<TrendPoint[]>('/api/admin/stats/trend?days=14').then(setTrend).catch(() => setError('走势接口加载失败')),
+      request<TopProduct[]>('/api/admin/stats/top-products?top=10').then(setTop).catch(() => setError('排行接口加载失败')),
+    ]).finally(() => setLoading(false))
+  }, [])
 
   useEffect(() => {
-    request<Stats>('/api/admin/stats').then(setStats).catch(() => {})
-    request<TrendPoint[]>('/api/admin/stats/trend?days=14').then(setTrend).catch(() => {})
-    request<TopProduct[]>('/api/admin/stats/top-products?top=10').then(setTop).catch(() => {})
-  }, [])
+    load()
+  }, [load])
 
   return (
     <PageContainer content={`欢迎, ${initialState?.nickname ?? '管理员'}`}>
       <ProCard style={{ marginBottom: 16 }}>
+        {loading ? (
+          <PageLoading />
+        ) : error ? (
+          <ErrorAlert description={error} onRetry={load} />
+        ) : (
         <StatisticCard.Group>
           <StatisticCard statistic={{ title: '用户总数', value: stats?.users ?? '-' }} />
           <StatisticCard statistic={{ title: '今日新增用户', value: stats?.newUsersToday ?? '-' }} />
@@ -84,10 +100,11 @@ export default function DashboardPage() {
             statistic={{ title: '订单金额 (元)', value: stats ? (stats.revenueCents / 100).toFixed(2) : '-' }}
           />
         </StatisticCard.Group>
+        )}
       </ProCard>
 
       <ProCard title="近 14 天走势" style={{ marginBottom: 16 }}>
-        <TrendChart points={trend} />
+        {loading ? <PageLoading rows={2} /> : <TrendChart points={trend} />}
       </ProCard>
 
       <ProCard title="商品营收排行">
@@ -96,6 +113,7 @@ export default function DashboardPage() {
           size="small"
           pagination={false}
           dataSource={top}
+          loading={loading}
           columns={[
             { title: '商品', dataIndex: 'productName' },
             { title: '订单数', dataIndex: 'orderCount', width: 100 },

@@ -157,14 +157,14 @@
 | orders | 有差异 | 无顶部 4 KPI、筛选（订单号/状态/日期+刷新）；列缺用户/内容、多金币/券抵扣+奖品；状态枚举 0-6（原型 5 态）；退款 modal 无预置原因与退回券/金币 chips |
 | products | 有差异 | 无筛选与「新建商品」；列缺游戏/类型/库存；状态为纯文本非 badge；抽屉无掉落表/价格历史/外部参考价；汇率修正用 window.prompt |
 | settings | 未实现 | 仅占位（当前账号+env 说明）；缺站点参数、支付渠道、主题运营位日历（§9-6）、爬虫站点总览 |
-| states | 未实现 | 无 Skeleton/Spin/Alert/Result；加载为 '-' 占位；错误全部静默 catch 无重试入口；空态无「清空筛选」动作 |
+| states | 有差异 | 已落地：Dashboard 骨架屏+错误重试（替代 '-' 占位与静默 catch）、Funnel 骨架/错误/空态「清空筛选」、商品资料抽屉骨架+错误；Orders/Users/Rolls/Products/Articles 共 13 个 ProTable 改为错误 Alert+重试；登录页与表单内错误保持纯文本 |
 | Users/Articles/Rolls/Login | 无原型对照 | 实现多出页面（原型侧栏仅占位链接） |
 
 ### 10.3 差异清单（按类）
 
 **结构性差异（原型有、实现无，按优先级）**
 
-1. 状态组件矩阵（§6）：web、mobile、miniapp 已落地（web `components/States.tsx` 九页接入；mobile `ui.tsx` StateIco/Skeleton/EmptyState/SuccessBox，Msg 升级为错误框，商品/行情/开箱/商品详情/资讯详情/订单接入；miniapp `src/states.tsx` Skeleton/EmptyState/ErrorBox/SuccessBox，小程序无 SVG 组件，徽章用描边圆 + 字形，商品/行情/商品详情/资讯详情/开箱五页接入，开箱页无登录时错误框带「去登录」替代路径）；admin 未落地——目前各页为纯文本 + toast。
+1. 状态组件矩阵（§6）：web、mobile、miniapp 已落地（web `components/States.tsx` 九页接入；mobile `ui.tsx` StateIco/Skeleton/EmptyState/SuccessBox，Msg 升级为错误框，商品/行情/开箱/商品详情/资讯详情/订单接入；miniapp `src/states.tsx` Skeleton/EmptyState/ErrorBox/SuccessBox，小程序无 SVG 组件，徽章用描边圆 + 字形，商品/行情/商品详情/资讯详情/开箱五页接入，开箱页无登录时错误框带「去登录」替代路径）；admin `src/components/States.tsx`（PageLoading/ErrorAlert/EmptyAction），Dashboard/Funnel/资料抽屉与 13 个 ProTable 接入，错误不再静默。
 2. 下单/开箱闭环：无独立确认订单页、支付方式选择、超时倒计时、开箱结果卡（open-glow/稀有 badge/存奖品/取回）。
 3. 商品详情：无「包含内容」徽章网格、行情参考价表、金币抵扣/优惠券选择、底部 buybar。
 4. admin 设置页（站点参数/支付渠道/主题运营日历/爬虫总览）未实现。
