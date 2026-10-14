@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Taro from '@tarojs/taro'
 import { cancelOrder, fetchOrder, OrderView, ApiError, kvGet, kvSet, payOrder, yuan } from '@doggo/shared'
-import { SafeTop, Btn, Card, EmptyState, Muted, SuccessBox } from '../../ui'
+import { SafeTop, Btn, Card, EmptyState, Muted, Price, SuccessBox } from '../../ui'
 import { useTheme, type Palette } from '../../theme'
 
 const STATUS_TEXT: Record<number, string> = {
@@ -13,6 +13,29 @@ const STATUS_TEXT: Record<number, string> = {
   4: '已完成',
   5: '已取消',
   6: '已退款'
+}
+
+/** Only the mock channel is wired server-side; the real one needs merchant credentials. */
+const PAY_METHOD_TEXT = '支付宝（模拟）'
+
+function secondsLeft(deadline?: string | null): number {
+  if (!deadline) return 0
+  return Math.max(0, Math.round((new Date(deadline).getTime() - Date.now()) / 1000))
+}
+
+/** Ticks down to the server-set payment deadline; the server cancels on timeout. */
+function PayCountdown({ deadline }: { deadline?: string | null }) {
+  const [seconds, setSeconds] = useState(() => secondsLeft(deadline))
+
+  useEffect(() => {
+    const timer = setInterval(() => setSeconds(secondsLeft(deadline)), 1000)
+    return () => clearInterval(timer)
+  }, [deadline])
+
+  const label =
+    seconds === 0 ? '已超时' : `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+
+  return <Text style={{ color: '#fff', fontWeight: '700' }}>剩余 {label}</Text>
 }
 
 /**
@@ -142,12 +165,33 @@ export default function OrderPage() {
                 <>
                   <View style={styles.row}>
                     <Text style={{ color: t.text }}>{order.orderNo}</Text>
-                    <Text style={{ color: STATUS_COLOR(t)[order.status] ?? t.text }}>{STATUS_TEXT[order.status] ?? `状态 ${order.status}`}</Text>
+                    {order.status === 0 && order.payDeadlineUtc ? (
+                      <View style={[styles.badge, { backgroundColor: t.danger }]}>
+                        <PayCountdown deadline={order.payDeadlineUtc} />
+                      </View>
+                    ) : (
+                      <Text style={{ color: STATUS_COLOR(t)[order.status] ?? t.text }}>
+                        {STATUS_TEXT[order.status] ?? `状态 ${order.status}`}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={[styles.row, { marginTop: 10 }]}>
+                    {order.productIconUrl ? <Image source={{ uri: order.productIconUrl }} style={styles.icon} /> : null}
+                    <View style={{ flex: 1, marginHorizontal: 10 }}>
+                      <Text numberOfLines={1} style={{ color: t.text, fontWeight: '600' }}>
+                        {order.productName || '商品已下架'}
+                      </Text>
+                      <Muted>套餐：{order.planTitle ?? '单开'}</Muted>
+                    </View>
+                    <Price>¥{yuan(order.totalCostCents)}</Price>
                   </View>
                   <View style={styles.row}>
-                    <Muted>实付 ¥{yuan(order.totalCostCents)}</Muted>
+                    <Muted>支付方式 {PAY_METHOD_TEXT}</Muted>
                     <Muted>{String(order.createdAtUtc ?? '').slice(0, 19).replace('T', ' ')}</Muted>
                   </View>
+                  {order.couponDeductionCents > 0 ? (
+                    <Muted>优惠券 −¥{yuan(order.couponDeductionCents)}</Muted>
+                  ) : null}
                   {order.error ? <Muted style={{ color: t.danger }}>{order.error}</Muted> : null}
                   {order.status === 0 ? (
                     <View style={styles.row}>
@@ -186,5 +230,7 @@ const styles = StyleSheet.create({
     marginBottom: 10
   },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
-  actionBtn: { flex: 1, marginHorizontal: 4 }
+  actionBtn: { flex: 1, marginHorizontal: 4 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  icon: { width: 40, height: 40, borderRadius: 6 }
 })

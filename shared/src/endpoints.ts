@@ -138,12 +138,18 @@ export interface OrderView {
   orderNo: string
   userId: string
   productId: string
+  /** Joined on GET /api/orders/{id}; empty when the product row is gone. */
+  productName: string
+  productIconUrl?: string
+  planId?: string | null
+  planTitle?: string | null
   status: number
   regularPriceCents: number
   totalPriceCents: number
   totalCostCents: number
   coinDeduction: number
   couponDeductionCents: number
+  cashbackCents: number
   error?: string | null
   paidAtUtc?: string | null
   payDeadlineUtc?: string | null
@@ -188,6 +194,22 @@ export function cancelOrder(id: string) {
   return api<{ cancelled: boolean }>(`/api/orders/${id}/cancel`, { method: 'POST' })
 }
 
+/** Prize attached to a seat once the opening result landed on its order. */
+export interface SeatPrizeView {
+  assetId: string
+  classId: string
+  instanceId: string
+  marketHashName: string
+  quality: number
+  exterior: string
+  floatValue?: number | null
+  rarity: string
+  iconUrl: string
+  inspectLink?: string | null
+  priceCents: number
+  tradableAtUtc?: string | null
+}
+
 export interface SeatView {
   seatNo: number
   status: number
@@ -195,6 +217,7 @@ export interface SeatView {
   keyAssetId?: string | null
   prizeAssetId?: string | null
   orderId?: string | null
+  prize?: SeatPrizeView | null
 }
 
 export function fetchBatch(batchId: string) {

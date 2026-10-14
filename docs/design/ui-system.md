@@ -144,9 +144,9 @@
 | home | 有差异 | 无 banner、四宫格（实现为 6 个文字 Btn 网格）、运营推荐；行情速览无涨跌%；多出资讯卡；原型 tabbar 未实现（§9-1） |
 | market | 有差异 | 无筛选下拉、站内 vs 外部参考价对照、涨跌红绿%；多出 30 日收盘 SVG 趋势线（原型无） |
 | product | 有差异 | 无 180px hero 大图、套餐为文字 Btn 非 plan-row、无金币抵扣行、优惠券为列表非 chip、无 rarity 徽章格、无底部 buybar |
-| order | 有差异 | 无订单列表端点（本地记忆最近 10 个 id + 手动输入）；无待支付倒计时与继续支付/取消双按钮；多出 4s 轮询；状态 7 种（原型 4 种） |
+| order | 有差异 | 无订单列表端点（本地记忆最近 10 个 id + 手动输入）；待支付倒计时徽章（mm:ss，服务端 payDeadlineUtc）、支付方式「支付宝（模拟）」、商品图标/名称/套餐与优惠券抵扣行已落地；仍无独立确认订单页与协议勾选；多出 4s 轮询；状态 7 种（原型 4 种） |
 | profile | 有差异 | 无 me-head 头像头、stat-row 三格、周签到进度；「外观与主题」卡已实现且更完整（11 色板 + 跟随系统）；无设置页 |
-| states | 有差异 | 骨架屏（脉冲卡）、空态（图标+说明+行动）、错误框（警示图标+重试）、支付成功框已落地；开箱结果独立成功屏属下单/开箱闭环（§10.3-2） |
+| states | 有差异 | 骨架屏（脉冲卡）、空态（图标+说明+行动）、错误框（警示图标+重试）、支付成功框已落地；开箱结果卡（最新奖品置顶：金色圆形 glow、稀有/品质 badge、参考价、存奖品与取回提示）属下单/开箱闭环（§10.3-2） |
 
 **admin**（原型 6 屏）
 
@@ -165,7 +165,7 @@
 **结构性差异（原型有、实现无，按优先级）**
 
 1. 状态组件矩阵（§6）：web、mobile、miniapp 已落地（web `components/States.tsx` 九页接入；mobile `ui.tsx` StateIco/Skeleton/EmptyState/SuccessBox，Msg 升级为错误框，商品/行情/开箱/商品详情/资讯详情/订单接入；miniapp `src/states.tsx` Skeleton/EmptyState/ErrorBox/SuccessBox，小程序无 SVG 组件，徽章用描边圆 + 字形，商品/行情/商品详情/资讯详情/开箱五页接入，开箱页无登录时错误框带「去登录」替代路径）；admin `src/components/States.tsx`（PageLoading/ErrorAlert/EmptyAction），Dashboard/Funnel/资料抽屉与 13 个 ProTable 接入，错误不再静默。
-2. 下单/开箱闭环：无独立确认订单页、支付方式选择、超时倒计时、开箱结果卡（open-glow/稀有 badge/存奖品/取回）。web 已落地：确认订单页 OrderPayPage（订单内容、支付方式、支付倒计时、协议、金额明细）+ 开箱结果卡 CaseOpeningPage（open-glow、稀有 badge、参考价、检视链接，奖品由服务端自动存入），服务端 OrderView 补商品名/图标/方案标题、SeatView 补奖品快照；mobile/miniapp 待实现；取回到 Steam 依赖 vapor 联调。
+2. 下单/开箱闭环：无独立确认订单页、支付方式选择、超时倒计时、开箱结果卡（open-glow/稀有 badge/存奖品/取回）。web 已落地：确认订单页 OrderPayPage（订单内容、支付方式、支付倒计时、协议、金额明细）+ 开箱结果卡 CaseOpeningPage（open-glow、稀有 badge、参考价、检视链接，奖品由服务端自动存入）；mobile 已落地订单卡（商品图标/名称/套餐、支付倒计时徽章、支付方式、优惠券抵扣）+ 开箱页结果卡（金色 glow、稀有 badge、参考价、存奖品/取回提示），shared 类型同步 productName/productIconUrl/planTitle 与座位奖品快照；miniapp 待实现；取回到 Steam 依赖 vapor 联调。
 3. 商品详情：无「包含内容」徽章网格、行情参考价表、金币抵扣/优惠券选择、底部 buybar。
 4. admin 设置页（站点参数/支付渠道/主题运营日历/爬虫总览）未实现。
 5. 行情页：无站内 vs 外部参考价对照表、涨跌%、筛选。
