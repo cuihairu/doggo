@@ -39,3 +39,69 @@ features:
     title: 统一技术栈
     details: 服务端、爬虫、机器人统一使用 C# / .NET,原生支持 Linux。
 ---
+
+## 界面预览
+
+以下截图取自本地运行的真实界面(种子数据),按功能逐项说明。
+
+### 玩家端 Web
+
+#### 首页
+
+![玩家端首页](/screenshots/web-home.png)
+
+聚合最新资讯、行情入口与商店推荐,顶部导航覆盖资讯、行情、商店与 Roll 房。
+
+#### 资讯详情
+
+![资讯详情](/screenshots/web-news-detail.png)
+
+文章正文在抓取后经过清洗与去重,可查看来源与发布时间。
+
+#### 饰品行情列表
+
+![饰品行情列表](/screenshots/web-market-list.png)
+
+按游戏与类型筛选饰品,展示最新价与更新时间。
+
+#### 价格趋势
+
+![价格趋势](/screenshots/web-market-trend.png)
+
+单个饰品提供日线走势图与开、高、低、收历史价格表。
+
+#### 商店列表
+
+![商店列表](/screenshots/web-product-list.png)
+
+在售武器箱按上架顺序排列,展示价格与分类。
+
+#### 箱子详情
+
+![箱子详情](/screenshots/web-product-detail.png)
+
+展示箱子内物品、掉落概率、磨损区间与可选购买方案。
+
+#### 订单支付
+
+![订单支付](/screenshots/web-order-pay.png)
+
+下单后生成支付倒计时,按步骤完成渠道选择与支付确认。
+
+#### 团队开箱
+
+![团队开箱](/screenshots/web-case-opening.png)
+
+多人拼团开箱按座位分配奖品,领奖后自动存入库存。
+
+#### 我的奖品
+
+![我的奖品](/screenshots/web-my-prizes.png)
+
+开箱所得奖品统一入库存,可查看磨损与参考价。
+
+#### 登录
+
+![登录页](/screenshots/web-login.png)
+
+手机号加密码登录,登录后可使用开箱、订单与库存功能。
