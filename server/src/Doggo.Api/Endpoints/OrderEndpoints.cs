@@ -3,6 +3,7 @@ using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Orders;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Doggo.Api.Endpoints;
 
@@ -55,12 +56,23 @@ public static class OrderEndpoints
         group.MapGet("/{id:guid}", async (
             Guid id,
             [FromServices] OrderService orders,
+            [FromServices] Doggo.Infrastructure.Persistence.DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
             try
             {
                 var order = await orders.FindOrderAsync(id, cancellationToken);
-                return Results.Ok(OrderView.From(order));
+                var product = await db.Products.AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Id == order.ProductId, cancellationToken);
+                var plan = order.PlanId is { } planId
+                    ? await db.CasePlans.AsNoTracking()
+                        .FirstOrDefaultAsync(p => p.Id == planId, cancellationToken)
+                    : null;
+                return Results.Ok(OrderView.From(
+                    order,
+                    product?.Name ?? string.Empty,
+                    product?.IconUrl ?? string.Empty,
+                    plan?.Title));
             }
             catch (OrderNotFoundException ex)
             {
@@ -223,7 +235,10 @@ public sealed record OrderView(
     Guid UserId,
     OrderEntry Entry,
     Guid ProductId,
+    string ProductName,
+    string ProductIconUrl,
     Guid? PlanId,
+    string? PlanTitle,
     Guid? PromotionId,
     long RegularPriceCents,
     long PriceCents,
@@ -246,13 +261,16 @@ public sealed record OrderView(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc)
 {
-    public static OrderView From(UserOrder order) => new(
+    public static OrderView From(UserOrder order, string productName, string productIconUrl, string? planTitle) => new(
         order.Id,
         order.OrderNo,
         order.UserId,
         order.Entry,
         order.ProductId,
+        productName,
+        productIconUrl,
         order.PlanId,
+        planTitle,
         order.PromotionId,
         order.RegularPriceCents,
         order.PriceCents,

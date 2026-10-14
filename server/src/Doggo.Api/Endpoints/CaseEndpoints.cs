@@ -52,7 +52,15 @@ public static class CaseEndpoints
                 .OrderBy(s => s.SeatNo)
                 .ToListAsync(cancellationToken);
 
-            return Results.Ok(GroupBuyingView.From(batch, seats));
+            var orderIds = seats.Select(s => s.OrderId).Where(o => o.HasValue).Select(o => o!.Value).Distinct().ToList();
+            var prizes = orderIds.Count > 0
+                ? await db.UserPrizes.AsNoTracking()
+                    .Where(p => orderIds.Contains(p.OrderId))
+                    .ToListAsync(cancellationToken)
+                : [];
+            var prizesByOrder = prizes.ToDictionary(p => p.OrderId);
+
+            return Results.Ok(GroupBuyingView.From(batch, seats, prizesByOrder));
         });
 
         group.MapPost("/{id:guid}/claim", async (
@@ -249,21 +257,52 @@ public sealed record OpeningResultRequest(
 
 public sealed record AdvanceSeatRequest(SeatStatus Target);
 
+public sealed record PrizeView(
+    string AssetId,
+    string ClassId,
+    string InstanceId,
+    string MarketHashName,
+    CaseQuality Quality,
+    string Exterior,
+    double? FloatValue,
+    string Rarity,
+    string IconUrl,
+    string? InspectLink,
+    long PriceCents,
+    DateTime? TradableAtUtc)
+{
+    public static PrizeView From(UserPrize prize) => new(
+        prize.AssetId,
+        prize.ClassId,
+        prize.InstanceId,
+        prize.MarketHashName,
+        prize.Quality,
+        prize.Exterior,
+        prize.FloatValue,
+        prize.Rarity,
+        prize.IconUrl,
+        prize.InspectLink,
+        prize.PriceCents,
+        prize.TradableAtUtc);
+}
+
 public sealed record SeatView(
     int SeatNo,
     SeatStatus Status,
     string? CrateAssetId,
     string? KeyAssetId,
     string? PrizeAssetId,
-    Guid? OrderId)
+    Guid? OrderId,
+    PrizeView? Prize)
 {
-    public static SeatView From(GroupBuyingSeat seat) => new(
+    public static SeatView From(GroupBuyingSeat seat, PrizeView? prize = null) => new(
         seat.SeatNo,
         seat.Status,
         seat.CrateAssetId,
         seat.KeyAssetId,
         seat.PrizeAssetId,
-        seat.OrderId);
+        seat.OrderId,
+        prize);
 }
 
 public sealed record GroupBuyingView(
@@ -276,7 +315,10 @@ public sealed record GroupBuyingView(
     long Version,
     IReadOnlyList<SeatView> Seats)
 {
-    public static GroupBuyingView From(GroupBuying batch, IReadOnlyList<GroupBuyingSeat> seats) => new(
+    public static GroupBuyingView From(
+        GroupBuying batch,
+        IReadOnlyList<GroupBuyingSeat> seats,
+        IReadOnlyDictionary<Guid, UserPrize> prizesByOrder) => new(
         batch.Id,
         batch.ProductId,
         batch.Lot,
@@ -284,5 +326,9 @@ public sealed record GroupBuyingView(
         batch.SoldCount,
         batch.Status,
         batch.Version,
-        seats.Select(SeatView.From).ToList());
+        seats.Select(s => SeatView.From(
+            s,
+            s.OrderId is { } orderId && prizesByOrder.TryGetValue(orderId, out var prize)
+                ? PrizeView.From(prize)
+                : null)).ToList());
 }

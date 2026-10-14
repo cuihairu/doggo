@@ -11,7 +11,10 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
 {
     private static readonly Guid UserId = Guid.CreateVersion7();
 
-    private async Task<Product> SeedCrateAsync(long finalPriceCents = 10000, ProductStatus status = ProductStatus.OnShelf)
+    private async Task<Product> SeedCrateAsync(
+        long finalPriceCents = 10000,
+        ProductStatus status = ProductStatus.OnShelf,
+        string iconUrl = "")
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
@@ -22,6 +25,7 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
             Type = ProductType.Crate,
             Name = "Snakebite Case",
             ClassId = "493",
+            IconUrl = iconUrl,
             PurchasePriceCents = 8000,
             ReferencePriceCents = 9000,
             AdjustPriceCents = 1000,
@@ -32,6 +36,16 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         db.Products.Add(product);
         await db.SaveChangesAsync();
         return product;
+    }
+
+    private async Task<Guid> SeedPlanAsync(Guid productId, string title)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        var plan = new CasePlan { Id = Guid.CreateVersion7(), ProductId = productId, Title = title };
+        db.CasePlans.Add(plan);
+        await db.SaveChangesAsync();
+        return plan.Id;
     }
 
     private async Task<Guid> SeedPromotionAsync(Guid productId, int stock, long discountPriceCents)
@@ -52,12 +66,13 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         return promotion.Id;
     }
 
-    private static async Task<JsonElement> CreateOrderAsync(HttpClient client, Guid productId)
+    private static async Task<JsonElement> CreateOrderAsync(HttpClient client, Guid productId, Guid? planId = null)
     {
         var response = await client.PostAsJsonAsync("/api/orders", new
         {
             userId = UserId,
             productId,
+            planId,
             entry = (int)OrderEntry.Case,
             serviceMode = (int)ServiceMode.CloudOpen,
             fulfillmentType = (int)FulfillmentType.Spot,
@@ -246,6 +261,21 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         var listAfterDelete = await client.GetStringAsync($"/api/users/{UserId}/trade-urls");
         using var listAfterView = JsonDocument.Parse(listAfterDelete);
         Assert.Empty(listAfterView.RootElement.EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Order_view_exposes_product_name_icon_and_plan_title()
+    {
+        var product = await SeedCrateAsync(finalPriceCents: 10000, iconUrl: "https://img.example/sna.png");
+        var planId = await SeedPlanAsync(product.Id, "双开");
+        var client = Factory.CreateClient();
+
+        var created = await CreateOrderAsync(client, product.Id, planId);
+        var order = await GetOrderAsync(client, created.GetProperty("orderId").GetGuid());
+
+        Assert.Equal("Snakebite Case", order.GetProperty("productName").GetString());
+        Assert.Equal("https://img.example/sna.png", order.GetProperty("productIconUrl").GetString());
+        Assert.Equal("双开", order.GetProperty("planTitle").GetString());
     }
 
     [Fact]

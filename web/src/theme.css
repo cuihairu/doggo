@@ -302,6 +302,32 @@ a {
   color: var(--primary);
 }
 
+/* 开箱结果卡的发光图标框（原型 states.html 的 open-glow）。 */
+.open-glow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 8px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  background: var(--primary-weak);
+  color: var(--primary);
+  box-shadow: 0 0 0 4px var(--surface), 0 0 18px var(--primary-weak);
+  animation: open-glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes open-glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px var(--surface), 0 0 14px var(--primary-weak);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--surface), 0 0 26px var(--primary-weak);
+  }
+}
+
 /* ---------- 主题选择器（顶栏 + 个人中心） ---------- */
 
 .theme-switch {

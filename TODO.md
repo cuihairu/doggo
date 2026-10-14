@@ -306,6 +306,11 @@
 - [x] miniapp:states.tsx(Skeleton/EmptyState/ErrorBox/SuccessBox),商品/行情/商品详情/资讯详情/开箱五页接入,加载/错误/空态替换文本,开箱页带登录引导
 - [x] admin:components/States.tsx(PageLoading/ErrorAlert/EmptyAction),Dashboard/Funnel/商品资料抽屉接入,Orders/Users/Rolls/Products/Articles 13 个 ProTable 错误 Alert+重试,静默 catch 消除
 
+### 下单/开箱闭环(ui-system.md §10.3 结构性差异 2)
+- [x] web:确认订单页(订单内容/支付方式/支付倒计时/协议勾选/金额明细)与开箱结果卡(open-glow/稀有 badge/参考价/检视链接)落地;OrderView 补商品名、图标与方案标题,SeatView 补奖品快照
+- [ ] mobile:确认订单页与开箱结果卡(原型 6 屏已对照,待实现)
+- [ ] miniapp:下单与开箱流程(提审属外部依赖,页面可先落地)
+
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目
 - [x] 调度:per-site 串行循环、夜间窗口、IntervalMinutes 频控、robots 门禁、发现任务、熔断、指数退避、原始行清理

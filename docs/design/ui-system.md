@@ -133,7 +133,7 @@
 | home | 有差异 | 无 appbar、banner 活动位、四宫格入口、运营推荐行；行情速览无涨跌列且不可点进 market；多出公告卡与资讯流 |
 | market | 有差异 | 无筛选 select、涨跌%、站内 vs 外部参考价对照表；列表渲染 classId 而非磨损度；无入口跳 market（页面成孤儿） |
 | product | 有差异 | 无划线原价、CS2 badge、库存文案、套餐语义（单开/三开/十开）、金币抵扣/优惠券选择、底部 buybar；「包含内容」为文本行非星级格 |
-| order | 大部分未实现 | 无独立确认订单页（product 页直接下单）；无支付方式、超时倒计时；opening 页是奖品库存列表非开箱结果（无 open-glow、稀有 badge、存奖品/取回） |
+| order | 部分已落地 | 确认订单页已落地（订单内容/支付方式/支付倒计时/协议勾选/金额明细，对照 checkout.html）；开箱结果卡已落地（open-glow/稀有 badge/参考价/检视，奖品自动存入「我的奖品」）；取回到 Steam 依赖 vapor 联调，web 暂不可操作 |
 | profile | 有差异 | 无头像/手机掩码、stat-row 三格、周签到进度；主题外观为内联 11 色板卡（原型为入口行，功能等价）；菜单组缺订单记录/设置 |
 | states | 有差异 | 骨架屏（脉冲卡）、空态（徽章+说明+行动按钮）、错误框（警示徽章+重试/替代路径）已落地；成功框仅订单支付流程接入，其余反馈仍为 toast |
 
@@ -165,7 +165,7 @@
 **结构性差异（原型有、实现无，按优先级）**
 
 1. 状态组件矩阵（§6）：web、mobile、miniapp 已落地（web `components/States.tsx` 九页接入；mobile `ui.tsx` StateIco/Skeleton/EmptyState/SuccessBox，Msg 升级为错误框，商品/行情/开箱/商品详情/资讯详情/订单接入；miniapp `src/states.tsx` Skeleton/EmptyState/ErrorBox/SuccessBox，小程序无 SVG 组件，徽章用描边圆 + 字形，商品/行情/商品详情/资讯详情/开箱五页接入，开箱页无登录时错误框带「去登录」替代路径）；admin `src/components/States.tsx`（PageLoading/ErrorAlert/EmptyAction），Dashboard/Funnel/资料抽屉与 13 个 ProTable 接入，错误不再静默。
-2. 下单/开箱闭环：无独立确认订单页、支付方式选择、超时倒计时、开箱结果卡（open-glow/稀有 badge/存奖品/取回）。
+2. 下单/开箱闭环：无独立确认订单页、支付方式选择、超时倒计时、开箱结果卡（open-glow/稀有 badge/存奖品/取回）。web 已落地：确认订单页 OrderPayPage（订单内容、支付方式、支付倒计时、协议、金额明细）+ 开箱结果卡 CaseOpeningPage（open-glow、稀有 badge、参考价、检视链接，奖品由服务端自动存入），服务端 OrderView 补商品名/图标/方案标题、SeatView 补奖品快照；mobile/miniapp 待实现；取回到 Steam 依赖 vapor 联调。
 3. 商品详情：无「包含内容」徽章网格、行情参考价表、金币抵扣/优惠券选择、底部 buybar。
 4. admin 设置页（站点参数/支付渠道/主题运营日历/爬虫总览）未实现。
 5. 行情页：无站内 vs 外部参考价对照表、涨跌%、筛选。
