@@ -244,8 +244,8 @@ export default function SettingsPage() {
         <Alert
           type="info"
           showIcon
-          message="支付渠道与主题运营位日历尚未落地"
-          description="支付渠道需要渠道配置实体,运营位日历需要 Banner 的投放起止区间,两者都在服务端缺表,故此处不提供入口。"
+          message="支付渠道与运营位日历的控制台入口待接"
+          description="服务端已提供渠道配置实体与 Banner 投放起止区间;控制台页面尚未挂载,故此处不提供入口。渠道密钥值仍只在服务端环境变量,不进控制台。"
         />
       </ProCard>
     </PageContainer>
