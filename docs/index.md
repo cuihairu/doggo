@@ -105,3 +105,60 @@ features:
 ![登录页](/screenshots/web-login.png)
 
 手机号加密码登录,登录后可使用开箱、订单与库存功能。
+
+### 管理后台
+
+#### 后台登录
+
+![后台登录](/screenshots/admin-login.png)
+
+管理员账号登录入口,非管理员访问自动跳回登录页。
+
+#### 数据面板
+
+![数据面板](/screenshots/admin-dashboard.png)
+
+汇总用户、订单与营收数据,提供近 14 天走势与商品营收排行。
+
+#### 订单管理
+
+![订单管理](/screenshots/admin-orders.png)
+
+按状态筛选订单,可查看奖品明细并处理退款。
+
+#### 商品管理
+
+![商品管理](/screenshots/admin-products.png)
+
+维护武器箱商品、促销与汇率,控制上架状态。
+
+#### 资讯管理
+
+![资讯管理](/screenshots/admin-articles.png)
+
+管理资讯条目、资讯源、公告与首页 Banner。
+
+#### 用户管理
+
+![用户管理](/screenshots/admin-users.png)
+
+查看用户资料、角色与状态,可查询单个用户的订单流水。
+
+#### 转化漏斗
+
+![转化漏斗](/screenshots/admin-funnel.png)
+
+按浏览、加购、下单、支付四步统计转化率与流失率,按日聚合。
+
+#### 价格爬虫
+
+![价格爬虫](/screenshots/admin-price-crawl.png)
+
+审阅第三方站点的价格映射,并与站内价差对照。
+
+#### 系统设置
+
+![系统设置](/screenshots/admin-settings.png)
+
+在线维护站点参数与爬虫站点总览,部署级配置仍在服务端环境变量。
+
