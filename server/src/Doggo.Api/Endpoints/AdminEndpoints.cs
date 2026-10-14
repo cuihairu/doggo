@@ -539,6 +539,53 @@ public static class AdminEndpoints
             return Results.Ok(new SiteSettingView(setting.Key, setting.Value, setting.ValueType, setting.Note));
         });
 
+        // ---- payment channels: non-secret channel config; secrets stay in env vars ----
+        admin.MapGet("/payment-channels", async (DoggoDbContext db, CancellationToken cancellationToken) =>
+        {
+            var items = await db.PaymentChannels.AsNoTracking()
+                .OrderBy(c => c.Provider)
+                .Select(c => PaymentChannelView.From(c))
+                .ToListAsync(cancellationToken);
+            return Results.Ok(new { total = items.Count, items });
+        });
+
+        admin.MapPut("/payment-channels/{provider}", async (
+            string provider,
+            [FromBody] PaymentChannelUpsert request,
+            DoggoDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            if (!Enum.TryParse<PaymentProvider>(provider, ignoreCase: true, out var parsed)
+                || parsed is PaymentProvider.None or PaymentProvider.Coin or PaymentProvider.Coupon
+                || !Enum.IsDefined(parsed))
+            {
+                return Results.Problem("Unknown payment provider.", statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            var configError = PaymentChannelRules.Validate(request);
+            if (configError is not null)
+            {
+                return Results.Problem(configError, statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            // One row per provider: the console edits the channel in place.
+            var channel = await db.PaymentChannels.FirstOrDefaultAsync(c => c.Provider == parsed, cancellationToken);
+            if (channel is null)
+            {
+                channel = new PaymentChannel { Id = Guid.CreateVersion7(), Provider = parsed };
+                db.PaymentChannels.Add(channel);
+            }
+
+            channel.MerchantId = request.MerchantId;
+            channel.AppId = request.AppId ?? string.Empty;
+            channel.FeeBps = request.FeeBps;
+            channel.SecretRef = request.SecretRef ?? string.Empty;
+            channel.Enabled = request.Enabled;
+            channel.Note = request.Note;
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.Ok(PaymentChannelView.From(channel));
+        });
+
         // ---- notices ----
         admin.MapGet("/notices", async (DoggoDbContext db, CancellationToken cancellationToken) =>
             Results.Ok(await db.Notices.AsNoTracking().OrderByDescending(n => n.StartAtUtc).ToListAsync(cancellationToken)));
@@ -1047,6 +1094,87 @@ public static class SiteSettingRules
         if (valueType is not null && !ValueTypes.Contains(valueType))
         {
             return $"Setting valueType must be one of {string.Join(", ", ValueTypes)}.";
+        }
+
+        return null;
+    }
+}
+
+public sealed record PaymentChannelUpsert(
+    string MerchantId,
+    string? AppId = null,
+    int FeeBps = 0,
+    string? SecretRef = null,
+    bool Enabled = true,
+    string? Note = null);
+
+public sealed record PaymentChannelView(
+    string Provider,
+    string MerchantId,
+    string AppId,
+    int FeeBps,
+    string SecretRef,
+    bool Enabled,
+    string? Note)
+{
+    public static PaymentChannelView From(PaymentChannel channel) => new(
+        channel.Provider.ToString().ToLowerInvariant(),
+        channel.MerchantId,
+        channel.AppId,
+        channel.FeeBps,
+        channel.SecretRef,
+        channel.Enabled,
+        channel.Note);
+}
+
+/// <summary>
+/// Guard rails for channel rows: bounded ids, fee inside 0-10000 bps, and a secret
+/// reference shaped like an env-var name — the secret value itself is never accepted
+/// here, because sensitive configuration only travels through environment variables.
+/// </summary>
+public static class PaymentChannelRules
+{
+    public const int MaxIdLength = 64;
+    public const int MaxFeeBps = 10_000;
+    public const int MaxNoteLength = 200;
+
+    public static string? Validate(PaymentChannelUpsert request)
+    {
+        if (string.IsNullOrWhiteSpace(request.MerchantId) || request.MerchantId.Length > MaxIdLength)
+        {
+            return "Merchant id must be 1-64 characters.";
+        }
+
+        if (request.AppId is { Length: > MaxIdLength })
+        {
+            return $"App id must be at most {MaxIdLength} characters.";
+        }
+
+        if (request.FeeBps is < 0 or > MaxFeeBps)
+        {
+            return $"Fee must be 0-{MaxFeeBps} basis points.";
+        }
+
+        if (request.SecretRef is { Length: > 0 })
+        {
+            if (request.SecretRef.Length > MaxIdLength)
+            {
+                return $"Secret ref must be at most {MaxIdLength} characters.";
+            }
+
+            foreach (var c in request.SecretRef)
+            {
+                var allowed = char.IsAsciiLetterOrDigit(c) || c == '_';
+                if (!allowed)
+                {
+                    return "Secret ref accepts an env-var-like name (letters, digits, underscore) — never the secret value.";
+                }
+            }
+        }
+
+        if (request.Note is { Length: > MaxNoteLength })
+        {
+            return $"Note must be at most {MaxNoteLength} characters.";
         }
 
         return null;

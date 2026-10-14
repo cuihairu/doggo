@@ -48,6 +48,7 @@ public class DoggoDbContext(DbContextOptions<DoggoDbContext> options) : DbContex
     public DbSet<UserOrder> UserOrders => Set<UserOrder>();
     public DbSet<PaymentRecord> PaymentRecords => Set<PaymentRecord>();
     public DbSet<RefundRecord> RefundRecords => Set<RefundRecord>();
+    public DbSet<PaymentChannel> PaymentChannels => Set<PaymentChannel>();
 
     public DbSet<GroupBuying> GroupBuyings => Set<GroupBuying>();
     public DbSet<GroupBuyingSeat> GroupBuyingSeats => Set<GroupBuyingSeat>();

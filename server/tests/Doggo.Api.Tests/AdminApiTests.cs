@@ -186,6 +186,82 @@ public class AdminApiTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/admin/settings/site.notice", JsonBody(new { value = "ok", valueType = "sql" }))).StatusCode);
     }
 
+    [Fact]
+    public async Task Payment_channels_upsert_list_and_overwrite()
+    {
+        await RegisterAsync("13900000026");
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            var account = await db.UserAccounts.SingleAsync(u => u.Phone == "13900000026");
+            account.IsAdmin = true;
+            await db.SaveChangesAsync();
+        }
+        var client = await LoginClientAsync("13900000026");
+
+        var created = await client.PutAsync("/api/admin/payment-channels/alipay", JsonBody(new
+        {
+            merchantId = "2026010400",
+            appId = "doggo-web",
+            feeBps = 60,
+            secretRef = "ALIPAY_SECRET_KEY",
+            enabled = true,
+            note = "primary channel"
+        }));
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        using var createdView = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        Assert.Equal("alipay", createdView.RootElement.GetProperty("provider").GetString());
+        Assert.Equal("ALIPAY_SECRET_KEY", createdView.RootElement.GetProperty("secretRef").GetString());
+
+        // Upsert again: same provider, one row, last values win.
+        var updated = await client.PutAsync("/api/admin/payment-channels/alipay", JsonBody(new
+        {
+            merchantId = "2026019999",
+            appId = "doggo-web",
+            feeBps = 55,
+            secretRef = "ALIPAY_SECRET_KEY",
+            enabled = false
+        }));
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+
+        var listed = await client.GetStringAsync("/api/admin/payment-channels");
+        using var listView = JsonDocument.Parse(listed);
+        var rows = listView.RootElement.GetProperty("items").EnumerateArray().ToList();
+        var row = Assert.Single(rows.Where(r => r.GetProperty("provider").GetString() == "alipay"));
+        Assert.Equal("2026019999", row.GetProperty("merchantId").GetString());
+        Assert.Equal(55, row.GetProperty("feeBps").GetInt32());
+        Assert.False(row.GetProperty("enabled").GetBoolean());
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            Assert.Equal(1, await db.PaymentChannels.CountAsync(p => p.Provider == Doggo.Domain.Orders.PaymentProvider.Alipay));
+        }
+    }
+
+    [Fact]
+    public async Task Payment_channels_reject_unknown_provider_bad_config_and_guests()
+    {
+        await RegisterAsync("13900000027");
+        var guest = await LoginClientAsync("13900000027");
+        var forbidden = await guest.PutAsync("/api/admin/payment-channels/alipay", JsonBody(new { merchantId = "m" }));
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            var account = await db.UserAccounts.SingleAsync(u => u.Phone == "13900000027");
+            account.IsAdmin = true;
+            await db.SaveChangesAsync();
+        }
+        var client = await LoginClientAsync("13900000027");
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/admin/payment-channels/bitcoin", JsonBody(new { merchantId = "m" }))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/admin/payment-channels/alipay", JsonBody(new { merchantId = "" }))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/admin/payment-channels/alipay", JsonBody(new { merchantId = "m", feeBps = 20000 }))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/admin/payment-channels/alipay", JsonBody(new { merchantId = "m", secretRef = "has space" }))).StatusCode);
+    }
+
     private static StringContent JsonBody(object payload) =>
         new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 }

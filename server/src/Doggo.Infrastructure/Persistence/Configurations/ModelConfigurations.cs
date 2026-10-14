@@ -118,6 +118,18 @@ public class PaymentRecordConfiguration : IEntityTypeConfiguration<PaymentRecord
     }
 }
 
+public class PaymentChannelConfiguration : IEntityTypeConfiguration<PaymentChannel>
+{
+    public void Configure(EntityTypeBuilder<PaymentChannel> builder)
+    {
+        builder.HasIndex(x => x.Provider).IsUnique();
+        builder.Property(x => x.MerchantId).HasMaxLength(64);
+        builder.Property(x => x.AppId).HasMaxLength(64);
+        builder.Property(x => x.SecretRef).HasMaxLength(64);
+        builder.Property(x => x.Note).HasMaxLength(200);
+    }
+}
+
 public class GroupBuyingConfiguration : IEntityTypeConfiguration<GroupBuying>
 {
     public void Configure(EntityTypeBuilder<GroupBuying> builder)

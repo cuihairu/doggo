@@ -112,3 +112,22 @@ public class RefundRecord : Entity
     public string Reason { get; set; } = string.Empty;
     public PaymentStatus Status { get; set; } = PaymentStatus.Created;
 }
+
+/// <summary>
+/// Non-secret payment channel configuration. Secrets never land in this table:
+/// <see cref="SecretRef"/> names the environment variable that holds the provider
+/// key, matching the repo rule that sensitive configuration stays env-only.
+/// </summary>
+public class PaymentChannel : Entity
+{
+    public PaymentProvider Provider { get; set; }
+    public string MerchantId { get; set; } = string.Empty;
+    public string AppId { get; set; } = string.Empty;
+
+    /// <summary>Channel fee in basis points (e.g. 60 = 0.6%).</summary>
+    public int FeeBps { get; set; }
+
+    public string SecretRef { get; set; } = string.Empty;
+    public bool Enabled { get; set; }
+    public string? Note { get; set; }
+}
