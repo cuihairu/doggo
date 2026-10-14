@@ -529,6 +529,45 @@ page {
   font-weight: 600;
 }
 
+/* Market filters and the day-change badge (ui-system.md §10.3-5). */
+.search-input {
+  border: 2rpx solid var(--border);
+  border-radius: 16rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  color: var(--text);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.filter-chip {
+  border: 2rpx solid var(--border);
+  border-radius: 999rpx;
+  padding: 10rpx 24rpx;
+  font-size: 24rpx;
+  color: var(--muted);
+}
+
+.filter-chip.on {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.change-up {
+  color: var(--danger);
+  font-size: 22rpx;
+}
+
+.change-down {
+  color: var(--success);
+  font-size: 22rpx;
+}
+
 .theme-grid {
   display: flex;
   flex-wrap: wrap;

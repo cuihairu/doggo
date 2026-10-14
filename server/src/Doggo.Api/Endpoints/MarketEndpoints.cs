@@ -17,7 +17,9 @@ public sealed record MarketItemDto(
     string IconUrl,
     long? LatestPriceCents,
     string? Currency,
-    DateTime? PriceUpdatedAtUtc);
+    DateTime? PriceUpdatedAtUtc,
+    long? ChangeCents,
+    int? ChangeBps);
 
 public sealed record MarketPricePoint(DateOnly Date, long OpenCents, long HighCents, long LowCents, long CloseCents);
 
@@ -77,6 +79,27 @@ public static class MarketEndpoints
                 .OrderByDescending(s => s.CapturedAtUtc)
                 .FirstOrDefaultAsync(cancellationToken);
 
+            // Day change for the list badge: the two newest daily closes. With a
+            // single close there is nothing to compare, so it stays null rather
+            // than reporting a change against zero.
+            var closes = await db.MarketPriceDailies
+                .AsNoTracking()
+                .Where(d => d.MarketItemId == item.Id)
+                .OrderByDescending(d => d.Date)
+                .Select(d => d.CloseCents)
+                .Take(2)
+                .ToListAsync(cancellationToken);
+
+            long? changeCents = null;
+            int? changeBps = null;
+            if (closes.Count == 2)
+            {
+                changeCents = closes[0] - closes[1];
+                changeBps = closes[1] == 0
+                    ? null
+                    : (int)Math.Round(changeCents.Value * 10000m / closes[1]);
+            }
+
             dtos.Add(new MarketItemDto(
                 item.Id,
                 item.ClassId,
@@ -86,7 +109,9 @@ public static class MarketEndpoints
                 item.IconUrl,
                 latest?.PriceCents,
                 latest?.Currency,
-                latest?.CapturedAtUtc));
+                latest?.CapturedAtUtc,
+                changeCents,
+                changeBps));
         }
 
         return Results.Ok(new { total, page, pageSize, items = dtos });

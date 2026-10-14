@@ -77,10 +77,24 @@ export interface MarketItemView {
   iconUrl: string
   priceCents?: number | null
   currency?: string | null
+  /** Day change against the previous daily close; null without one. */
+  changeCents?: number | null
+  /** Same change in basis points (1% = 100), signed. */
+  changeBps?: number | null
 }
 
-export function fetchMarket(page = 1) {
-  return api<{ total: number; items: MarketItemView[] }>(`/api/market/items?page=${page}&pageSize=20`)
+export interface MarketFilters {
+  q?: string
+  game?: number
+  type?: number
+}
+
+export function fetchMarket(page = 1, filters?: MarketFilters) {
+  const params = new URLSearchParams({ page: String(page), pageSize: '20' })
+  if (filters?.q?.trim()) params.set('q', filters.q.trim())
+  if (filters?.game != null) params.set('game', String(filters.game))
+  if (filters?.type != null) params.set('type', String(filters.type))
+  return api<{ total: number; items: MarketItemView[] }>(`/api/market/items?${params.toString()}`)
 }
 
 export interface PricePoint {

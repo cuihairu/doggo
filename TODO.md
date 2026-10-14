@@ -322,6 +322,11 @@
 - [ ] 支付渠道配置:服务端缺渠道配置实体(商户号/密钥/费率),需先落表与密钥保管方案
 - [ ] 主题运营位日历:Banner 缺投放起止区间与冲突校验,需先扩表
 
+### 行情页对照与涨跌(ui-system.md §10.3 结构性差异 5)
+- [x] 服务端:GET /api/market/items 增 changeCents/changeBps,取最近两个日线收盘,单日线或前收为 0 时为 null;2 例新测试
+- [x] mobile/miniapp:行情列表日涨跌红绿(服务端 changeBps)、搜索框与游戏/类型筛选,shared fetchMarket 收 filters
+- [ ] 站内 vs 外部参考价对照表:爬取数据按设计 §8 只在 admin 只读对照,前台暴露口径待定
+
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目
 - [x] 调度:per-site 串行循环、夜间窗口、IntervalMinutes 频控、robots 门禁、发现任务、熔断、指数退避、原始行清理

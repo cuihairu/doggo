@@ -2,6 +2,7 @@ using System.Text.Json;
 using Doggo.Domain.Market;
 using Doggo.Domain.News;
 using Doggo.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Doggo.Api.Tests;
@@ -72,6 +73,65 @@ public class MarketApiTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.Equal("Snakebite Case", item.GetProperty("marketHashName").GetString());
         Assert.Equal(1500, item.GetProperty("latestPriceCents").GetInt64());
         Assert.Equal("CNY", item.GetProperty("currency").GetString());
+    }
+
+    [Fact]
+    public async Task List_reports_day_change_from_the_two_latest_daily_closes()
+    {
+        var seeded = await SeedAsync(priceCents: 1500);
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            db.MarketPriceDailies.Add(new MarketPriceDaily
+            {
+                MarketItemId = seeded.Id,
+                Date = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1),
+                OpenCents = 1200,
+                HighCents = 1550,
+                LowCents = 1200,
+                CloseCents = 1200
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = Factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/api/market/items"));
+        var item = document.RootElement.GetProperty("items").EnumerateArray().Single();
+
+        // 1200 -> 1500 is +300 cents, +25% against the previous close.
+        Assert.Equal(300, item.GetProperty("changeCents").GetInt64());
+        Assert.Equal(2500, item.GetProperty("changeBps").GetInt32());
+    }
+
+    [Fact]
+    public async Task List_leaves_change_null_without_a_previous_close()
+    {
+        var seeded = await SeedAsync(priceCents: 1500);
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            // Yesterday's row only: no close to compare against.
+            db.MarketPriceDailies.RemoveRange(await db.MarketPriceDailies.Where(d => d.MarketItemId == seeded.Id).ToListAsync());
+            db.MarketPriceDailies.Add(new MarketPriceDaily
+            {
+                MarketItemId = seeded.Id,
+                Date = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1),
+                OpenCents = 1200,
+                HighCents = 1550,
+                LowCents = 1200,
+                CloseCents = 1200
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = Factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/api/market/items"));
+        var item = document.RootElement.GetProperty("items").EnumerateArray().Single();
+
+        // The listed price is still the latest snapshot; only the change is unknown.
+        Assert.Equal(1500, item.GetProperty("latestPriceCents").GetInt64());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, item.GetProperty("changeCents").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, item.GetProperty("changeBps").ValueKind);
     }
 
     [Fact]
