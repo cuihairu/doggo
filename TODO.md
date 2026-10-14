@@ -311,6 +311,11 @@
 - [x] mobile:订单卡补商品图标/名称/套餐、支付倒计时徽章(mm:ss,服务端 payDeadlineUtc)、支付方式「支付宝(模拟)」与优惠券抵扣行;开箱页新增结果卡(最新奖品置顶,金色 glow、稀有/品质 badge、参考价、存奖品与取回待 vapor 提示);shared 类型补 productName/productIconUrl/planTitle 与座位奖品快照
 - [x] miniapp:无订单路由,商品页下单前用确认弹窗替代确认订单页(商品/套餐/支付方式「支付宝(模拟)」/应付金额/15 分钟时限,取消则不埋点);开箱页新增结果卡(金色 glow、稀有/品质 badge、参考价、存奖品与取回待 vapor 提示),样式入 app.scss
 
+### 商品详情补齐(ui-system.md §10.3 结构性差异 3)
+- [x] web:「包含内容」徽章网格(首 8 项 + 其余 N 项)、划线原价、促销库存 badge、金币抵扣与优惠券选择(/api/coupons/mine,SKU 切换重置)、底部 buybar(应付券后 + 立即开箱);行情参考价对照表需行情日涨跌数据,未做
+- [x] mobile:金币抵扣 chip(余额上限 50/200/500/2000,1 金币抵 1 分,随 createOrder 的 coinDeduction 提交,余额不足以服务端校验为准)、「包含内容」徽章网格(品质色边框 + ★品质 + 参考价,全部项)、底部 buybar(最低单开价 + 立即开箱);划线原价仍缺(缺原价字段展示位)
+- [ ] miniapp:徽章网格、划线原价、套餐语义、buybar(§10.2 miniapp product 行)
+
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目
 - [x] 调度:per-site 串行循环、夜间窗口、IntervalMinutes 频控、robots 门禁、发现任务、熔断、指数退避、原始行清理

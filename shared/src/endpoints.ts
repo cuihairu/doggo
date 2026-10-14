@@ -161,8 +161,10 @@ export interface OrderView {
  * userCouponId selects a UserCoupon (the /api/coupons/mine row id) whose
  * discount the server applies and validates authoritatively. quantity only
  * applies to plain buys without a plan option; the server prices it through
- * the product's quantity-tier ladder. */
-export function createOrder(userId: string, productId: string, planId?: string, optionId?: string, userCouponId?: string, quantity = 1) {
+ * the product's quantity-tier ladder. coinDeductionCents spends the same amount
+ * from the coin balance (1 coin = 1 cent off) and is refused if the balance is
+ * short — the client only caps the chip at what it read from the balance. */
+export function createOrder(userId: string, productId: string, planId?: string, optionId?: string, userCouponId?: string, quantity = 1, coinDeductionCents = 0) {
   // The create endpoint returns { orderId, ... } while the detail endpoint
   // returns { id, ... }; normalize so callers can use order.id either way.
   return api<OrderView & { orderId?: string }>('/api/orders', {
@@ -176,6 +178,7 @@ export function createOrder(userId: string, productId: string, planId?: string, 
       serviceMode: 0,
       fulfillmentType: 1,
       payType: 2,
+      coinDeduction: Math.max(Math.trunc(coinDeductionCents) || 0, 0),
       userCouponId: userCouponId || null,
       quantity: Math.max(Math.trunc(quantity) || 1, 1)
     }

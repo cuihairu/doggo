@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import {
-  createOrder, fetchMyCoupons, fetchProduct, fetchProfile, payOrder,
+  createOrder, fetchCoinBalance, fetchMyCoupons, fetchProduct, fetchProfile, payOrder,
   ApiError, getAccessToken, kvGet, kvSet, MyCoupon, ProductDetail, trackEvent, yuan
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price, Skeleton } from '../../ui'
@@ -17,6 +17,13 @@ export default function ProductPage() {
   const [busy, setBusy] = useState(false)
   const [coupons, setCoupons] = useState<MyCoupon[]>([])
   const [couponId, setCouponId] = useState('')
+  const [coinBalance, setCoinBalance] = useState(0)
+  const [coinCents, setCoinCents] = useState(0)
+
+  /** Coin chips are fixed steps; the top one is capped at the real balance. */
+  const coinSteps = [50, 200, 500, 2000]
+  const coinChips = coinSteps.filter((step) => step <= coinBalance)
+  const coinChoice = Math.min(coinCents, coinBalance)
 
   async function load(id?: string) {
     if (!id) return
@@ -33,6 +40,12 @@ export default function ProductPage() {
     const usable = await fetchMyCoupons()
       .catch(() => [])
     setCoupons(usable.filter((c) => c.status === 0 && (!c.validToUtc || new Date(c.validToUtc) > new Date())))
+    // Coins are read for the deduction chips; a failed read just hides them.
+    const coins = await fetchCoinBalance().catch(() => null)
+    if (coins) {
+      setCoinBalance(coins.balance)
+      setCoinCents((prev) => Math.min(prev, coins.balance))
+    }
   }
 
   useEffect(() => {
@@ -74,11 +87,13 @@ export default function ProductPage() {
       // selection must be undefined, not '' — the API binds Guid? and an
       // empty string fails deserialization.
       const useCoupon = allowCoupon && couponId ? couponId : undefined
-      const order = await createOrder(profile.id, detail!.id, planId, optionId, useCoupon, quantity)
+      // Coin spend is 1 coin = 1 cent off and the server rejects a short balance.
+      const order = await createOrder(profile.id, detail!.id, planId, optionId, useCoupon, quantity, coinChoice)
       await payOrder(order.id)
       rememberOrder(order.id)
-      if (useCoupon) {
+      if (useCoupon || coinChoice > 0) {
         setCouponId('')
+        setCoinCents(0)
         loadCoupons()
       }
       Taro.showToast({ title: '已支付', icon: 'success' })
@@ -167,6 +182,29 @@ export default function ProductPage() {
           </Card>
         )}
 
+        {coinChips.length > 0 ? (
+          <Card>
+            <View style={styles.row}>
+              <Text style={[styles.section, { color: t.text, marginBottom: 0 }]}>金币抵扣</Text>
+              <Muted>余额 {coinBalance}</Muted>
+            </View>
+            <View style={[styles.wrap, { marginTop: 8 }]}>
+              <Chip label="不使用" selected={coinCents === 0} color={t.muted} border={t.border} onPress={() => setCoinCents(0)} />
+              {coinChips.map((step) => (
+                <Chip
+                  key={step}
+                  label={`${step} 金币`}
+                  selected={coinCents === step}
+                  color={t.text}
+                  border={coinCents === step ? t.primary : t.border}
+                  onPress={() => setCoinCents(step)}
+                />
+              ))}
+            </View>
+            <Muted>1 金币抵 1 分，余额不足时以服务端校验为准</Muted>
+          </Card>
+        ) : null}
+
         {coupons.length > 0 ? (
           <Card>
             <Text style={[styles.section, { color: t.text }]}>优惠券</Text>
@@ -192,17 +230,59 @@ export default function ProductPage() {
         ) : null}
 
         <Card>
-          <Text style={[styles.section, { color: t.text }]}>箱内物品</Text>
-          {(detail.contents ?? []).map((content) => (
-            <View key={content.id} style={styles.row}>
-              <Text numberOfLines={1} style={{ flex: 1, color: content.color || t.text }}>{content.title}</Text>
-              <Muted>¥{yuan(content.referencePriceCents)}</Muted>
+          <View style={styles.row}>
+            <Text style={[styles.section, { color: t.text, marginBottom: 0 }]}>包含内容（{(detail.contents ?? []).length}）</Text>
+            <Muted>按真实掉落</Muted>
+          </View>
+          {(detail.contents ?? []).length > 0 ? (
+            <View style={styles.lootGrid}>
+              {(detail.contents ?? []).map((content) => (
+                <View key={content.id} style={[styles.lootCell, { borderColor: content.color || t.border }]}>
+                  {content.imageUrl ? <Image source={{ uri: content.imageUrl }} style={styles.lootIcon} /> : null}
+                  <Text numberOfLines={1} style={[styles.lootName, { color: content.color || t.text }]}>{content.title}</Text>
+                  <Text style={[styles.lootStars, { color: t.muted }]}>★{content.quality}</Text>
+                  <Text style={[styles.lootPrice, { color: t.muted }]}>¥{yuan(content.referencePriceCents)}</Text>
+                </View>
+              ))}
             </View>
-          ))}
-          {(detail.contents ?? []).length === 0 && <Muted>暂无物品数据</Muted>}
+          ) : (
+            <Muted>暂无物品数据</Muted>
+          )}
         </Card>
       </ScrollView>
+
+      <View style={[styles.buybar, { backgroundColor: t.card, borderTopColor: t.border }]}>
+        <View style={{ flex: 1 }}>
+          <Muted>最低单开</Muted>
+          <Price>¥{yuan(detail.finalPriceCents)}</Price>
+        </View>
+        <Btn busy={busy} style={styles.buyBtn} onPress={() => buy()}>
+          立即开箱
+        </Btn>
+      </View>
     </View>
+  )
+}
+
+/** Selectable chip — same 44px touch target as CouponRow, check mark when picked. */
+function Chip({ label, selected, color, border, onPress }: {
+  label: string
+  selected: boolean
+  color: string
+  border: string
+  onPress: () => void
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        { borderColor: border },
+        pressed && { opacity: 0.8 }
+      ]}
+    >
+      <Text style={{ color, fontWeight: selected ? '700' : '400' }}>{selected ? `✓ ${label}` : label}</Text>
+    </Pressable>
   )
 }
 
@@ -246,5 +326,35 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     marginTop: 8
-  }
+  },
+  chip: {
+    minHeight: 44,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 14
+  },
+  lootGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  lootCell: {
+    width: '23%',
+    minHeight: 92,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 6,
+    alignItems: 'center'
+  },
+  lootIcon: { width: 32, height: 32, borderRadius: 4 },
+  lootName: { fontSize: 11, marginTop: 4 },
+  lootStars: { fontSize: 11 },
+  lootPrice: { fontSize: 10 },
+  buybar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 18,
+    borderTopWidth: StyleSheet.hairlineWidth
+  },
+  buyBtn: { paddingHorizontal: 28 }
 })
