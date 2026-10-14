@@ -568,6 +568,37 @@ page {
   font-size: 22rpx;
 }
 
+/* Home banner carousel (ui-system.md §10.2 home 行). */
+.banner-bar {
+  white-space: nowrap;
+  margin: 32rpx 40rpx;
+}
+
+.banner {
+  display: inline-block;
+  width: 460rpx;
+  background: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: 24rpx;
+  padding: 16rpx;
+  margin-right: 16rpx;
+  vertical-align: top;
+}
+
+.banner-image {
+  width: 100%;
+  height: 220rpx;
+  border-radius: 16rpx;
+}
+
+.banner-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 12rpx;
+}
+
 /* User center head, three-up stat row (ui-system.md §10.2 profile 行). */
 .me-head {
   display: flex;

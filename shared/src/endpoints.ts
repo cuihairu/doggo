@@ -379,6 +379,21 @@ export function fetchNotices() {
   return api<NoticeView[]>('/api/notices')
 }
 
+export interface BannerView {
+  id: string
+  title: string
+  imageUrl: string
+  linkUrl: string
+  position: string
+  sortOrder: number
+}
+
+/** Enabled banners for a slot (home carousel); omit position for all slots. */
+export function fetchBanners(position?: string) {
+  const query = position?.trim() ? `?position=${encodeURIComponent(position.trim())}` : ''
+  return api<BannerView[]>(`/api/banners${query}`)
+}
+
 export interface InviteRewardView {
   id: string
   inviteeNickname: string

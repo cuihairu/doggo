@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Image, Linking, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Taro from '@tarojs/taro'
-import { fetchNews, fetchMarket, fetchNotices, ApiError, MarketItemView, NewsItemView, NoticeView, yuan } from '@doggo/shared'
+import { fetchBanners, fetchNews, fetchMarket, fetchNotices, ApiError, BannerView, MarketItemView, NewsItemView, NoticeView, yuan } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price } from '../../ui'
 import { useTheme } from '../../theme'
 import { loadCache, saveCache } from '../../cache'
@@ -12,6 +12,7 @@ export default function IndexPage() {
   const [news, setNews] = useState<NewsItemView[]>([])
   const [market, setMarket] = useState<MarketItemView[]>([])
   const [notices, setNotices] = useState<NoticeView[]>([])
+  const [banners, setBanners] = useState<BannerView[]>([])
   const [stale, setStale] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -50,6 +51,8 @@ export default function IndexPage() {
   useEffect(() => {
     load()
     fetchNotices().then(setNotices).catch(() => {})
+    // Home carousel: operators publish banners with position "home".
+    fetchBanners('home').then(setBanners).catch(() => {})
   }, [load])
 
   const entries = [
@@ -65,6 +68,25 @@ export default function IndexPage() {
     <View style={[styles.page, { backgroundColor: t.bg }]}>
       <SafeTop style={{ backgroundColor: t.bg }} />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
+        {banners.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bannerBar}>
+            {banners.map((banner) => (
+              <View
+                key={banner.id}
+                style={[styles.banner, { backgroundColor: t.card, borderColor: t.border }]}
+                onStartShouldSetResponder={() => true}
+                onResponderRelease={() => {
+                  // Empty link = decorative banner; only open real http(s) targets.
+                  if (/^https?:\/\//.test(banner.linkUrl)) Linking.openURL(banner.linkUrl).catch(() => {})
+                }}
+              >
+                {banner.imageUrl ? <Image source={{ uri: banner.imageUrl }} style={styles.bannerImage} /> : null}
+                <Text numberOfLines={2} style={[styles.bannerTitle, { color: t.text }]}>{banner.title}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        ) : null}
+
         <View style={styles.grid}>
           {entries.map((entry) => (
             <Btn key={entry.url} tone="plain" onPress={() => Taro.navigateTo({ url: entry.url })} style={styles.gridBtn}>
@@ -92,7 +114,14 @@ export default function IndexPage() {
           {market.map((item) => (
             <View key={item.id} style={styles.row}>
               <Text numberOfLines={1} style={[styles.rowTitle, { color: t.text, flex: 1 }]}>{item.marketHashName}</Text>
-              {item.priceCents != null && <Price>¥{yuan(item.priceCents)}</Price>}
+              <View style={{ alignItems: 'flex-end' }}>
+                {item.priceCents != null && <Price>¥{yuan(item.priceCents)}</Price>}
+                {item.changeBps != null ? (
+                  <Text style={{ fontSize: 12, color: item.changeBps >= 0 ? t.danger : t.success }}>
+                    {item.changeBps >= 0 ? '+' : ''}{(item.changeBps / 100).toFixed(2)}%
+                  </Text>
+                ) : null}
+              </View>
             </View>
           ))}
           <Btn tone="plain" onPress={() => Taro.navigateTo({ url: '/pages/market/market' })} style={{ marginTop: 8 }}>
@@ -126,6 +155,10 @@ export default function IndexPage() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  bannerBar: { flexGrow: 0, marginBottom: 12 },
+  banner: { width: 220, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, padding: 10, marginRight: 10 },
+  bannerImage: { width: '100%', height: 110, borderRadius: 6 },
+  bannerTitle: { fontSize: 14, fontWeight: '600', marginTop: 6 },
   gridBtn: { flexGrow: 1, minWidth: '30%' },
   section: { fontSize: 16, fontWeight: '700', marginBottom: 6 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
