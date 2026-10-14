@@ -21,6 +21,18 @@ interface CouponLite {
 
 const COIN_LOG_TYPE: Record<number, string> = { 0: '发放', 1: '消费', 2: '退款', 3: '过期' }
 
+/** Keeps the middle of a phone number or email, as the profile head shows. */
+function maskAccount(account: string): string {
+  if (/^\d+$/.test(account) && account.length > 7) {
+    return `${account.slice(0, 3)}****${account.slice(-4)}`
+  }
+  const at = account.indexOf('@')
+  if (at > 1) {
+    return `${account.slice(0, 1)}***${account.slice(at)}`
+  }
+  return account
+}
+
 /** User center: identity, coins, coupons, weekly sign-in. */
 export default function UserPage() {
   const theme = useTheme()
@@ -28,6 +40,7 @@ export default function UserPage() {
   const [coins, setCoins] = useState<number | null>(null)
   const [coupons, setCoupons] = useState<CouponLite[]>([])
   const [signed, setSigned] = useState<boolean | null>(null)
+  const [signCycle, setSignCycle] = useState<{ signedDays: number; totalDays: number; todayReward: number } | null>(null)
   const [redeemInput, setRedeemInput] = useState('')
   const [tradeUrls, setTradeUrls] = useState<TradeUrlEntry[]>([])
   const [tradeInput, setTradeInput] = useState('')
@@ -52,7 +65,15 @@ export default function UserPage() {
     fetchMyCoupons()
       .then((rows) => setCoupons(rows.filter((c) => c.status === 0 && (!c.validToUtc || new Date(c.validToUtc) > new Date()))))
       .catch(() => {})
-    fetchSignCycle().then((cycle) => setSigned(cycle.todaySigned)).catch(() => {})
+    fetchSignCycle().then((cycle) => {
+      setSigned(cycle.todaySigned)
+      const today = new Date().toISOString().slice(0, 10)
+      setSignCycle({
+        signedDays: cycle.days.filter((d) => d.signed).length,
+        totalDays: cycle.days.length || 7,
+        todayReward: cycle.days.find((d) => d.date === today)?.coinReward ?? 0,
+      })
+    }).catch(() => {})
     fetchClaimableCoupons().then(setClaimable).catch(() => {})
     fetchInviteRewards(1, 10).then(setInvites).catch(() => {})
   }, [])
@@ -127,20 +148,44 @@ export default function UserPage() {
   return (
     <ThemeRoot>
       <ScrollView scrollY enableFlex style={{ height: '100vh' }}>
-      <View className="card">
-        <Text style={{ fontSize: '32rpx', fontWeight: 700 }}>{profile?.nickname ?? '加载中…'}</Text>
-        {profile && <Text className="muted">邀请码 {profile.inviteCode}</Text>}
-        {profile && <Text className="muted">{profile.phone || profile.email || '微信用户'}</Text>}
+      <View className="card me-head">
+        <View className="avatar"><Text className="avatar-text">{(profile?.nickname ?? '?').slice(0, 1)}</Text></View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: '32rpx', fontWeight: 700 }}>{profile?.nickname ?? '加载中…'}</Text>
+          {profile && (
+            <Text className="muted">
+              {maskAccount(profile.phone || profile.email || '微信用户')} · 邀请码 {profile.inviteCode}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      <View className="stat-row">
+        <View className="stat-cell">
+          <Text className="stat-value price">{coins ?? '—'}</Text>
+          <Text className="muted">金币</Text>
+        </View>
+        <View className="stat-cell">
+          <Text className="stat-value">{coupons.length}</Text>
+          <Text className="muted">优惠券</Text>
+        </View>
+        <View className="stat-cell">
+          <Text className="stat-value">{invites?.total ?? 0}</Text>
+          <Text className="muted">邀请</Text>
+        </View>
       </View>
 
       <View className="card row" style={{ justifyContent: 'space-between' }}>
-        <View>
-          <Text className="muted">金币余额</Text>
-          <Text style={{ fontSize: '36rpx', fontWeight: 700 }}>{coins ?? '—'}</Text>
-        </View>
+        <Text className="muted">
+          本周签到 {signCycle?.signedDays ?? 0}/{signCycle?.totalDays ?? 7}
+          {signed || !signCycle?.todayReward ? '' : ` · 今天可 +${signCycle.todayReward}`}
+        </Text>
         <Button size="mini" className="btn-primary" disabled={signed === true} onClick={doSign}>
-          {signed === true ? '今日已签到' : '每日签到'}
+          {signed === true ? '今日已签到' : '签到'}
         </Button>
+      </View>
+
+      <View className="card">
         {coinLogs.length > 0 && (
           <View style={{ marginTop: '12rpx' }}>
             <Text className="muted">金币明细</Text>

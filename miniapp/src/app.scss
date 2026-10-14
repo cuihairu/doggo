@@ -568,6 +568,51 @@ page {
   font-size: 22rpx;
 }
 
+/* User center head, three-up stat row (ui-system.md §10.2 profile 行). */
+.me-head {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 999rpx;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-text {
+  color: #fff;
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+.stat-row {
+  display: flex;
+  gap: 16rpx;
+  margin: 0 32rpx 32rpx;
+}
+
+.stat-cell {
+  flex: 1;
+  background: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: 20rpx;
+  padding: 20rpx 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-value {
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
 .theme-grid {
   display: flex;
   flex-wrap: wrap;

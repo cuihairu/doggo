@@ -319,8 +319,12 @@
 ### admin 设置页(ui-system.md §10.3 结构性差异 4)
 - [x] 服务端:GET /api/admin/settings 与 PUT /api/admin/settings/{key},走既有 SiteSetting 表,key 形状校验 + 值 5000 字上限 + valueType 白名单,upsert 覆盖
 - [x] admin:设置页站点参数行内编辑/保存/新增覆盖 + 骨架/错误重试/空态;爬虫站点总览读 price-crawl/maps 聚合站点映射与待确认数
-- [ ] 支付渠道配置:服务端缺渠道配置实体(商户号/密钥/费率),需先落表与密钥保管方案
+- [x] 支付渠道配置:服务端 PaymentChannel 实体(商户号/AppId/费率基点/启用)+ GET 列表与 PUT upsert(Provider 唯一索引,一行一渠道);密钥不落库,SecretRef 仅存环境变量名(字母/数字/下划线,≤64 字),费率 0-10000 基点;admin 控制台挂载由设置页方跟进
 - [ ] 主题运营位日历:Banner 缺投放起止区间与冲突校验,需先扩表
+
+### 个人中心补齐(ui-system.md §10.2 profile 行)
+- [x] mobile:头像头(昵称首字 + 手机/邮箱掩码 · 邀请码)、stat-row 三格(金币/可用优惠券/邀请人数)、本周签到进度(已签 n/7 · 今天可 +N,数据取 /api/sign 周期行);金币卡并入 stat-row
+- [x] miniapp:同款头像头与 stat-row,签到卡改为本周进度;样式入 app.scss
 
 ### 行情页对照与涨跌(ui-system.md §10.3 结构性差异 5)
 - [x] 服务端:GET /api/market/items 增 changeCents/changeBps,取最近两个日线收盘,单日线或前收为 0 时为 null;2 例新测试

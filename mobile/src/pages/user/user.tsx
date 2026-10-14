@@ -13,6 +13,31 @@ import { useTheme, useThemeChoice, THEMES, THEME_PALETTES } from '../../theme'
 /** User center: identity, coins, coupons, weekly sign-in, entries. */
 const COIN_LOG_TYPE: Record<number, string> = { 0: '发放', 1: '消费', 2: '退款', 3: '过期' }
 
+/** Keeps the middle of a phone number or email, as the profile head shows. */
+function maskAccount(account: string): string {
+  if (/^\d+$/.test(account) && account.length > 7) {
+    return `${account.slice(0, 3)}****${account.slice(-4)}`
+  }
+  const at = account.indexOf('@')
+  if (at > 1) {
+    return `${account.slice(0, 1)}***${account.slice(at)}`
+  }
+  return account
+}
+
+/** One cell of the three-up stat row under the profile head. */
+function StatCell({ label, value, tone }: { label: string; value: number | null | undefined; tone?: 'price' }) {
+  const t = useTheme()
+  return (
+    <View style={[styles.statCell, { backgroundColor: t.card, borderColor: t.border }]}>
+      <Text style={[styles.statValue, { color: tone === 'price' ? t.primary : t.text }]}>
+        {value == null ? '—' : value.toLocaleString()}
+      </Text>
+      <Muted>{label}</Muted>
+    </View>
+  )
+}
+
 export default function UserPage() {
   const t = useTheme()
   const { choice, setChoice } = useThemeChoice()
@@ -20,6 +45,7 @@ export default function UserPage() {
   const [coins, setCoins] = useState<number | null>(null)
   const [coupons, setCoupons] = useState<{ id: string; title: string; amountOffCents: number; percentOff: number }[]>([])
   const [signed, setSigned] = useState<boolean | null>(null)
+  const [signCycle, setSignCycle] = useState<{ signedDays: number; totalDays: number; todayReward: number } | null>(null)
   const [error, setError] = useState('')
   const [signBusy, setSignBusy] = useState(false)
   const [redeemInput, setRedeemInput] = useState('')
@@ -55,7 +81,15 @@ export default function UserPage() {
     fetchMyCoupons()
       .then((rows) => setCoupons(rows.filter((c) => c.status === 0 && (!c.validToUtc || new Date(c.validToUtc) > new Date()))))
       .catch(() => {})
-    fetchSignCycle().then((cycle) => setSigned(cycle.todaySigned)).catch(() => {})
+    fetchSignCycle().then((cycle) => {
+      setSigned(cycle.todaySigned)
+      const today = new Date().toISOString().slice(0, 10)
+      setSignCycle({
+        signedDays: cycle.days.filter((d) => d.signed).length,
+        totalDays: cycle.days.length || 7,
+        todayReward: cycle.days.find((d) => d.date === today)?.coinReward ?? 0,
+      })
+    }).catch(() => {})
     fetchClaimableCoupons().then(setClaimable).catch(() => {})
     fetchInviteRewards(1, 10).then(setInvites).catch(() => {})
   }, [])
@@ -149,23 +183,37 @@ export default function UserPage() {
       <SafeTop style={{ backgroundColor: t.bg }} />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {error ? <Msg text={error} onRetry={load} /> : null}
-        <Card>
-          <Text style={[styles.name, { color: t.text }]}>{profile?.nickname ?? '加载中…'}</Text>
-          {profile ? <Muted>邀请码 {profile.inviteCode}</Muted> : null}
-          {profile ? <Muted>{profile.phone || profile.email || '账号用户'}</Muted> : null}
-        </Card>
-
-        <Card>
-          <View style={styles.row}>
-            <View>
-              <Muted>金币余额</Muted>
-              <Text style={[styles.coins, { color: t.text }]}>{coins ?? '—'}</Text>
-            </View>
-            <Btn busy={signBusy} disabled={signed === true} onPress={doSign}>
-              {signed === true ? '今日已签到' : '每日签到'}
-            </Btn>
+        <Card style={styles.head}>
+          <View style={[styles.avatar, { backgroundColor: t.primary }]}>
+            <Text style={styles.avatarText}>{(profile?.nickname ?? '?').slice(0, 1)}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.name, { color: t.text }]}>{profile?.nickname ?? '加载中…'}</Text>
+            <Muted>
+              {profile ? `${maskAccount(profile.phone || profile.email || '账号用户')} · 邀请码 ${profile.inviteCode}` : ''}
+            </Muted>
           </View>
         </Card>
+
+        <View style={styles.statRow}>
+          <StatCell label="金币" value={coins} tone="price" />
+          <StatCell label="优惠券" value={coupons.length} />
+          <StatCell label="邀请" value={invites?.total ?? 0} />
+        </View>
+
+        {signCycle ? (
+          <Card>
+            <View style={styles.row}>
+              <Muted>
+                本周签到 {signCycle.signedDays}/{signCycle.totalDays}
+                {signed ? '' : signCycle.todayReward > 0 ? ` · 今天可 +${signCycle.todayReward}` : ''}
+              </Muted>
+              <Btn busy={signBusy} disabled={signed === true} onPress={doSign}>
+                {signed === true ? '今日已签到' : '签到'}
+              </Btn>
+            </View>
+          </Card>
+        ) : null}
 
         {coinLogs.length > 0 ? (
           <Card>
@@ -337,7 +385,6 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   name: { fontSize: 20, fontWeight: '700' },
   section: { fontSize: 16, fontWeight: '700', marginBottom: 6 },
-  coins: { fontSize: 26, fontWeight: '700' },
   input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, minHeight: 44, marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   couponRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, minHeight: 44 },
@@ -353,5 +400,11 @@ const styles = StyleSheet.create({
     borderWidth: 1
   },
   swatch: { width: 14, height: 14, borderRadius: 7 },
-  themeLabel: { fontSize: 14, flex: 1 }
+  themeLabel: { fontSize: 14, flex: 1 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  statRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  statCell: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
+  statValue: { fontSize: 18, fontWeight: '700' }
 })
