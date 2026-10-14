@@ -316,6 +316,12 @@
 - [x] mobile:金币抵扣 chip(余额上限 50/200/500/2000,1 金币抵 1 分,随 createOrder 的 coinDeduction 提交,余额不足以服务端校验为准)、「包含内容」徽章网格(品质色边框 + ★品质 + 参考价,全部项)、底部 buybar(最低单开价 + 立即开箱);划线原价仍缺(缺原价字段展示位)
 - [x] miniapp:划线原价(regularPriceCents > finalPriceCents 时显示)、套餐语义改单开/三开/十开、「包含内容」徽章网格(品质色边框 + ★品质 + 参考价)、底部 buybar(fixed + safe-area,最低单开 + 立即开箱);金币抵扣与优惠券选择未做
 
+### admin 设置页(ui-system.md §10.3 结构性差异 4)
+- [x] 服务端:GET /api/admin/settings 与 PUT /api/admin/settings/{key},走既有 SiteSetting 表,key 形状校验 + 值 5000 字上限 + valueType 白名单,upsert 覆盖
+- [x] admin:设置页站点参数行内编辑/保存/新增覆盖 + 骨架/错误重试/空态;爬虫站点总览读 price-crawl/maps 聚合站点映射与待确认数
+- [ ] 支付渠道配置:服务端缺渠道配置实体(商户号/密钥/费率),需先落表与密钥保管方案
+- [ ] 主题运营位日历:Banner 缺投放起止区间与冲突校验,需先扩表
+
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目
 - [x] 调度:per-site 串行循环、夜间窗口、IntervalMinutes 频控、robots 门禁、发现任务、熔断、指数退避、原始行清理

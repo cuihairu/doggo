@@ -4,6 +4,7 @@ using Doggo.Domain.Cases;
 using Doggo.Domain.News;
 using Doggo.Domain.Orders;
 using Doggo.Domain.Products;
+using Doggo.Domain.System;
 using Doggo.Domain.Users;
 using Doggo.Infrastructure.Orders;
 using Doggo.Infrastructure.Persistence;
@@ -498,6 +499,46 @@ public static class AdminEndpoints
             return Results.Ok(new { total, page, pageSize, items });
         });
 
+        // ---- site settings: key/value rows the console edits in place ----
+        admin.MapGet("/settings", async (DoggoDbContext db, CancellationToken cancellationToken) =>
+        {
+            var items = await db.SiteSettings.AsNoTracking()
+                .OrderBy(s => s.Key)
+                .Select(s => new SiteSettingView(s.Key, s.Value, s.ValueType, s.Note))
+                .ToListAsync(cancellationToken);
+            return Results.Ok(new { total = items.Count, items });
+        });
+
+        admin.MapPut("/settings/{key}", async (string key, [FromBody] SiteSettingUpsert request, DoggoDbContext db, CancellationToken cancellationToken) =>
+        {
+            var keyError = SiteSettingRules.ValidateKey(key);
+            if (keyError is not null)
+            {
+                return Results.Problem(keyError, statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            var valueError = SiteSettingRules.ValidateValue(request.Value, request.ValueType);
+            if (valueError is not null)
+            {
+                return Results.Problem(valueError, statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            // One row per key: the console edits a setting in place, so an
+            // existing row is overwritten rather than duplicated.
+            var setting = await db.SiteSettings.FirstOrDefaultAsync(s => s.Key == key, cancellationToken);
+            if (setting is null)
+            {
+                setting = new SiteSetting { Id = Guid.CreateVersion7(), Key = key };
+                db.SiteSettings.Add(setting);
+            }
+
+            setting.Value = request.Value;
+            setting.ValueType = request.ValueType ?? "text";
+            setting.Note = request.Note;
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.Ok(new SiteSettingView(setting.Key, setting.Value, setting.ValueType, setting.Note));
+        });
+
         // ---- notices ----
         admin.MapGet("/notices", async (DoggoDbContext db, CancellationToken cancellationToken) =>
             Results.Ok(await db.Notices.AsNoTracking().OrderByDescending(n => n.StartAtUtc).ToListAsync(cancellationToken)));
@@ -954,3 +995,60 @@ public sealed record EnabledRequest(bool Enabled);
 public sealed record NoticeUpsert(string Title, string Content, DateTime? StartAtUtc, DateTime? EndAtUtc);
 
 public sealed record RateUpdateRequest(decimal Rate);
+
+public sealed record SiteSettingView(string Key, string Value, string ValueType, string? Note);
+
+public sealed record SiteSettingUpsert(string Value, string? Note = null, string? ValueType = null);
+
+/// <summary>
+/// Site settings are free-form key/value rows, so the guard rails are on the
+/// shape instead of a fixed key list: dotted lower-case keys, bounded values,
+/// and a closed set of value types the console knows how to render.
+/// </summary>
+public static class SiteSettingRules
+{
+    public const int MaxKeyLength = 64;
+    public const int MaxValueLength = 5000;
+    public const int MaxNoteLength = 200;
+
+    public static readonly string[] ValueTypes = ["text", "number", "bool", "json", "url"];
+
+    public static string? ValidateKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key) || key.Length > MaxKeyLength)
+        {
+            return "Setting key must be 1-64 characters.";
+        }
+
+        foreach (var c in key)
+        {
+            var allowed = char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-';
+            if (!allowed)
+            {
+                return "Setting key accepts letters, digits, dot, underscore and dash only.";
+            }
+        }
+
+        return null;
+    }
+
+    public static string? ValidateValue(string? value, string? valueType)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Setting value must not be empty.";
+        }
+
+        if (value.Length > MaxValueLength)
+        {
+            return $"Setting value must be at most {MaxValueLength} characters.";
+        }
+
+        if (valueType is not null && !ValueTypes.Contains(valueType))
+        {
+            return $"Setting valueType must be one of {string.Join(", ", ValueTypes)}.";
+        }
+
+        return null;
+    }
+}

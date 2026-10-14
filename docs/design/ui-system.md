@@ -156,7 +156,7 @@
 | funnel | 有差异 | 原型 3 张分组表（端/渠道/按日柱图）→ 实现单行表 + 分日/周筛选；无「整体转化/最大流失」结论行；步骤文案「加购(下单意图)」 |
 | orders | 有差异 | 无顶部 4 KPI、筛选（订单号/状态/日期+刷新）；列缺用户/内容、多金币/券抵扣+奖品；状态枚举 0-6（原型 5 态）；退款 modal 无预置原因与退回券/金币 chips |
 | products | 有差异 | 无筛选与「新建商品」；列缺游戏/类型/库存；状态为纯文本非 badge；抽屉无掉落表/价格历史/外部参考价；汇率修正用 window.prompt |
-| settings | 未实现 | 仅占位（当前账号+env 说明）；缺站点参数、支付渠道、主题运营位日历（§9-6）、爬虫站点总览 |
+| settings | 部分已落地 | 站点参数改为可编辑（`GET/PUT /api/admin/settings` 走既有 SiteSetting 表，行内保存 + 新增/覆盖、加载骨架/错误重试/空态）；爬虫站点总览读 `GET /api/admin/price-crawl/maps` 聚合站点映射数与待确认数；支付渠道与主题运营位日历仍未实现（服务端缺渠道配置实体与 Banner 投放区间，页面用 info Alert 说明，不做假入口） |
 | states | 有差异 | 已落地：Dashboard 骨架屏+错误重试（替代 '-' 占位与静默 catch）、Funnel 骨架/错误/空态「清空筛选」、商品资料抽屉骨架+错误；Orders/Users/Rolls/Products/Articles 共 13 个 ProTable 改为错误 Alert+重试；登录页与表单内错误保持纯文本 |
 | Users/Articles/Rolls/Login | 无原型对照 | 实现多出页面（原型侧栏仅占位链接） |
 
@@ -167,7 +167,7 @@
 1. 状态组件矩阵（§6）：web、mobile、miniapp 已落地（web `components/States.tsx` 九页接入；mobile `ui.tsx` StateIco/Skeleton/EmptyState/SuccessBox，Msg 升级为错误框，商品/行情/开箱/商品详情/资讯详情/订单接入；miniapp `src/states.tsx` Skeleton/EmptyState/ErrorBox/SuccessBox，小程序无 SVG 组件，徽章用描边圆 + 字形，商品/行情/商品详情/资讯详情/开箱五页接入，开箱页无登录时错误框带「去登录」替代路径）；admin `src/components/States.tsx`（PageLoading/ErrorAlert/EmptyAction），Dashboard/Funnel/资料抽屉与 13 个 ProTable 接入，错误不再静默。
 2. 下单/开箱闭环：无独立确认订单页、支付方式选择、超时倒计时、开箱结果卡（open-glow/稀有 badge/存奖品/取回）。web 已落地：确认订单页 OrderPayPage（订单内容、支付方式、支付倒计时、协议、金额明细）+ 开箱结果卡 CaseOpeningPage（open-glow、稀有 badge、参考价、检视链接，奖品由服务端自动存入）；mobile 已落地订单卡（商品图标/名称/套餐、支付倒计时徽章、支付方式、优惠券抵扣）+ 开箱页结果卡（金色 glow、稀有 badge、参考价、存奖品/取回提示）；miniapp 以商品页确认弹窗替代确认订单页（小程序无订单路由）+ 开箱页结果卡（金色 glow、稀有 badge、参考价）；shared 类型同步 productName/productIconUrl/planTitle 与座位奖品快照。四端均无取回到 Steam 入口，依赖 vapor 联调。
 3. 商品详情：无「包含内容」徽章网格、行情参考价表、金币抵扣/优惠券选择、底部 buybar。mobile 已落地金币抵扣 chip（含余额上限，随 createOrder 的 coinDeduction 提交）、「包含内容」徽章网格与底部 buybar，优惠券原为列表；miniapp 已落地划线原价、套餐语义、徽章网格与 buybar，仍无券/币选择；web 由另一批并行处理中。行情参考价表四端均未做。web 已落地：ProductDetailPage 徽章网格（首 8 项 + 收起）、划线原价、促销库存 badge、金币抵扣与优惠券选择（/api/coupons/mine）、底部 buybar（应付券后估算 + 立即开箱）；行情参考价对照表需行情日涨跌数据未做；mobile/miniapp 待实现。
-4. admin 设置页（站点参数/支付渠道/主题运营日历/爬虫总览）未实现。
+4. admin 设置页：站点参数与爬虫站点总览已落地（新增 `GET /api/admin/settings`、`PUT /api/admin/settings/{key}`，key/value 形状校验 + 5000 字上限，2 例新测试）；支付渠道与主题运营位日历仍未实现，缺服务端渠道配置实体与 Banner 投放起止区间。
 5. 行情页：无站内 vs 外部参考价对照表、涨跌%、筛选。
 
 **令牌化差异**

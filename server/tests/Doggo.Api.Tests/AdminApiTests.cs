@@ -126,4 +126,66 @@ public class AdminApiTests(ApiFactory factory) : ApiTestBase(factory)
         var loginLogs = await client.GetAsync($"/api/admin/users/{meId}/login-logs?page=1");
         Assert.Equal(HttpStatusCode.OK, loginLogs.StatusCode);
     }
+
+    [Fact]
+    public async Task Site_settings_upsert_lists_and_overwrites()
+    {
+        await RegisterAsync("13900000024");
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            var account = await db.UserAccounts.SingleAsync(u => u.Phone == "13900000024");
+            account.IsAdmin = true;
+            await db.SaveChangesAsync();
+        }
+        var client = await LoginClientAsync("13900000024");
+
+        // Create, then update the same key: one row, last value wins.
+        var created = await client.PutAsync("/api/admin/settings/site.notice", JsonBody(new { value = "维护通知", note = "首页公告" }));
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        using var createdView = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        Assert.Equal("维护通知", createdView.RootElement.GetProperty("value").GetString());
+        Assert.Equal("首页公告", createdView.RootElement.GetProperty("note").GetString());
+
+        var updated = await client.PutAsync("/api/admin/settings/site.notice", JsonBody(new { value = "已恢复", note = "首页公告" }));
+        updated.EnsureSuccessStatusCode();
+
+        var listed = await client.GetStringAsync("/api/admin/settings");
+        using var listView = JsonDocument.Parse(listed);
+        var rows = listView.RootElement.GetProperty("items").EnumerateArray().ToList();
+        var row = Assert.Single(rows.Where(r => r.GetProperty("key").GetString() == "site.notice"));
+        Assert.Equal("已恢复", row.GetProperty("value").GetString());
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            Assert.Equal(1, await db.SiteSettings.CountAsync(s => s.Key == "site.notice"));
+        }
+    }
+
+    [Fact]
+    public async Task Site_settings_reject_bad_keys_values_and_anonymous_callers()
+    {
+        await RegisterAsync("13900000025");
+        var guest = await LoginClientAsync("13900000025");
+        var forbidden = await guest.PutAsync("/api/admin/settings/site.notice", JsonBody(new { value = "x" }));
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            var account = await db.UserAccounts.SingleAsync(u => u.Phone == "13900000025");
+            account.IsAdmin = true;
+            await db.SaveChangesAsync();
+        }
+        var client = await LoginClientAsync("13900000025");
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/admin/settings/site notice", JsonBody(new { value = "x" }))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/admin/settings/site.notice", JsonBody(new { value = "" }))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/admin/settings/site.notice", JsonBody(new { value = new string('x', 5001) }))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/admin/settings/site.notice", JsonBody(new { value = "ok", valueType = "sql" }))).StatusCode);
+    }
+
+    private static StringContent JsonBody(object payload) =>
+        new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 }
