@@ -24,18 +24,33 @@ export default function ProductPage() {
     load()
   }, [load])
 
-  async function buy(planId?: string, optionId?: string) {
+  async function buy(target: { planTitle?: string; planId?: string; optionId?: string; priceCents: number }) {
     if (!getAccessToken()) {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       Taro.navigateTo({ url: '/pages/login/login' })
       return
     }
+    // Confirmation step in place of a standalone checkout page: the miniapp has
+    // no order route, so the order summary is confirmed in a modal before pay.
+    const confirmed = await Taro.showModal({
+      title: '确认订单',
+      content: [
+        detail!.name,
+        `套餐：${target.planTitle ?? '单开'}`,
+        '支付方式：支付宝（模拟）',
+        `应付 ¥${yuan(target.priceCents)}`,
+        '生成订单后 15 分钟内完成支付'
+      ].join('\n'),
+      confirmText: '去支付',
+      cancelText: '再看看'
+    })
+    if (!confirmed.confirm) return
     // Funnel step 2: plan/quantity decided, buy confirmed (design §3.1).
-    trackEvent('checkout_intent', { productId: detail!.id, planId: planId ?? null, optionId: optionId ?? null, quantity: 1 })
+    trackEvent('checkout_intent', { productId: detail!.id, planId: target.planId ?? null, optionId: target.optionId ?? null, quantity: 1 })
     setBusy(true)
     try {
       const profile = await fetchProfile()
-      const order = await createOrder(profile.id, detail!.id, planId, optionId)
+      const order = await createOrder(profile.id, detail!.id, target.planId, target.optionId)
       await payOrder(order.id)
       Taro.showToast({ title: '已支付', icon: 'success' })
       Taro.navigateTo({ url: '/pages/opening/opening' })
@@ -82,7 +97,7 @@ export default function ProductPage() {
                   className="btn-primary"
                   disabled={busy}
                   style={{ margin: '8rpx' }}
-                  onClick={() => buy(plan.id, option.id || undefined)}
+                  onClick={() => buy({ planTitle: plan.title, planId: plan.id, optionId: option.id || undefined, priceCents: option.priceCents })}
                 >
                   {option.quantity}连开 ¥{yuan(option.priceCents)}
                 </Button>
@@ -93,7 +108,7 @@ export default function ProductPage() {
 
       {detail.plans?.length === 0 && (
         <View className="card">
-          <Button className="btn-primary" disabled={busy} onClick={() => buy()}>单开 ¥{yuan(detail.finalPriceCents)}</Button>
+          <Button className="btn-primary" disabled={busy} onClick={() => buy({ priceCents: detail.finalPriceCents })}>单开 ¥{yuan(detail.finalPriceCents)}</Button>
         </View>
       )}
 

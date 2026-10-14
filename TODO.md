@@ -309,7 +309,7 @@
 ### 下单/开箱闭环(ui-system.md §10.3 结构性差异 2)
 - [x] web:确认订单页(订单内容/支付方式/支付倒计时/协议勾选/金额明细)与开箱结果卡(open-glow/稀有 badge/参考价/检视链接)落地;OrderView 补商品名、图标与方案标题,SeatView 补奖品快照
 - [x] mobile:订单卡补商品图标/名称/套餐、支付倒计时徽章(mm:ss,服务端 payDeadlineUtc)、支付方式「支付宝(模拟)」与优惠券抵扣行;开箱页新增结果卡(最新奖品置顶,金色 glow、稀有/品质 badge、参考价、存奖品与取回待 vapor 提示);shared 类型补 productName/productIconUrl/planTitle 与座位奖品快照
-- [ ] miniapp:下单与开箱流程(提审属外部依赖,页面可先落地)
+- [x] miniapp:无订单路由,商品页下单前用确认弹窗替代确认订单页(商品/套餐/支付方式「支付宝(模拟)」/应付金额/15 分钟时限,取消则不埋点);开箱页新增结果卡(金色 glow、稀有/品质 badge、参考价、存奖品与取回待 vapor 提示),样式入 app.scss
 
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目
