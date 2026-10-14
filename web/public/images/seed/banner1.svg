@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#4f46e5"/></linearGradient></defs>
+<rect width="1200" height="300" rx="16" fill="url(#g)"/>
+<text x="600" y="168" font-size="56" fill="#ffffff" text-anchor="middle" font-family="sans-serif">新人首开 9 折 · 本周限时</text>
+</svg>
