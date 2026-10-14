@@ -336,6 +336,7 @@
 - [x] 产出:PriceTrend 日收盘、日环比、周同比、区间涨跌
 - [x] admin 接口 /api/admin/price-crawl:maps 列表与审阅、prices 序列、spread-report 比价
 - [x] 模块 81 例加 Api 5 例测试先写后绿
+- [x] admin 页面:「数据分析 → 价格爬虫」映射审阅(状态分段 + 确认/拒绝)与比价表(7/30 天),ProTable 错误重试走 actionRef.reload
 
 ### 漏斗数据分析
 - [x] 埋点模型:AnalyticsEvent 与 FunnelDailyStat 实体、事件字典四事件白名单

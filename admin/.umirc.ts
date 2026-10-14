@@ -22,7 +22,10 @@ export default defineConfig({
       path: '/analytics',
       icon: 'FallOutlined',
       name: '数据分析',
-      routes: [{ path: '/analytics/funnel', component: './Funnel', name: '转化漏斗' }],
+      routes: [
+        { path: '/analytics/funnel', component: './Funnel', name: '转化漏斗' },
+        { path: '/analytics/price-crawl', component: './PriceCrawl', name: '价格爬虫' },
+      ],
     },
     { path: '/articles', component: './Articles', icon: 'FileTextOutlined', name: '资讯管理' },
     { path: '/products', component: './Products', icon: 'AppstoreOutlined', name: '商品管理' },

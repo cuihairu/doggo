@@ -159,6 +159,7 @@
 | settings | 部分已落地 | 站点参数改为可编辑（`GET/PUT /api/admin/settings` 走既有 SiteSetting 表，行内保存 + 新增/覆盖、加载骨架/错误重试/空态）；爬虫站点总览读 `GET /api/admin/price-crawl/maps` 聚合站点映射数与待确认数；支付渠道与主题运营位日历仍未实现（服务端缺渠道配置实体与 Banner 投放区间，页面用 info Alert 说明，不做假入口） |
 | states | 有差异 | 已落地：Dashboard 骨架屏+错误重试（替代 '-' 占位与静默 catch）、Funnel 骨架/错误/空态「清空筛选」、商品资料抽屉骨架+错误；Orders/Users/Rolls/Products/Articles 共 13 个 ProTable 改为错误 Alert+重试；登录页与表单内错误保持纯文本 |
 | Users/Articles/Rolls/Login | 无原型对照 | 实现多出页面（原型侧栏仅占位链接） |
+| PriceCrawl | 无原型对照 | 「数据分析 → 价格爬虫」页：映射审阅（按状态分段 + 确认/拒绝，只读对照）与 7/30 天比价表（ProTable + 错误重试 + 空态） |
 
 ### 10.3 差异清单（按类）
 
