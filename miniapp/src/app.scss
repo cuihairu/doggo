@@ -470,6 +470,60 @@ page {
   color: var(--text);
 }
 
+/* Product detail (ui-system.md §10.3-3): contained-items badge grid and the
+   sticky buy bar. */
+.price-strike {
+  text-decoration: line-through;
+  font-size: 24rpx;
+}
+
+.loot-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.loot-cell {
+  width: 148rpx;
+  border: 2rpx solid var(--border);
+  border-radius: 16rpx;
+  padding: 12rpx 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.loot-name {
+  font-size: 22rpx;
+  margin-top: 8rpx;
+  width: 100%;
+  text-align: center;
+}
+
+.loot-meta {
+  font-size: 20rpx;
+  color: var(--muted);
+}
+
+.buybar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 16rpx 32rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: var(--card);
+  border-top: 2rpx solid var(--border);
+}
+
+.buybar .btn-primary {
+  flex: 1;
+  margin: 0;
+}
+
 .price {
   color: var(--danger);
   font-weight: 600;

@@ -6,6 +6,24 @@ import { ApiError, getAccessToken, trackEvent, yuan } from '../../api/client'
 import ThemeRoot from '../../ThemeRoot'
 import { ErrorBox, Skeleton } from '../../states'
 
+/** Prototype wording for the plan rows: 单开 / 三开 / 十开 rather than "N连开". */
+const QUANTITY_TEXT: Record<number, string> = {
+  1: '单开',
+  2: '双开',
+  3: '三开',
+  4: '四开',
+  5: '五开',
+  6: '六开',
+  7: '七开',
+  8: '八开',
+  9: '九开',
+  10: '十开'
+}
+
+function quantityLabel(quantity: number): string {
+  return QUANTITY_TEXT[quantity] ?? `${quantity}连开`
+}
+
 /** Product detail: contents, plans with option prices, and the buy → pay → results flow. */
 export default function ProductPage() {
   const [detail, setDetail] = useState<ProductDetail | null>(null)
@@ -82,7 +100,12 @@ export default function ProductPage() {
       <View className="card">
         {detail.iconUrl && <Image src={detail.iconUrl} style={{ width: '120rpx', height: '120rpx' }} mode="aspectFill" />}
         <Text style={{ fontSize: '34rpx', fontWeight: 700 }}>{detail.name}</Text>
-        <Text className="price">¥{yuan(detail.finalPriceCents)}</Text>
+        <View className="row" style={{ gap: '16rpx', marginTop: '8rpx' }}>
+          <Text className="price" style={{ fontSize: '38rpx' }}>¥{yuan(detail.finalPriceCents)}</Text>
+          {detail.regularPriceCents > detail.finalPriceCents && (
+            <Text className="muted price-strike">¥{yuan(detail.regularPriceCents)}</Text>
+          )}
+        </View>
       </View>
 
       {detail.plans?.map((plan) => (
@@ -99,7 +122,7 @@ export default function ProductPage() {
                   style={{ margin: '8rpx' }}
                   onClick={() => buy({ planTitle: plan.title, planId: plan.id, optionId: option.id || undefined, priceCents: option.priceCents })}
                 >
-                  {option.quantity}连开 ¥{yuan(option.priceCents)}
+                  {quantityLabel(option.quantity)} ¥{yuan(option.priceCents)}
                 </Button>
               ))}
           </View>
@@ -113,16 +136,37 @@ export default function ProductPage() {
       )}
 
       <View className="card">
-        <Text style={{ fontWeight: 700 }}>箱内物品</Text>
-        {(detail.contents ?? []).map((content) => (
-          <View key={content.id} className="row" style={{ justifyContent: 'space-between', marginTop: '10rpx' }}>
-            <Text numberOfLines={1} style={{ flex: 1, color: content.color || undefined }}>{content.title}</Text>
-            <Text className="muted">¥{yuan(content.referencePriceCents)}</Text>
+        <View className="row" style={{ justifyContent: 'space-between' }}>
+          <Text style={{ fontWeight: 700 }}>包含内容（{(detail.contents ?? []).length}）</Text>
+          <Text className="muted">按真实掉落</Text>
+        </View>
+        {(detail.contents ?? []).length > 0 ? (
+          <View className="loot-grid">
+            {(detail.contents ?? []).map((content) => (
+              <View key={content.id} className="loot-cell" style={{ borderColor: content.color || undefined }}>
+                {content.imageUrl && <Image src={content.imageUrl} style={{ width: '72rpx', height: '72rpx' }} mode="aspectFit" />}
+                <Text className="loot-name" style={{ color: content.color || undefined }}>{content.title}</Text>
+                <Text className="loot-meta">★{content.quality}</Text>
+                <Text className="loot-meta">¥{yuan(content.referencePriceCents)}</Text>
+              </View>
+            ))}
           </View>
-        ))}
-        {(detail.contents ?? []).length === 0 && <Text className="muted">暂无物品数据</Text>}
+        ) : (
+          <Text className="muted">暂无物品数据</Text>
+        )}
       </View>
+      <View style={{ height: '140rpx' }} />
       </ScrollView>
+
+      <View className="buybar">
+        <View>
+          <Text className="loot-meta">最低单开</Text>
+          <Text className="price" style={{ fontSize: '36rpx' }}>¥{yuan(detail.finalPriceCents)}</Text>
+        </View>
+        <Button className="btn-primary" disabled={busy} onClick={() => buy({ priceCents: detail.finalPriceCents })}>
+          立即开箱
+        </Button>
+      </View>
     </ThemeRoot>
   )
 }

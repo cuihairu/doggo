@@ -132,7 +132,7 @@
 |---|---|---|
 | home | 有差异 | 无 appbar、banner 活动位、四宫格入口、运营推荐行；行情速览无涨跌列且不可点进 market；多出公告卡与资讯流 |
 | market | 有差异 | 无筛选 select、涨跌%、站内 vs 外部参考价对照表；列表渲染 classId 而非磨损度；无入口跳 market（页面成孤儿） |
-| product | 有差异 | 无划线原价、CS2 badge、库存文案、套餐语义（单开/三开/十开）、金币抵扣/优惠券选择、底部 buybar；「包含内容」为文本行非星级格；下单前用确认弹窗替代独立确认订单页（商品/套餐/支付方式/应付金额/15 分钟时限） |
+| product | 有差异 | 划线原价、套餐语义（单开/三开/十开）、「包含内容」徽章网格（品质色边框 + ★品质 + 参考价）与底部 buybar（最低单开 + 立即开箱，fixed + 安全区）已落地；仍无 CS2 badge、库存文案与金币抵扣/优惠券选择；下单前用确认弹窗替代独立确认订单页（商品/套餐/支付方式/应付金额/15 分钟时限） |
 | order | 部分已落地 | 小程序无订单路由：确认订单走商品页弹窗，无支付倒计时（mock 渠道下单即支付成功）；开箱结果卡已落地（金色 glow/稀有 badge/参考价/存奖品与取回提示）；取回到 Steam 依赖 vapor 联调，暂不可操作 |
 | profile | 有差异 | 无头像/手机掩码、stat-row 三格、周签到进度；主题外观为内联 11 色板卡（原型为入口行，功能等价）；菜单组缺订单记录/设置 |
 | states | 有差异 | 骨架屏（脉冲卡）、空态（徽章+说明+行动按钮）、错误框（警示徽章+重试/替代路径）已落地；成功框仅订单支付流程接入，其余反馈仍为 toast |
@@ -166,7 +166,7 @@
 
 1. 状态组件矩阵（§6）：web、mobile、miniapp 已落地（web `components/States.tsx` 九页接入；mobile `ui.tsx` StateIco/Skeleton/EmptyState/SuccessBox，Msg 升级为错误框，商品/行情/开箱/商品详情/资讯详情/订单接入；miniapp `src/states.tsx` Skeleton/EmptyState/ErrorBox/SuccessBox，小程序无 SVG 组件，徽章用描边圆 + 字形，商品/行情/商品详情/资讯详情/开箱五页接入，开箱页无登录时错误框带「去登录」替代路径）；admin `src/components/States.tsx`（PageLoading/ErrorAlert/EmptyAction），Dashboard/Funnel/资料抽屉与 13 个 ProTable 接入，错误不再静默。
 2. 下单/开箱闭环：无独立确认订单页、支付方式选择、超时倒计时、开箱结果卡（open-glow/稀有 badge/存奖品/取回）。web 已落地：确认订单页 OrderPayPage（订单内容、支付方式、支付倒计时、协议、金额明细）+ 开箱结果卡 CaseOpeningPage（open-glow、稀有 badge、参考价、检视链接，奖品由服务端自动存入）；mobile 已落地订单卡（商品图标/名称/套餐、支付倒计时徽章、支付方式、优惠券抵扣）+ 开箱页结果卡（金色 glow、稀有 badge、参考价、存奖品/取回提示）；miniapp 以商品页确认弹窗替代确认订单页（小程序无订单路由）+ 开箱页结果卡（金色 glow、稀有 badge、参考价）；shared 类型同步 productName/productIconUrl/planTitle 与座位奖品快照。四端均无取回到 Steam 入口，依赖 vapor 联调。
-3. 商品详情：无「包含内容」徽章网格、行情参考价表、金币抵扣/优惠券选择、底部 buybar。mobile 已落地金币抵扣 chip（含余额上限，随 createOrder 的 coinDeduction 提交）、「包含内容」徽章网格与底部 buybar，优惠券原为列表；web/miniapp 仍在做。web 已落地：ProductDetailPage 徽章网格（首 8 项 + 收起）、划线原价、促销库存 badge、金币抵扣与优惠券选择（/api/coupons/mine）、底部 buybar（应付券后估算 + 立即开箱）；行情参考价对照表需行情日涨跌数据未做；mobile/miniapp 待实现。
+3. 商品详情：无「包含内容」徽章网格、行情参考价表、金币抵扣/优惠券选择、底部 buybar。mobile 已落地金币抵扣 chip（含余额上限，随 createOrder 的 coinDeduction 提交）、「包含内容」徽章网格与底部 buybar，优惠券原为列表；miniapp 已落地划线原价、套餐语义、徽章网格与 buybar，仍无券/币选择；web 由另一批并行处理中。行情参考价表四端均未做。web 已落地：ProductDetailPage 徽章网格（首 8 项 + 收起）、划线原价、促销库存 badge、金币抵扣与优惠券选择（/api/coupons/mine）、底部 buybar（应付券后估算 + 立即开箱）；行情参考价对照表需行情日涨跌数据未做；mobile/miniapp 待实现。
 4. admin 设置页（站点参数/支付渠道/主题运营日历/爬虫总览）未实现。
 5. 行情页：无站内 vs 外部参考价对照表、涨跌%、筛选。
 
