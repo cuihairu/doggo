@@ -716,6 +716,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<DateTime?>("EndAtUtc")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -733,6 +736,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("StartAtUtc")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Title")
                         .IsRequired()

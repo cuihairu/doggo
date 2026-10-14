@@ -80,6 +80,10 @@ public class Banner : Entity
     public string Position { get; set; } = string.Empty;
     public int SortOrder { get; set; }
     public bool Enabled { get; set; } = true;
+
+    /// <summary>Open slot: null means the banner is not bound to a delivery window.</summary>
+    public DateTime? StartAtUtc { get; set; }
+    public DateTime? EndAtUtc { get; set; }
 }
 
 public class Partner : Entity

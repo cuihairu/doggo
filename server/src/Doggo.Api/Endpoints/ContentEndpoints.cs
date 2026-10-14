@@ -40,7 +40,13 @@ public static class ContentEndpoints
 
     private static async Task<IResult> Banners(DoggoDbContext db, [FromQuery] string? position, CancellationToken cancellationToken)
     {
-        var banners = db.Banners.AsNoTracking().Where(b => b.Enabled).AsQueryable();
+        var now = DateTime.UtcNow;
+        var banners = db.Banners
+            .AsNoTracking()
+            .Where(b => b.Enabled)
+            .Where(b => (b.StartAtUtc == null || b.StartAtUtc <= now)
+                && (b.EndAtUtc == null || b.EndAtUtc > now))
+            .AsQueryable();
         if (!string.IsNullOrWhiteSpace(position))
         {
             var requested = position.Trim();

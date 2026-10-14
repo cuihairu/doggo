@@ -106,6 +106,11 @@ public static class AdminEndpoints
 
         admin.MapPost("/banners", async ([FromBody] BannerUpsert request, DoggoDbContext db, CancellationToken cancellationToken) =>
         {
+            if (await ValidateBannerWindowAsync(db, request, excludeId: null, cancellationToken) is { } error)
+            {
+                return error;
+            }
+
             var banner = new Banner
             {
                 Id = Guid.CreateVersion7(),
@@ -114,11 +119,42 @@ public static class AdminEndpoints
                 LinkUrl = request.LinkUrl,
                 Position = request.Position,
                 SortOrder = request.SortOrder,
-                Enabled = true
+                Enabled = request.Enabled,
+                StartAtUtc = request.StartAtUtc,
+                EndAtUtc = request.EndAtUtc
             };
             db.Banners.Add(banner);
             await db.SaveChangesAsync(cancellationToken);
             return Results.Created($"/api/admin/banners/{banner.Id}", banner);
+        });
+
+        admin.MapPut("/banners/{id:guid}", async (
+            Guid id,
+            [FromBody] BannerUpsert request,
+            DoggoDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var banner = await db.Banners.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+            if (banner is null)
+            {
+                return Results.Problem("Banner was not found.", statusCode: StatusCodes.Status404NotFound);
+            }
+
+            if (await ValidateBannerWindowAsync(db, request, excludeId: id, cancellationToken) is { } error)
+            {
+                return error;
+            }
+
+            banner.Title = request.Title;
+            banner.ImageUrl = request.ImageUrl;
+            banner.LinkUrl = request.LinkUrl;
+            banner.Position = request.Position;
+            banner.SortOrder = request.SortOrder;
+            banner.Enabled = request.Enabled;
+            banner.StartAtUtc = request.StartAtUtc;
+            banner.EndAtUtc = request.EndAtUtc;
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.Ok(banner);
         });
 
         admin.MapDelete("/banners/{id:guid}", async (Guid id, DoggoDbContext db, CancellationToken cancellationToken) =>
@@ -971,11 +1007,49 @@ public static class AdminEndpoints
 
         return app;
     }
+
+    /// <summary>
+    /// Shared window guard for banner create/update: range sanity plus a same-position
+    /// overlap check against every other enabled banner.
+    /// </summary>
+    private static async Task<IResult?> ValidateBannerWindowAsync(
+        DoggoDbContext db,
+        BannerUpsert request,
+        Guid? excludeId,
+        CancellationToken cancellationToken)
+    {
+        if (BannerRules.Validate(request.StartAtUtc, request.EndAtUtc) is { } rangeError)
+        {
+            return Results.Problem(rangeError, statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var candidates = await db.Banners.AsNoTracking()
+            .Where(b => b.Enabled
+                && b.Position == request.Position
+                && (excludeId == null || b.Id != excludeId))
+            .ToListAsync(cancellationToken);
+        if (candidates.Any(c => BannerRules.Overlaps(c.StartAtUtc, c.EndAtUtc, request.StartAtUtc, request.EndAtUtc)))
+        {
+            return Results.Problem(
+                "Another enabled banner for this position overlaps the delivery window.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        return null;
+    }
 }
 
 public sealed record ArticleUpsert(string Title, string? Summary, string ContentHtml, string Keywords, string Category);
 
-public sealed record BannerUpsert(string Title, string ImageUrl, string LinkUrl, string Position, int SortOrder);
+public sealed record BannerUpsert(
+    string Title,
+    string ImageUrl,
+    string LinkUrl,
+    string Position,
+    int SortOrder,
+    DateTime? StartAtUtc = null,
+    DateTime? EndAtUtc = null,
+    bool Enabled = true);
 
 public sealed record ShelfRequest(bool OnShelf);
 
@@ -1178,5 +1252,34 @@ public static class PaymentChannelRules
         }
 
         return null;
+    }
+}
+
+public static class BannerRules
+{
+    public static string? Validate(DateTime? startAtUtc, DateTime? endAtUtc)
+    {
+        if (startAtUtc is { } start && endAtUtc is { } end && end <= start)
+        {
+            return "Banner end time must be after start time.";
+        }
+
+        return null;
+    }
+
+    /// <summary>Half-open [start, end) windows; a null bound is unbounded.</summary>
+    public static bool Overlaps(DateTime? aStart, DateTime? aEnd, DateTime? bStart, DateTime? bEnd)
+    {
+        if (aStart is { } aStartValue && bEnd is { } bEndValue && bEndValue <= aStartValue)
+        {
+            return false;
+        }
+
+        if (bStart is { } bStartValue && aEnd is { } aEndValue && aEndValue <= bStartValue)
+        {
+            return false;
+        }
+
+        return true;
     }
 }

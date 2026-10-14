@@ -262,6 +262,70 @@ public class AdminApiTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/admin/payment-channels/alipay", JsonBody(new { merchantId = "m", secretRef = "has space" }))).StatusCode);
     }
 
+    [Fact]
+    public async Task Banner_windows_reject_overlap_bad_range_and_anonymous_callers()
+    {
+        await RegisterAsync("13900000028");
+        var guest = await LoginClientAsync("13900000028");
+        var forbidden = await guest.PostAsync("/api/admin/banners", JsonBody(new { title = "g", imageUrl = "https://img/g", linkUrl = "https://x/g", position = "home" }));
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            var account = await db.UserAccounts.SingleAsync(u => u.Phone == "13900000028");
+            account.IsAdmin = true;
+            await db.SaveChangesAsync();
+        }
+        var client = await LoginClientAsync("13900000028");
+
+        var created = await client.PostAsync("/api/admin/banners", JsonBody(new
+        {
+            title = "A", imageUrl = "https://img/a", linkUrl = "https://x/a", position = "home", sortOrder = 1,
+            startAtUtc = "2026-11-01T00:00:00Z", endAtUtc = "2026-11-30T00:00:00Z"
+        }));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var bannerId = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString();
+
+        // Overlapping window for the same position is rejected; a disjoint window passes.
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync("/api/admin/banners", JsonBody(new
+        {
+            title = "B", imageUrl = "https://img/b", linkUrl = "https://x/b", position = "home", sortOrder = 2,
+            startAtUtc = "2026-11-15T00:00:00Z", endAtUtc = "2026-12-15T00:00:00Z"
+        }))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/admin/banners", JsonBody(new
+        {
+            title = "B", imageUrl = "https://img/b", linkUrl = "https://x/b", position = "home",
+            startAtUtc = "2026-12-31T00:00:00Z", endAtUtc = "2026-12-01T00:00:00Z"
+        }))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsync("/api/admin/banners", JsonBody(new
+        {
+            title = "B", imageUrl = "https://img/b", linkUrl = "https://x/b", position = "home", sortOrder = 2,
+            startAtUtc = "2026-12-01T00:00:00Z", endAtUtc = "2026-12-31T00:00:00Z"
+        }))).StatusCode);
+
+        // Update moves the window in place; moving it onto the other banner conflicts.
+        var updated = await client.PutAsync($"/api/admin/banners/{bannerId}", JsonBody(new
+        {
+            title = "A2", imageUrl = "https://img/a2", linkUrl = "https://x/a2", position = "home", sortOrder = 1,
+            startAtUtc = "2026-11-01T00:00:00Z", endAtUtc = "2026-11-10T00:00:00Z"
+        }));
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        using var updatedView = JsonDocument.Parse(await updated.Content.ReadAsStringAsync());
+        Assert.Equal("A2", updatedView.RootElement.GetProperty("title").GetString());
+
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsync($"/api/admin/banners/{bannerId}", JsonBody(new
+        {
+            title = "A2", imageUrl = "https://img/a2", linkUrl = "https://x/a2", position = "home", sortOrder = 1,
+            startAtUtc = "2026-11-01T00:00:00Z", endAtUtc = "2026-12-10T00:00:00Z"
+        }))).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PutAsync($"/api/admin/banners/{Guid.NewGuid()}", JsonBody(new
+        {
+            title = "x", imageUrl = "https://img/x", linkUrl = "https://x/x", position = "home"
+        }))).StatusCode);
+    }
+
     private static StringContent JsonBody(object payload) =>
         new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 }

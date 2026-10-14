@@ -155,6 +155,26 @@ public class ContentApiTests(ApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
+    public async Task Banners_hide_outside_the_schedule_window()
+    {
+        var now = DateTime.UtcNow;
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        db.Banners.AddRange(
+            new Banner { Id = Guid.CreateVersion7(), Title = "Live", ImageUrl = "https://img/l", LinkUrl = "https://x/l", Position = "sched", SortOrder = 1, StartAtUtc = now.AddDays(-1), EndAtUtc = now.AddDays(1) },
+            new Banner { Id = Guid.CreateVersion7(), Title = "Expired", ImageUrl = "https://img/e", LinkUrl = "https://x/e", Position = "sched", SortOrder = 2, StartAtUtc = now.AddDays(-10), EndAtUtc = now.AddDays(-1) },
+            new Banner { Id = Guid.CreateVersion7(), Title = "Future", ImageUrl = "https://img/f", LinkUrl = "https://x/f", Position = "sched", SortOrder = 3, StartAtUtc = now.AddDays(1), EndAtUtc = now.AddDays(10) },
+            new Banner { Id = Guid.CreateVersion7(), Title = "Always", ImageUrl = "https://img/a", LinkUrl = "https://x/a", Position = "sched", SortOrder = 4 });
+        await db.SaveChangesAsync();
+
+        var body = await Factory.CreateClient().GetFromJsonAsync<JsonElement>("/api/banners?position=sched");
+
+        Assert.Equal(2, body.GetArrayLength());
+        Assert.Equal("Live", body[0].GetProperty("title").GetString());
+        Assert.Equal("Always", body[1].GetProperty("title").GetString());
+    }
+
+    [Fact]
     public async Task Article_detail_counts_view_and_404_when_disabled()
     {
         using var scope = Factory.Services.CreateScope();
