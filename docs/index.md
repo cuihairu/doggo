@@ -162,3 +162,41 @@ features:
 
 在线维护站点参数与爬虫站点总览,部署级配置仍在服务端环境变量。
 
+### 移动端 App
+
+#### 首页
+
+![移动端首页](/screenshots/mobile-home.png)
+
+底部导航覆盖商品开箱、行情与订单入口。
+
+#### 商品开箱列表
+
+![移动端商品列表](/screenshots/mobile-products.png)
+
+展示在售武器箱与价格,点击进入详情。
+
+#### 开箱详情与下单
+
+![移动端开箱详情](/screenshots/mobile-product-detail.png)
+
+列出箱内物品与概率,可选套餐直接下单。
+
+#### 登录
+
+![移动端登录](/screenshots/mobile-login.png)
+
+账号密码登录,未登录用户下单时引导登录。
+
+#### 开箱结果
+
+![移动端开箱结果](/screenshots/mobile-opening.png)
+
+开箱即时展示奖品、磨损与参考价,奖品自动存入库存。
+
+#### 订单
+
+![移动端订单](/screenshots/mobile-orders.png)
+
+订单按状态展示,支付金额、时间与渠道可查。
+
