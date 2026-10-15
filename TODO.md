@@ -369,3 +369,9 @@
   - 复核 2026-10-16(PATROL1016):appsettings 中 Vapor:BaseUrl/ApiKey 仍为空,凭据未到位;解锁=用户提供可用的 vapor 实例与 Steam 账号
 - [ ] 小程序提审:需主体资质、正式 AppID 与合法域名
   - 复核 2026-10-16(PATROL1016):miniapp/project.config.json 的 appid 仍为 touristappid 占位;解锁=用户提供主体资质、正式 AppID 与合法域名
+- [ ] docs 双语补齐(2026-10-16 执行单;约定:中文保基名,英文配 `*.en.md`,两份首 3 行内放语言切换器;排除 CHANGELOG/CONTRIBUTING/LICENSE/CODE_OF_CONDUCT/SECURITY)
+  - [x] docs/ 根目录:审计-文档一致性.md 已配 audit-doc-consistency.en.md(真实英译)
+  - [ ] docs/index.md:home 布局不渲染正文,切换器无处放;英文首页需站点级 i18n 路由(/en),超出逐页配对口径,待定方案
+  - [ ] docs/guide/ 6 篇(introduction/features/architecture/getting-started/deployment/miniapp-compliance)配英文版
+  - [ ] docs/design/ 7 篇 + prototypes/README.md 配英文版;ui-system.md、price-crawler-design.md、analytics-funnel-design.md 均超 400 行,允许「切换器 + 暂无译版」标注,不硬造劣译
+  - [ ] README.md L93-101「本地测试口径」节为中文正文,违反「README 不混中文」红线:README.md 改英文节,README.zh.md 补对应中文节(该节现仅存于英文版)
