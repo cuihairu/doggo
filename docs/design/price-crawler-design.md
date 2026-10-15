@@ -427,3 +427,20 @@ POST /api/admin/price-crawl/maps/{mapId}/reject    { } → 200 { mapId, mapStatu
 待拍板 2-10 已按默认建议落地：仅 Confirmed 映射进序列与比价；趋势查询时算、未物化；未启用 Playwright（仅 HttpClient + AngleSharp）；宿主并入 Scraper 进程；汇率方向 1 外币 = Rate CNY，缺失不换算保留原值、未知币种丢弃计数；站点默认 60 分钟间隔、夜间窗口已实现；原始行 90 天批量清理；robots 门禁默认开；监控按 game 全量 + 配置白名单。1（目标站点清单）仍待用户给出，站点适配器为配置驱动，配置即接入。
 
 实体落库为 ItemMap / Raw / Series / SiteState 四表（设计草表中的 Trend 物化表未建，趋势查询时算）；比价对照走 `RecentCompareCentsAsync` 滚动 20 点做疑点判定。模块 81 例 + Api 5 例测试先写后绿。
+
+## 12. 前台暴露口径（2026-10-16 代决，用户可推翻）
+
+前台只暴露聚合口径，不暴露逐站点明细：
+
+| 项 | 口径 |
+| --- | --- |
+| 数值 | 近 7 天内每个已确认站点最新一条非疑点、已换算（CNY）的爬取价，跨站点取中位数 |
+| 排除 | `IsSuspect=true` 与 `ConvertedCents` 为空（缺汇率）的观测点 |
+| 站内基准 | `MarketPriceDaily` 最新收盘（§7.1） |
+| 价差 | (外部中位数 − 站内收盘) ÷ 站内收盘 × 100；站内收盘为 0 或无外部数据时为 null |
+| 展示位 | web 行情趋势页；列表页不加列，mobile / miniapp 一期不加 |
+| 未覆盖 | 站点未接入或该 item 无序列时字段为 null，页面不渲染对照块 |
+
+理由：疑点行与缺汇率的原值不能直接对外；聚合中位数是可直接引用的单一数；逐站点报价表的转发面留在 admin；用户判断「站内价是否合理」只需一个基准。实现不改写 `MarketPriceSnapshot` / `MarketPriceDaily`（§1 只读对照约束），不新增表、不物化（§10-3 默认查询时算）。
+
+实现为 `GET /api/market/items/{id}/reference`（MarketEndpoints）：中位数与价差、疑点与未换算排除、无序列返回 null、未知 item 404 共 4 例测试。

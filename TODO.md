@@ -329,8 +329,10 @@
 ### 行情页对照与涨跌(ui-system.md §10.3 结构性差异 5)
 - [x] 服务端:GET /api/market/items 增 changeCents/changeBps,取最近两个日线收盘,单日线或前收为 0 时为 null;2 例新测试
 - [x] mobile/miniapp:行情列表日涨跌红绿(服务端 changeBps)、搜索框与游戏/类型筛选,shared fetchMarket 收 filters
-- [ ] 站内 vs 外部参考价对照表:待拍板前台是否暴露第三方参考价
+- [x] 站内 vs 外部参考价对照表:2026-10-16 代决按聚合口径落地(用户授权代决,可推翻)
   - 复核 2026-10-16(PATROL1016):仍无用户裁决记录,维持已裁决搁置,不重开;解锁=用户明确拍板口径
+  - 代决 2026-10-16(FW1016D):前台只暴露聚合中位数,不暴露逐站点明细;记录见 docs/design/price-crawler-design.md §12
+  - 证据:GET /api/market/items/{id}/reference + MarketApiTests 4 例(Api.Tests 96 例全绿);web 行情趋势页对照块(pnpm build 绿)
 
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目

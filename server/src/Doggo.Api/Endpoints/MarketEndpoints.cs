@@ -23,14 +23,31 @@ public sealed record MarketItemDto(
 
 public sealed record MarketPricePoint(DateOnly Date, long OpenCents, long HighCents, long LowCents, long CloseCents);
 
+/// <summary>
+/// External reference view (price crawler design §7): median of each confirmed site's newest
+/// usable crawled price vs the in-site daily close. Aggregated on purpose — per-site rows stay
+/// admin-only; suspect or unconverted observations never feed the number.
+/// </summary>
+public sealed record MarketReferenceDto(
+    Guid MarketItemId,
+    int SiteCount,
+    long? ExternalMedianCents,
+    DateTime? ExternalObservedAtUtc,
+    long? InSiteCloseCents,
+    decimal? SpreadPct);
+
 public sealed record ExchangeRateDto(string CurrencyCode, decimal Rate, string Source);
 
 public static class MarketEndpoints
 {
+    /// <summary>How far back the external reference looks for a per-site price.</summary>
+    private const int ReferenceWindowDays = 7;
+
     public static IEndpointRouteBuilder MapMarketEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/market/items", ListItems);
         app.MapGet("/api/market/items/{id:guid}/prices", GetPrices);
+        app.MapGet("/api/market/items/{id:guid}/reference", GetReference);
         app.MapGet("/api/exchange-rates", GetExchangeRates);
         return app;
     }
@@ -136,6 +153,60 @@ public static class MarketEndpoints
             .ToListAsync(cancellationToken);
 
         return Results.Ok(new { item = id, points });
+    }
+
+    /// <summary>
+    /// External reference price for the front-end: each confirmed site's newest usable crawled
+    /// price, then the median across sites, compared against the in-site daily close. No series
+    /// rows yields nulls rather than an error — the crawler may simply not cover the item.
+    /// </summary>
+    private static async Task<IResult> GetReference(DoggoDbContext db, Guid id, CancellationToken cancellationToken = default)
+    {
+        var item = await db.MarketItems.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
+        if (item is null)
+        {
+            return Results.NotFound(new { message = "Market item not found." });
+        }
+
+        // Only Confirmed maps reach the series table; converted + non-suspect points are the ones
+        // a reader can rely on. The newest such point per site is that site's reference value.
+        var from = DateTime.UtcNow.AddDays(-ReferenceWindowDays);
+        var candidates = await db.PriceCrawlSeriesPoints.AsNoTracking()
+            .Where(p => p.MarketItemId == id && !p.IsSuspect && p.ConvertedCents != null && p.ObservedAtUtc >= from)
+            .Select(p => new { p.SiteKey, p.ObservedAtUtc, p.ConvertedCents })
+            .ToListAsync(cancellationToken);
+
+        var perSite = candidates
+            .GroupBy(p => p.SiteKey)
+            .Select(g => g.OrderByDescending(p => p.ObservedAtUtc).First())
+            .ToList();
+
+        long? medianCents = null;
+        DateTime? observedAtUtc = null;
+        var siteCount = 0;
+        if (perSite.Count > 0)
+        {
+            var values = perSite.Select(p => p.ConvertedCents!.Value).OrderBy(v => v).ToList();
+            siteCount = values.Count;
+            observedAtUtc = perSite.Max(p => p.ObservedAtUtc);
+            medianCents = values.Count % 2 == 1
+                ? values[(values.Count - 1) / 2]
+                : (values[values.Count / 2 - 1] + values[values.Count / 2]) / 2;
+        }
+
+        // In-site baseline is the latest daily close (price crawler design §7.1).
+        long? inSiteCloseCents = await db.MarketPriceDailies
+            .AsNoTracking()
+            .Where(d => d.MarketItemId == id)
+            .OrderByDescending(d => d.Date)
+            .Select(d => (long?)d.CloseCents)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        decimal? spreadPct = medianCents.HasValue && inSiteCloseCents is > 0
+            ? Math.Round((medianCents.Value - inSiteCloseCents.Value) * 100m / inSiteCloseCents.Value, 2, MidpointRounding.AwayFromZero)
+            : null;
+
+        return Results.Ok(new MarketReferenceDto(id, siteCount, medianCents, observedAtUtc, inSiteCloseCents, spreadPct));
     }
 
     private static async Task<IResult> GetExchangeRates(DoggoDbContext db, CancellationToken cancellationToken)

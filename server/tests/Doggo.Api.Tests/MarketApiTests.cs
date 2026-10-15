@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Doggo.Domain.Market;
 using Doggo.Domain.News;
+using Doggo.Domain.Price;
 using Doggo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -189,5 +190,92 @@ public class MarketApiTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.Equal("USD", rate.GetProperty("currencyCode").GetString());
         Assert.Equal(7.15m, rate.GetProperty("rate").GetDecimal());
         Assert.Equal("manual", rate.GetProperty("source").GetString());
+    }
+
+    /// <summary>Crawled series point for the public reference view; only Confirmed maps reach the series in production.</summary>
+    private async Task SeedCrawlSeriesAsync(Guid marketItemId, string siteKey, long cents, DateTime observedAtUtc, bool isSuspect = false, bool converted = true)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        db.PriceCrawlSeriesPoints.Add(new PriceCrawlSeries
+        {
+            Id = Guid.CreateVersion7(),
+            MapId = Guid.CreateVersion7(),
+            MarketItemId = marketItemId,
+            SiteKey = siteKey,
+            ExternalId = $"ext-{siteKey}-{observedAtUtc:yyyyMMddHHmmss}",
+            PriceCents = cents,
+            CurrencyCode = "CNY",
+            // null marks the missing-exchange-rate case the reference view must skip.
+            ConvertedCents = converted ? cents : null,
+            ExchangeRate = 1m,
+            ObservedAtUtc = observedAtUtc,
+            WindowKey = observedAtUtc.ToString("yyyyMMddHHmm"),
+            IsSuspect = isSuspect
+        });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Reference_returns_median_of_latest_per_site_with_spread()
+    {
+        var seeded = await SeedAsync(priceCents: 1500);
+        var baseTime = DateTime.UtcNow.AddHours(-2);
+        await SeedCrawlSeriesAsync(seeded.Id, "site-a", 10000, baseTime);
+        await SeedCrawlSeriesAsync(seeded.Id, "site-b", 12000, baseTime.AddMinutes(10));
+        await SeedCrawlSeriesAsync(seeded.Id, "site-c", 20000, baseTime.AddMinutes(20));
+
+        var client = Factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync($"/api/market/items/{seeded.Id}/reference"));
+
+        // Median of 3 site values is the middle one; in-site baseline is the daily close.
+        Assert.Equal(3, document.RootElement.GetProperty("siteCount").GetInt32());
+        Assert.Equal(12000, document.RootElement.GetProperty("externalMedianCents").GetInt64());
+        Assert.Equal(1500, document.RootElement.GetProperty("inSiteCloseCents").GetInt64());
+        Assert.Equal(700, document.RootElement.GetProperty("spreadPct").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Reference_uses_each_sites_latest_and_skips_suspect_or_unconverted()
+    {
+        var seeded = await SeedAsync(priceCents: 1500);
+        var baseTime = DateTime.UtcNow.AddHours(-3);
+        // site-a: superseded older observation, then a suspect and an unconverted point that
+        // must not displace the newest usable value (30000).
+        await SeedCrawlSeriesAsync(seeded.Id, "site-a", 10000, baseTime);
+        await SeedCrawlSeriesAsync(seeded.Id, "site-a", 30000, baseTime.AddMinutes(30));
+        await SeedCrawlSeriesAsync(seeded.Id, "site-a", 99900, baseTime.AddMinutes(40), isSuspect: true);
+        await SeedCrawlSeriesAsync(seeded.Id, "site-a", 50000, baseTime.AddMinutes(50), converted: false);
+        await SeedCrawlSeriesAsync(seeded.Id, "site-b", 20000, baseTime.AddMinutes(10));
+
+        var client = Factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync($"/api/market/items/{seeded.Id}/reference"));
+
+        // site-a contributes 30000 (suspect/unconverted skipped), site-b 20000; even count averages.
+        Assert.Equal(2, document.RootElement.GetProperty("siteCount").GetInt32());
+        Assert.Equal(25000, document.RootElement.GetProperty("externalMedianCents").GetInt64());
+    }
+
+    [Fact]
+    public async Task Reference_without_external_series_returns_nulls()
+    {
+        var seeded = await SeedAsync(priceCents: 1500);
+
+        var client = Factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync($"/api/market/items/{seeded.Id}/reference"));
+
+        Assert.Equal(0, document.RootElement.GetProperty("siteCount").GetInt32());
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("externalMedianCents").ValueKind);
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("externalObservedAtUtc").ValueKind);
+        Assert.Equal(1500, document.RootElement.GetProperty("inSiteCloseCents").GetInt64());
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("spreadPct").ValueKind);
+    }
+
+    [Fact]
+    public async Task Reference_for_unknown_item_is_not_found()
+    {
+        var client = Factory.CreateClient();
+        using var response = await client.GetAsync($"/api/market/items/{Guid.NewGuid()}/reference");
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
     }
 }

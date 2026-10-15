@@ -14,10 +14,22 @@ interface PriceHistory {
   }[]
 }
 
+interface MarketReference {
+  marketItemId: string
+  siteCount: number
+  externalMedianCents: number | null
+  externalObservedAtUtc: string | null
+  inSiteCloseCents: number | null
+  spreadPct: number | null
+}
+
+const yuan = (cents: number | null | undefined) => `¥${((cents ?? 0) / 100).toFixed(2)}`
+
 /** Renders close prices as a simple inline SVG line — no chart library needed. */
 export default function MarketDetailPage() {
   const { id } = useParams()
   const [history, setHistory] = useState<PriceHistory | null>(null)
+  const [reference, setReference] = useState<MarketReference | null>(null)
   const [error, setError] = useState('')
 
   const load = useCallback(() => {
@@ -25,6 +37,9 @@ export default function MarketDetailPage() {
     api<PriceHistory>(`/api/market/items/${id}/prices`)
       .then(setHistory)
       .catch((err) => setError(String(err.message ?? err)))
+    api<MarketReference>(`/api/market/items/${id}/reference`)
+      .then(setReference)
+      .catch(() => setReference(null))
   }, [id])
 
   useEffect(() => {
@@ -86,6 +101,47 @@ export default function MarketDetailPage() {
           </>
         )}
       </div>
+
+      {/* Aggregated only: per-site rows are admin-side data, so the front-end shows one median. */}
+      {reference && reference.siteCount > 0 && reference.externalMedianCents != null && (
+        <div className="card">
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+            外部参考价对照（{reference.siteCount} 站中位数）
+          </div>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>口径</th>
+                <th>价格</th>
+                <th>价差</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>站内收盘</td>
+                <td>{yuan(reference.inSiteCloseCents)}</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td>外部参考价</td>
+                <td>{yuan(reference.externalMedianCents)}</td>
+                <td
+                  className={
+                    reference.spreadPct == null ? undefined : reference.spreadPct >= 0 ? 'price-up' : 'price-down'
+                  }
+                >
+                  {reference.spreadPct == null
+                    ? '—'
+                    : `${reference.spreadPct >= 0 ? '+' : ''}${reference.spreadPct.toFixed(2)}%`}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          {reference.externalObservedAtUtc && (
+            <p className="muted">外部数据采集时间 {new Date(reference.externalObservedAtUtc).toLocaleDateString()}</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
