@@ -330,6 +330,7 @@
 - [x] 服务端:GET /api/market/items 增 changeCents/changeBps,取最近两个日线收盘,单日线或前收为 0 时为 null;2 例新测试
 - [x] mobile/miniapp:行情列表日涨跌红绿(服务端 changeBps)、搜索框与游戏/类型筛选,shared fetchMarket 收 filters
 - [ ] 站内 vs 外部参考价对照表:待拍板前台是否暴露第三方参考价
+  - 复核 2026-10-16(PATROL1016):仍无用户裁决记录,维持已裁决搁置,不重开;解锁=用户明确拍板口径
 
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目
@@ -363,4 +364,6 @@
 ## 未完成项
 
 - [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号
+  - 复核 2026-10-16(PATROL1016):appsettings 中 Vapor:BaseUrl/ApiKey 仍为空,凭据未到位;解锁=用户提供可用的 vapor 实例与 Steam 账号
 - [ ] 小程序提审:需主体资质、正式 AppID 与合法域名
+  - 复核 2026-10-16(PATROL1016):miniapp/project.config.json 的 appid 仍为 touristappid 占位;解锁=用户提供主体资质、正式 AppID 与合法域名
