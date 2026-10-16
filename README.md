@@ -84,20 +84,20 @@ doggo/
 
 ## Status
 
-The server (news, market, orders, cases, auth with Steam and WeChat login), admin console, WeChat miniapp, the Android app and the Docker deploy stack are implemented; 227 of 230 checklist items in [TODO.md](TODO.md) are done — the remaining 3 are listed in that file, the first two (vapor 联调、小程序提审) being external dependencies. Tests run on every push (see `.github/workflows/ci.yml`) and nightly images publish to GHCR. Discussions and contributions are welcome via Issues and Pull Requests.
+The server (news, market, orders, cases, auth with Steam and WeChat login), admin console, WeChat miniapp, the Android app and the Docker deploy stack are implemented; 231 of 236 checklist items in [TODO.md](TODO.md) are done — the open ones are the remaining bilingual docs items (design docs and the docs home page) and two external dependencies (the vapor integration and the miniapp review), listed in that file. Tests run on every push (see `.github/workflows/ci.yml`) and nightly images publish to GHCR. Discussions and contributions are welcome via Issues and Pull Requests.
 
 ## License
 
 [Apache License 2.0](LICENSE)
 
-## 本地测试口径
+## Local testing by change type
 
-CI 与本地开发按改动面三路分流——改一行文档不该全量编译。
+CI and local development split by the size of the change — a one-line doc edit should not trigger a full build.
 
-1. **文档改动**（`*.md`、`docs/**`、图片）：不编译。主 CI workflow 的
-   `paths-ignore` 已跳过这些路径。
-2. **代码改动**：只跑改动子集，不全量。
-   - `dotnet test server/<改动 csproj>`
-3. **全量**（`dotnet test server/Doggo.slnx`）：仅以下情形触发——*.csproj / Doggo.slnx、
-   `.github/**`、Docker/Compose 配置、发布前。
+1. **Docs changes** (`*.md`, `docs/**`, images): no build. The main CI workflow's
+   `paths-ignore` already skips these paths.
+2. **Code changes**: run only the affected subset, not the full suite.
+   - `dotnet test server/<changed csproj>`
+3. **Full suite** (`dotnet test server/Doggo.slnx`): only for changes to *.csproj / Doggo.slnx,
+   `.github/**`, Docker/Compose configuration, and before a release.
 
