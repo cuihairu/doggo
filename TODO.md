@@ -321,6 +321,7 @@
 - [x] admin:设置页站点参数行内编辑/保存/新增覆盖 + 骨架/错误重试/空态;爬虫站点总览读 price-crawl/maps 聚合站点映射与待确认数
 - [x] 支付渠道配置:服务端 PaymentChannel 实体(商户号/AppId/费率基点/启用)+ GET 列表与 PUT upsert(Provider 唯一索引,一行一渠道);密钥不落库,SecretRef 仅存环境变量名(字母/数字/下划线,≤64 字),费率 0-10000 基点;admin 控制台挂载由设置页方跟进
 - [x] 主题运营位日历:Banner 增 StartAtUtc/EndAtUtc 投放区间(半开区间,null 不限),同 position 启用横幅窗口重叠返回 409、end<=start 返回 400,新增 PUT 编辑窗口;前台 /api/banners 只返回窗口内(或未设窗口)的横幅
+- [x] admin 控制台挂载(2026-10-17,PATROL1017G,收掉 L322 的「由设置页方跟进」与本条的「控制台入口」):设置页新增支付渠道卡(列表 + 编辑 upsert `PUT /api/admin/payment-channels/{provider}`,密钥只登记环境变量名);内容中心 Banner 页补投放窗口列、创建窗口字段与行内编辑(PUT 全量,400/409 服务端文案透出);admin pnpm build 绿
 
 ### 个人中心补齐(ui-system.md §10.2 profile 行)
 - [x] mobile:头像头(昵称首字 + 手机/邮箱掩码 · 邀请码)、stat-row 三格(金币/可用优惠券/邀请人数)、本周签到进度(已签 n/7 · 今天可 +N,数据取 /api/sign 周期行);金币卡并入 stat-row

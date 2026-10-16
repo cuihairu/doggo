@@ -83,6 +83,7 @@ The legacy platform had only one generic article module; multi-source CS2 / Dota
 | Site settings | In-row editing of `SiteSetting` key/value pairs (`GET/PUT /api/admin/settings`), with add / overwrite | done |
 | Crawler site overview | The settings page aggregates map count and pending-confirmation count from `price-crawl/maps` | done |
 | Price crawler review | The "analytics → price crawler" page: filter maps by status + confirm / reject, switch the comparison table between 7 / 30 days, read-only comparison with no write-back to in-site market data | done |
+| Payment channels and delivery windows | The settings-page channels card manages PaymentChannel config (merchant id / app id / fee bps / secret ref via `PUT /api/admin/payment-channels/{provider}`; secret values stay in server env vars); the content-center Banner tab manages delivery windows (same-position overlap rejected with 409) | done |
 | Permissions | IsAdmin flag + role claim policy; see `admin/` | done |
 
 ## Funnel analytics (in-house)

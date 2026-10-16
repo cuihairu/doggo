@@ -1,6 +1,7 @@
 import {
   ModalForm,
   PageContainer,
+  ProFormDateTimePicker,
   ProFormText,
   ProFormTextArea,
   ProTable,
@@ -8,9 +9,13 @@ import {
   type ProColumns,
 } from '@ant-design/pro-components'
 import { request } from '@umijs/max'
-import { useRef, useState } from 'react'
-import { Button, Popconfirm, Switch, Tabs, Tag, message } from 'antd'
+import { useEffect, useRef, useState } from 'react'
+import { Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Switch, Tabs, Tag, message } from 'antd'
 import { ErrorAlert } from '../../components/States'
+import dayjs, { type Dayjs } from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+
+dayjs.extend(utc)
 
 interface ArticleRow {
   id: string
@@ -60,9 +65,30 @@ interface BannerRow {
   position: string
   sortOrder: number
   enabled: boolean
+  startAtUtc?: string | null
+  endAtUtc?: string | null
+}
+
+interface ProblemBody {
+  detail?: string
+  title?: string
 }
 
 const fmt = (v: unknown) => String(v ?? '').slice(0, 19).replace('T', ' ')
+
+/** Server validation text arrives as ProblemDetails; prefer it over a generic message. */
+function serverMessage(e: unknown, fallback: string): string {
+  const err = e as { data?: ProblemBody; response?: { data?: ProblemBody } }
+  const body = err?.data ?? err?.response?.data
+  return body?.detail ?? body?.title ?? (e instanceof Error ? e.message : fallback)
+}
+
+/** Delivery windows are UTC; ProFormDateTimePicker yields formatted wall-clock strings. */
+function toIso(value?: string | Dayjs | null): string | null {
+  if (!value) return null
+  if (typeof value === 'string') return new Date(value.replace(' ', 'T') + 'Z').toISOString()
+  return value.toISOString()
+}
 
 function ArticleTable() {
   const actionRef = useRef<ActionType>()
@@ -315,10 +341,58 @@ function NoticeTable() {
   )
 }
 
+/** Banner ops: list, create, edit with delivery windows (same-position overlap is rejected server-side). */
 function BannerTable() {
   const actionRef = useRef<ActionType>()
   const [error, setError] = useState('')
+  const [editing, setEditing] = useState<BannerRow | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [form] = Form.useForm()
   const reload = () => actionRef.current?.reload()
+
+  useEffect(() => {
+    if (editing) {
+      form.setFieldsValue({
+        title: editing.title,
+        imageUrl: editing.imageUrl,
+        linkUrl: editing.linkUrl,
+        position: editing.position,
+        sortOrder: editing.sortOrder,
+        enabled: editing.enabled,
+        startAtUtc: editing.startAtUtc ? dayjs.utc(editing.startAtUtc) : undefined,
+        endAtUtc: editing.endAtUtc ? dayjs.utc(editing.endAtUtc) : undefined,
+      })
+    }
+  }, [editing, form])
+
+  async function save() {
+    if (!editing) return
+    const values = await form.validateFields()
+    setSaving(true)
+    try {
+      await request(`/api/admin/banners/${editing.id}`, {
+        method: 'PUT',
+        data: {
+          title: values.title as string,
+          imageUrl: values.imageUrl as string,
+          linkUrl: (values.linkUrl as string) ?? '',
+          position: values.position as string,
+          sortOrder: Number(values.sortOrder ?? 0),
+          enabled: Boolean(values.enabled),
+          startAtUtc: toIso(values.startAtUtc as string | Dayjs | null | undefined),
+          endAtUtc: toIso(values.endAtUtc as string | Dayjs | null | undefined),
+        },
+      })
+      message.success('已保存')
+      setEditing(null)
+      reload()
+    } catch (e) {
+      // 400 = 窗口起止非法;409 = 同位置启用横幅窗口重叠
+      message.error(serverMessage(e, '保存失败'))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const columns: ProColumns<BannerRow>[] = [
     { title: '标题', dataIndex: 'title' },
@@ -326,6 +400,15 @@ function BannerTable() {
     { title: '链接', dataIndex: 'linkUrl', ellipsis: true },
     { title: '位置', dataIndex: 'position', width: 100 },
     { title: '排序', dataIndex: 'sortOrder', width: 70 },
+    {
+      title: '投放窗口 (UTC)',
+      width: 230,
+      render: (_, row) => (
+        <span style={{ fontSize: 12 }}>
+          {row.startAtUtc ? fmt(row.startAtUtc) : '不限'} ~ {row.endAtUtc ? fmt(row.endAtUtc) : '不限'}
+        </span>
+      ),
+    },
     {
       title: '状态',
       dataIndex: 'enabled',
@@ -335,8 +418,11 @@ function BannerTable() {
     {
       title: '操作',
       valueType: 'option',
-      width: 100,
+      width: 130,
       render: (_, row) => [
+        <Button key="edit" size="small" type="link" onClick={() => setEditing(row)}>
+          编辑
+        </Button>,
         <Popconfirm
           key="del"
           title="下线该 Banner？"
@@ -378,10 +464,26 @@ function BannerTable() {
           title="新建 Banner"
           trigger={<Button type="primary">新建 Banner</Button>}
           onFinish={async (values) => {
-            await request('/api/admin/banners', { method: 'POST', data: { ...values, sortOrder: Number(values.sortOrder ?? 0) } })
-            message.success('已创建')
-            reload()
-            return true
+            try {
+              await request('/api/admin/banners', {
+                method: 'POST',
+                data: {
+                  title: values.title,
+                  imageUrl: values.imageUrl,
+                  linkUrl: values.linkUrl ?? '',
+                  position: values.position,
+                  sortOrder: Number(values.sortOrder ?? 0),
+                  startAtUtc: toIso(values.startAtUtc as string | Dayjs | null | undefined),
+                  endAtUtc: toIso(values.endAtUtc as string | Dayjs | null | undefined),
+                },
+              })
+              message.success('已创建')
+              reload()
+              return true
+            } catch (e) {
+              message.error(serverMessage(e, '创建失败'))
+              return false
+            }
           }}
         >
           <ProFormText name="title" label="标题" rules={[{ required: true }]} />
@@ -389,9 +491,47 @@ function BannerTable() {
           <ProFormText name="linkUrl" label="跳转地址" />
           <ProFormText name="position" label="位置" placeholder="home" />
           <ProFormText name="sortOrder" label="排序" />
+          <ProFormDateTimePicker name="startAtUtc" label="投放开始 (UTC,可空)" fieldProps={{ showTime: true, format: 'YYYY-MM-DD HH:mm' }} />
+          <ProFormDateTimePicker name="endAtUtc" label="投放结束 (UTC,可空)" fieldProps={{ showTime: true, format: 'YYYY-MM-DD HH:mm' }} />
         </ModalForm>,
       ]}
     />
+
+      <Modal
+        title={editing ? `编辑 Banner:${editing.title}` : ''}
+        open={editing !== null}
+        onOk={save}
+        okText="保存"
+        confirmLoading={saving}
+        onCancel={() => setEditing(null)}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
+            <Input maxLength={100} />
+          </Form.Item>
+          <Form.Item name="imageUrl" label="图片地址" rules={[{ required: true, message: '请输入图片地址' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="linkUrl" label="跳转地址">
+            <Input />
+          </Form.Item>
+          <Form.Item name="position" label="位置">
+            <Input maxLength={50} placeholder="home" />
+          </Form.Item>
+          <Form.Item name="sortOrder" label="排序">
+            <InputNumber min={0} precision={0} style={{ width: 120 }} />
+          </Form.Item>
+          <Form.Item name="startAtUtc" label="投放开始 (UTC)">
+            <DatePicker showTime={{ format: 'HH:mm' }} format="YYYY-MM-DD HH:mm" />
+          </Form.Item>
+          <Form.Item name="endAtUtc" label="投放结束 (UTC)">
+            <DatePicker showTime={{ format: 'HH:mm' }} format="YYYY-MM-DD HH:mm" />
+          </Form.Item>
+          <Form.Item name="enabled" label="启用" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
     </>
   )
 }
