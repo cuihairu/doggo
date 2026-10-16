@@ -314,7 +314,7 @@
 ### 商品详情补齐(ui-system.md §10.3 结构性差异 3)
 - [x] web:「包含内容」徽章网格(首 8 项 + 其余 N 项)、划线原价、促销库存 badge、金币抵扣与优惠券选择(/api/coupons/mine,SKU 切换重置)、底部 buybar(应付券后 + 立即开箱);行情参考价对照表需行情日涨跌数据,未做
 - [x] mobile:金币抵扣 chip(余额上限 50/200/500/2000,1 金币抵 1 分,随 createOrder 的 coinDeduction 提交,余额不足以服务端校验为准)、「包含内容」徽章网格(品质色边框 + ★品质 + 参考价,全部项)、底部 buybar(最低单开价 + 立即开箱);划线原价仍缺(缺原价字段展示位)
-- [x] miniapp:划线原价(regularPriceCents > finalPriceCents 时显示)、套餐语义改单开/三开/十开、「包含内容」徽章网格(品质色边框 + ★品质 + 参考价)、底部 buybar(fixed + safe-area,最低单开 + 立即开箱);金币抵扣与优惠券选择未做
+- [x] miniapp:划线原价(regularPriceCents > finalPriceCents 时显示)、套餐语义改单开/三开/十开、「包含内容」徽章网格(品质色边框 + ★品质 + 参考价)、底部 buybar(fixed + safe-area,最低单开 + 立即开箱);金币抵扣与优惠券选择已补(2026-10-17,FIRE1017H:mobile 同款口径,filter-chip 选择随 createOrder 的 userCouponId/coinDeduction 提交,确认弹窗列抵扣行,useDidShow 回登录态刷新;miniapp typecheck + weapp build 绿)
 
 ### admin 设置页(ui-system.md §10.3 结构性差异 4)
 - [x] 服务端:GET /api/admin/settings 与 PUT /api/admin/settings/{key},走既有 SiteSetting 表,key 形状校验 + 值 5000 字上限 + valueType 白名单,upsert 覆盖
