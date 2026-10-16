@@ -1,5 +1,7 @@
 # doggo UI 体系：令牌、主题与四端复用
 
+[English](/design/ui-system.en) | [简体中文](/design/ui-system)
+
 配套原型：`docs/design/prototypes/`（静态可打开、截图可验）。本文记录令牌表、主题清单、组件复用关系与"哪端用哪套"；实现阶段以此为验收基准，逐屏给「已对上 / 有差异 / 未实现」。
 
 ## 1. 原则

@@ -1,5 +1,7 @@
 # 设计总览
 
+[English](/design/overview.en) | [简体中文](/design/overview)
+
 ## 目标
 
 把原平台的业务能力用统一的 C# / .NET 技术栈重写为开源版本,同时补齐原有版本缺失的资讯聚合能力(CS2 / Dota 2)。

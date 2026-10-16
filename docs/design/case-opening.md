@@ -1,5 +1,7 @@
 # 开箱系统设计
 
+[English](/design/case-opening.en) | [简体中文](/design/case-opening)
+
 ## 基本立场
 
 - **平台不控制开箱概率。** 开箱在真实 CS2 游戏内发生,掉落由 Valve 服务器决定。Doggo 的职责是:库存管理、流程状态机、结果记录、饰品交付。

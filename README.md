@@ -84,7 +84,7 @@ doggo/
 
 ## Status
 
-The server (news, market, orders, cases, auth with Steam and WeChat login), admin console, WeChat miniapp, the Android app and the Docker deploy stack are implemented; 231 of 236 checklist items in [TODO.md](TODO.md) are done — the open ones are the remaining bilingual docs items (design docs and the docs home page) and two external dependencies (the vapor integration and the miniapp review), listed in that file. Tests run on every push (see `.github/workflows/ci.yml`) and nightly images publish to GHCR. Discussions and contributions are welcome via Issues and Pull Requests.
+The server (news, market, orders, cases, auth with Steam and WeChat login), admin console, WeChat miniapp, the Android app and the Docker deploy stack are implemented; 232 of 236 checklist items in [TODO.md](TODO.md) are done — the open ones are the bilingual docs home page, which needs a decision on its approach, and two external dependencies (the vapor integration and the miniapp review), listed in that file. Tests run on every push (see `.github/workflows/ci.yml`) and nightly images publish to GHCR. Discussions and contributions are welcome via Issues and Pull Requests.
 
 ## License
 

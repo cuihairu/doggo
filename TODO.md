@@ -373,5 +373,5 @@
   - [x] docs/ 根目录:审计-文档一致性.md 已配 audit-doc-consistency.en.md(真实英译)
   - [ ] docs/index.md:home 布局不渲染正文,切换器无处放;英文首页需站点级 i18n 路由(/en),超出逐页配对口径,待定方案
   - [x] docs/guide/ 6 篇(introduction/features/architecture/getting-started/deployment/miniapp-compliance)配英文版;`*.en.md` 真实英译,pnpm docs:build 绿
-  - [ ] docs/design/ 7 篇 + prototypes/README.md 配英文版;ui-system.md 223 行、price-crawler-design.md 446 行、analytics-funnel-design.md 468 行,均低于执行单 1000 行门槛,按红线做真实英译,不硬造劣译
+  - [x] docs/design/ 7 篇(overview/data-model/case-opening/legacy-analysis/ui-system/price-crawler-design/analytics-funnel-design) + prototypes/README.md 配英文版(真实英译,均低于执行单 1000 行门槛);全部中文原文补切换器(首 3 行内);pnpm docs:build 绿
   - [x] README.md L93-101「本地测试口径」节为中文正文,违反「README 不混中文」红线:README.md 改英文节(Local testing by change type),README.zh.md 补对应中文节;README.md L87 残留中文专名(vapor 联调、小程序提审)改英文并刷新计数

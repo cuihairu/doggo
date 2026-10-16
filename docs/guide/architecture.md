@@ -1,5 +1,7 @@
 # 系统架构
 
+[English](/guide/architecture.en) | [简体中文](/guide/architecture)
+
 ## 总览
 
 Doggo 采用 monorepo 组织,按职责拆分为多个服务模块,全部基于 C# / .NET(目标 .NET 10 LTS),原生运行于 Linux,通过 Docker Compose 编排交付。

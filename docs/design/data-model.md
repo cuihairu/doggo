@@ -1,5 +1,7 @@
 # 数据模型
 
+[English](/design/data-model.en) | [简体中文](/design/data-model)
+
 开源版目标数据模型,按域分组。字段从原平台约 70 张表中提炼,结合 .NET 技术栈做了整理;机器人账号凭据等敏感数据**不落 Doggo 库**,由 vapor 管理。
 
 ## 用户域
