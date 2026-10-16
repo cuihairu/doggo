@@ -1,6 +1,6 @@
 # doggo four-client UI prototypes (static HTML/CSS)
 
-[English](/design/prototypes/README.en) | [简体中文](/design/prototypes/README)
+[English](/en/design/prototypes/README) | [简体中文](/design/prototypes/README)
 
 The first deliverable of the UI/UX redo: prototypes first, user review, code afterwards. Everything is a static page that a browser can open directly — no build step, no third-party design assets; icons are SVGs drawn in the repository (rendered with CSS mask) and the brand paw print reuses the path in `docs/public/paw.svg`.
 

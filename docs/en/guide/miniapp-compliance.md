@@ -1,6 +1,6 @@
 # Miniapp Review Compliance Checklist
 
-[English](/guide/miniapp-compliance.en) | [简体中文](/guide/miniapp-compliance)
+[English](/en/guide/miniapp-compliance) | [简体中文](/guide/miniapp-compliance)
 
 This page records the compliance self-checks done before submitting the WeChat miniapp for review. It concerns `miniapp/` (Taro + React, compiled to weapp).
 

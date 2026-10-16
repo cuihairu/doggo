@@ -1,6 +1,6 @@
 # Legacy Platform Feature Analysis
 
-[English](/design/legacy-analysis.en) | [简体中文](/design/legacy-analysis)
+[English](/en/design/legacy-analysis) | [简体中文](/design/legacy-analysis)
 
 This page inventories the full feature set of the production platform this project originated from, as the feature baseline for the open-source rewrite. It records per module what the platform actually did and how, without any reference to the original branding.
 

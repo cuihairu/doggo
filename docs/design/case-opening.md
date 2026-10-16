@@ -1,6 +1,6 @@
 # 开箱系统设计
 
-[English](/design/case-opening.en) | [简体中文](/design/case-opening)
+[English](/en/design/case-opening) | [简体中文](/design/case-opening)
 
 ## 基本立场
 

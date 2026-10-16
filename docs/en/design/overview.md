@@ -1,6 +1,6 @@
 # Design Overview
 
-[English](/design/overview.en) | [简体中文](/design/overview)
+[English](/en/design/overview) | [简体中文](/design/overview)
 
 ## Goals
 

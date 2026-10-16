@@ -1,6 +1,6 @@
 # Data Model
 
-[English](/design/data-model.en) | [简体中文](/design/data-model)
+[English](/en/design/data-model) | [简体中文](/design/data-model)
 
 The target data model of the open-source edition, grouped by domain. Fields were distilled from about 70 tables in the legacy platform and reorganised for the .NET stack; sensitive data such as bot account credentials is **not stored in the Doggo database** and is managed by vapor.
 

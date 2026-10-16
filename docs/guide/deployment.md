@@ -1,6 +1,6 @@
 # 部署
 
-[English](/guide/deployment.en) | [简体中文](/guide/deployment)
+[English](/en/guide/deployment) | [简体中文](/guide/deployment)
 
 本文描述用 Docker Compose 部署 Doggo 全栈的流程:MySQL、Redis、API、迁移、Scraper、Worker、主站与后台。镜像由每日构建流水线发布到 GHCR(`nightly` 滚动 tag);正式版本发布是手动步骤,不在这条链路上。
 

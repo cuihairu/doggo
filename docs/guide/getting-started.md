@@ -1,6 +1,6 @@
 # 快速开始
 
-[English](/guide/getting-started.en) | [简体中文](/guide/getting-started)
+[English](/en/guide/getting-started) | [简体中文](/guide/getting-started)
 
 ## 环境要求
 

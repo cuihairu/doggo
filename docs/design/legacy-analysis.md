@@ -1,6 +1,6 @@
 # 原有平台功能分析
 
-[English](/design/legacy-analysis.en) | [简体中文](/design/legacy-analysis)
+[English](/en/design/legacy-analysis) | [简体中文](/design/legacy-analysis)
 
 本文整理本项目所源自的生产平台的完整功能点,作为开源版重写的功能基线。按模块记录平台实际做了什么、怎么做的,不涉及原品牌信息。
 

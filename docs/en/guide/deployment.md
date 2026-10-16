@@ -1,6 +1,6 @@
 # Deployment
 
-[English](/guide/deployment.en) | [简体中文](/guide/deployment)
+[English](/en/guide/deployment) | [简体中文](/guide/deployment)
 
 This page describes how to deploy the full Doggo stack with Docker Compose: MySQL, Redis, API, migrations, Scraper, Worker, the web site and the admin console. Images are published to GHCR by the daily build pipeline (rolling `nightly` tag); releasing a formal version is a manual step and is not part of this chain.
 

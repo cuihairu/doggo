@@ -369,9 +369,10 @@
   - 复核 2026-10-16(PATROL1016):appsettings 中 Vapor:BaseUrl/ApiKey 仍为空,凭据未到位;解锁=用户提供可用的 vapor 实例与 Steam 账号
 - [ ] 小程序提审:需主体资质、正式 AppID 与合法域名
   - 复核 2026-10-16(PATROL1016):miniapp/project.config.json 的 appid 仍为 touristappid 占位;解锁=用户提供主体资质、正式 AppID 与合法域名
-- [ ] docs 双语补齐(2026-10-16 执行单;约定:中文保基名,英文配 `*.en.md`,两份首 3 行内放语言切换器;排除 CHANGELOG/CONTRIBUTING/LICENSE/CODE_OF_CONDUCT/SECURITY)
-  - [x] docs/ 根目录:审计-文档一致性.md 已配 audit-doc-consistency.en.md(真实英译)
-  - [ ] docs/index.md:home 布局不渲染正文,切换器无处放;英文首页需站点级 i18n 路由(/en),超出逐页配对口径,待定方案
-  - [x] docs/guide/ 6 篇(introduction/features/architecture/getting-started/deployment/miniapp-compliance)配英文版;`*.en.md` 真实英译,pnpm docs:build 绿
-  - [x] docs/design/ 7 篇(overview/data-model/case-opening/legacy-analysis/ui-system/price-crawler-design/analytics-funnel-design) + prototypes/README.md 配英文版(真实英译,均低于执行单 1000 行门槛);全部中文原文补切换器(首 3 行内);pnpm docs:build 绿
+- [x] docs 双语补齐(2026-10-16 执行单;约定:中文保基名,英文置于 `docs/en/` 并镜像同路径,两份首 3 行内放语言切换器;排除 CHANGELOG/CONTRIBUTING/LICENSE/CODE_OF_CONDUCT/SECURITY)
+  - [x] docs/ 根目录:审计-文档一致性.md 已配 docs/en/审计-文档一致性.md(真实英译)
+  - [x] docs/index.md:用户已代决=站点级 i18n(config.mts 加 `locales.{root,en}`,英文首页挂 /en/;home 页不塞逐页切换器,语言切换走站点级导航 `VPNavBarTranslations`,两个 locale 各声明 label 即出现)。复核注:home 布局正文实际会渲染(dist/index.html 的 `.vp-doc` 内含「界面预览」与截图 `<img>`),原「不渲染正文、切换器无处放」的判断有误;按代决执行,不影响验收
+  - [x] docs/guide/ 6 篇(introduction/features/architecture/getting-started/deployment/miniapp-compliance)配英文版(真实英译,已移至 docs/en/guide/,切换器指向 /en/ 路径)
+  - [x] docs/design/ 7 篇(overview/data-model/case-opening/legacy-analysis/ui-system/price-crawler-design/analytics-funnel-design) + prototypes/README.md 配英文版(真实英译,均低于执行单 1000 行门槛;已移至 docs/en/design/);全部中文原文补切换器(首 3 行内)
   - [x] README.md L93-101「本地测试口径」节为中文正文,违反「README 不混中文」红线:README.md 改英文节(Local testing by change type),README.zh.md 补对应中文节;README.md L87 残留中文专名(vapor 联调、小程序提审)改英文并刷新计数
+  - [x] 收尾门禁:pnpm docs:build 绿,/en/ 下 15 页与 /en/ 首页全部产出,nav 切换器在内容页渲染并指向镜像路径;顺手修 nav logo 路径(原 `${base}logo.svg` 经 withBase 拼成 /doggo/doggo/logo.svg 404,改回 /logo.svg,与其他仓一致)

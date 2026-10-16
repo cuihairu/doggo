@@ -1,6 +1,6 @@
 # Funnel Data Analytics Module Design
 
-[English](/design/analytics-funnel-design.en) | [简体中文](/design/analytics-funnel-design)
+[English](/en/design/analytics-funnel-design) | [简体中文](/design/analytics-funnel-design)
 
 Initiated 2026-10-12, design before implementation; this page is the sole design input. Scope: a four-step funnel from page view → add-to-cart (intent) → order → payment, including event instrumentation, the upload endpoint, server-side authoritative events, daily aggregation and the admin funnel page.
 

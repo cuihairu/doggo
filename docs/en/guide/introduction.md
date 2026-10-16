@@ -1,6 +1,6 @@
 # Introduction
 
-[English](/guide/introduction.en) | [简体中文](/guide/introduction)
+[English](/en/guide/introduction) | [简体中文](/guide/introduction)
 
 **Doggo** is an open-source gaming info platform focused on **CS2 (Counter-Strike 2)** and **Dota 2**, providing news aggregation, skin market data, case-opening simulation, and Steam bot capabilities.
 
