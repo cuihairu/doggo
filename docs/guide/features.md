@@ -37,6 +37,7 @@
 | 清洗去重 | 币种归一、价格上界、60 分钟窗口去重、滚动中位数疑点标记 | 已完成 |
 | 趋势与比价 | 日收盘、日环比、周同比、区间涨跌;与站内快照价差报告 | 已完成 |
 | admin 接口 | `/api/admin/price-crawl`:maps 列表与审阅、prices 序列、spread-report 比价 | 已完成 |
+| 前台参考价 | `GET /api/market/items/{id}/reference`:近 7 天各已确认站点最新非疑点、已换算爬取价的中位数,对比站内最新收盘的价差;web 行情趋势页展示对照块(无序列时字段为 null,页面不渲染);逐站点明细仅 admin,mobile/miniapp 一期不加 | 已完成 |
 
 ## 开箱系统
 

@@ -37,6 +37,7 @@ The legacy platform had only one generic article module; multi-source CS2 / Dota
 | Cleaning and dedup | Currency normalisation, price upper bound, 60-minute window dedup, rolling-median suspect marking | done |
 | Trends and comparison | Daily close, day-over-day, week-over-week, period change; spread report against in-site snapshots | done |
 | admin API | `/api/admin/price-crawl`: map list and review, price series, spread-report comparison | done |
+| Front-end reference price | `GET /api/market/items/{id}/reference`: the median of each confirmed site's newest non-suspect converted crawled price over the last 7 days, against the latest in-site close as a spread; the web market trend page renders the comparison block (fields are null and the block is hidden when there is no series); per-site rows stay admin-only, mobile does not add it in phase 1 | done |
 
 ## Case-opening system
 
