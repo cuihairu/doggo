@@ -156,7 +156,8 @@ adb shell input keyevent 4
 tap_text "商品开箱"
 assert_text "CI 验收箱"
 tap_text "CI 验收箱"
-assert_text "箱内物品"
+# Anchors below are React Text labels; rename the UI copy and these break.
+assert_text "包含内容"
 shot 07-product 4
 tap_contains "单开"
 assert_text "账号登录"
@@ -187,14 +188,14 @@ type_slow "Passw0rd123"
 shot 08b-login-filled 1
 hide_keyboard
 tap_text "登录"
-assert_text "金币余额"
+assert_text "金币"
 shot 09-after-login 4
 
 # Back to the product page (user → login → product), then buy for real.
 adb shell input keyevent 4
 sleep 2
 adb shell input keyevent 4
-assert_text "箱内物品"
+assert_text "包含内容"
 shot 11-product-again 2
 tap_contains "单开"
 assert_text "还没有奖品"
