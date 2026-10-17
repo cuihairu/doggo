@@ -1,6 +1,5 @@
 # Case-Opening System Design
 
-[English](/en/design/case-opening) | [简体中文](/design/case-opening)
 
 ## Basic stance
 

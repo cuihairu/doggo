@@ -1,6 +1,5 @@
 # Getting Started
 
-[English](/en/guide/getting-started) | [简体中文](/guide/getting-started)
 
 ## Requirements
 

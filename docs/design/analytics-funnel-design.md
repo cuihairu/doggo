@@ -1,6 +1,5 @@
 # 漏斗数据分析模块设计
 
-[English](/en/design/analytics-funnel-design) | [简体中文](/design/analytics-funnel-design)
 
 2026-10-12 立项,先设计后实现,本文是唯一设计输入。范围:页面浏览 → 加购(意图)→ 下单 → 支付的四步漏斗,含事件埋点、上报接口、服务端权威打点、每日聚合与后台漏斗页。
 

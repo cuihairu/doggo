@@ -1,6 +1,5 @@
 # 价格爬虫模块设计
 
-[English](/en/design/price-crawler-design) | [简体中文](/design/price-crawler-design)
 
 > 状态：已实现（2026-10-13，提交 0b08b2c）。本文为设计输入，实现期记录见 §11。
 > 关联文档：`docs/design/overview.md`、`docs/design/data-model.md`。

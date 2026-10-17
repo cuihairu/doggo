@@ -1,6 +1,5 @@
 # System Architecture
 
-[English](/en/guide/architecture) | [简体中文](/guide/architecture)
 
 ## Overview
 

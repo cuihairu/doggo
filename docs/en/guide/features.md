@@ -1,6 +1,5 @@
 # Features
 
-[English](/en/guide/features) | [简体中文](/guide/features)
 
 This page lists Doggo's full planned feature set and current status. The baseline comes from the [legacy platform feature analysis](../design/legacy-analysis), trimmed and extended for the open-source edition.
 

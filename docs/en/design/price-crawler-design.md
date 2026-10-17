@@ -1,6 +1,5 @@
 # Price Crawler Module Design
 
-[English](/en/design/price-crawler-design) | [简体中文](/design/price-crawler-design)
 
 > Status: implemented (2026-10-13, commit 0b08b2c). This page is the design input; the implementation record is in §11.
 > Related docs: `docs/design/overview.md`, `docs/design/data-model.md`.

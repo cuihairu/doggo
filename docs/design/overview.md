@@ -1,6 +1,5 @@
 # 设计总览
 
-[English](/en/design/overview) | [简体中文](/design/overview)
 
 ## 目标
 

@@ -1,6 +1,5 @@
 # doggo UI system: tokens, themes and four-client reuse
 
-[English](/en/design/ui-system) | [简体中文](/design/ui-system)
 
 Companion prototypes: `docs/design/prototypes/` (static, openable in a browser, verifiable by screenshots). This page records the token table, the theme list, the component reuse relationships and "which client uses which set"; the implementation phase uses it as the acceptance baseline, grading each screen "matched / has differences / not implemented".
 

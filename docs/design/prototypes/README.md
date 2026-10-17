@@ -1,6 +1,5 @@
 # doggo 四端 UI 原型（静态 HTML/CSS）
 
-[English](/en/design/prototypes/README) | [简体中文](/design/prototypes/README)
 
 UI/UX 重做的第一交付物：先原型、用户过目、再动代码。全部为静态页面，浏览器直接打开即可，无构建、无第三方设计素材；图标为仓内自绘 SVG（CSS mask 渲染），品牌爪印复用 `docs/public/paw.svg` 的路径。
 

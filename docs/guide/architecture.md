@@ -1,6 +1,5 @@
 # 系统架构
 
-[English](/en/guide/architecture) | [简体中文](/guide/architecture)
 
 ## 总览
 

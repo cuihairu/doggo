@@ -1,6 +1,5 @@
 # 小程序提审合规自查
 
-[English](/en/guide/miniapp-compliance) | [简体中文](/guide/miniapp-compliance)
 
 本文记录微信小程序提审前的合规自查项。对应 `miniapp/`(Taro + React,编译目标 weapp)。
 

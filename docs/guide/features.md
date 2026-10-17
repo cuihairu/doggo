@@ -1,6 +1,5 @@
 # 功能总览
 
-[English](/en/guide/features) | [简体中文](/guide/features)
 
 本文列出 Doggo 规划的功能全景与当前状态。功能基线来自[原有平台功能分析](../design/legacy-analysis),按开源版的定位做了取舍与扩展。
 

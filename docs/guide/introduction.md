@@ -1,6 +1,5 @@
 # 项目简介
 
-[English](/en/guide/introduction) | [简体中文](/guide/introduction)
 
 **Doggo** 是一个开源的游戏资讯平台,聚焦 **CS2(反恐精英 2)** 与 **Dota 2**,提供资讯聚合、饰品行情、开箱模拟与 Steam 机器人等能力。
 
