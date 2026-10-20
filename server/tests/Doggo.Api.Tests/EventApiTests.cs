@@ -51,7 +51,9 @@ public class EventApiTests(ApiFactory factory) : ApiTestBase(factory)
     public async Task Accepts_valid_batch_and_stamps_server_fields()
     {
         var client = NewClient();
-        var occurredAtUtc = new DateTime(2026, 10, 12, 8, 0, 0, DateTimeKind.Utc);
+        // Relative, never pinned to a calendar date: a fixed date ages out of
+        // the 7 day ingest window and starts getting rejected as stale.
+        var occurredAtUtc = DateTime.UtcNow.AddHours(-1);
 
         var response = await PostEventAsync(client, EventJson("page_view_product", $"acc-{Guid.NewGuid():N}", occurredAtUtc));
 
