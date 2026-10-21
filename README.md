@@ -8,6 +8,7 @@
 
 [English](README.md) | [简体中文](README.zh.md)
 
+[![Status](https://img.shields.io/badge/status-in%20development-orange)](https://github.com/cuihairu/doggo/releases)
 [![CI](https://github.com/cuihairu/doggo/actions/workflows/ci.yml/badge.svg)](https://github.com/cuihairu/doggo/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/cuihairu/doggo/branch/main/graph/badge.svg)](https://codecov.io/gh/cuihairu/doggo)
 [![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
