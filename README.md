@@ -8,19 +8,21 @@
 
 [English](README.md) | [简体中文](README.zh.md)
 
-<p align="center">[![Status](https://img.shields.io/badge/status-in%20development-orange)](https://github.com/cuihairu/doggo/releases)</p>
-[![CI](https://github.com/cuihairu/doggo/actions/workflows/ci.yml/badge.svg)](https://github.com/cuihairu/doggo/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/cuihairu/doggo/branch/main/graph/badge.svg)](https://codecov.io/gh/cuihairu/doggo)
-[![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
-[![C#](https://img.shields.io/badge/C%23-14-239120)](https://learn.microsoft.com/dotnet/csharp/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-61DAFB)](https://react.dev/)
-[![Taro](https://img.shields.io/badge/Taro-blue)](https://taro-docs.jd.com/)
-[![AntDesignPro](https://img.shields.io/badge/AntDesignPro-0170FE)](https://pro.ant.design/)
-[![MySQL](https://img.shields.io/badge/MySQL-4479A1)](https://www.mysql.com/)
-[![Redis](https://img.shields.io/badge/Redis-DC382D)](https://redis.io/)
-[![docs](https://img.shields.io/badge/docs-VitePress-646CFF)](docs/)
+<p align="center">
+<a href="https://github.com/cuihairu/doggo/releases"><img alt="Status" src="https://img.shields.io/badge/status-in%20development-orange"></a>
+</p>
+<a href="https://github.com/cuihairu/doggo/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/cuihairu/doggo/actions/workflows/ci.yml/badge.svg"></a>
+<a href="https://codecov.io/gh/cuihairu/doggo"><img alt="codecov" src="https://codecov.io/gh/cuihairu/doggo/branch/main/graph/badge.svg"></a>
+<a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg"></a>
+<a href="https://dotnet.microsoft.com/"><img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4"></a>
+<a href="https://learn.microsoft.com/dotnet/csharp/"><img alt="C#" src="https://img.shields.io/badge/C%23-14-239120"></a>
+<a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6"></a>
+<a href="https://react.dev/"><img alt="React" src="https://img.shields.io/badge/React-61DAFB"></a>
+<a href="https://taro-docs.jd.com/"><img alt="Taro" src="https://img.shields.io/badge/Taro-blue"></a>
+<a href="https://pro.ant.design/"><img alt="AntDesignPro" src="https://img.shields.io/badge/AntDesignPro-0170FE"></a>
+<a href="https://www.mysql.com/"><img alt="MySQL" src="https://img.shields.io/badge/MySQL-4479A1"></a>
+<a href="https://redis.io/"><img alt="Redis" src="https://img.shields.io/badge/Redis-DC382D"></a>
+<a href="docs/"><img alt="docs" src="https://img.shields.io/badge/docs-VitePress-646CFF"></a>
 
 </div>
 
