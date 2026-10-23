@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   gate:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
     outputs:
       skip: ${{ steps.check.outputs.skip }}
@@ -41,7 +41,7 @@ jobs:
           fi
 
   server:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     needs: gate
     if: needs.gate.outputs.skip != 'true'
 
@@ -76,7 +76,7 @@ jobs:
           retention-days: 14
 
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     needs: gate
     if: needs.gate.outputs.skip != 'true'
 
@@ -107,7 +107,7 @@ jobs:
   # Container images to GHCR under rolling nightly tags. Versioned releases
   # are a separate, manual, user-triggered step — never automated here.
   images:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     needs: gate
     if: needs.gate.outputs.skip != 'true'
     permissions:
@@ -175,7 +175,7 @@ jobs:
   # Opt-in nightly rollout. Requires repo variable DEPLOY_ENABLED=true and the
   # DEPLOY_SSH_HOST / DEPLOY_SSH_USER / DEPLOY_SSH_KEY secrets.
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     needs: images
     if: vars.DEPLOY_ENABLED == 'true'
     environment: production
