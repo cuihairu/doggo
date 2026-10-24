@@ -9,19 +9,7 @@
 [English](README.md) | [简体中文](README.zh.md)
 
 <p align="center">
-<a href="https://github.com/cuihairu/doggo/releases"><img alt="Status" src="https://img.shields.io/badge/status-in%20development-orange"></a>
-<a href="https://github.com/cuihairu/doggo/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/cuihairu/doggo/actions/workflows/ci.yml/badge.svg"></a>
-<a href="https://codecov.io/gh/cuihairu/doggo"><img alt="codecov" src="https://codecov.io/gh/cuihairu/doggo/branch/main/graph/badge.svg"></a>
-<a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg"></a>
-<a href="https://dotnet.microsoft.com/"><img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4"></a>
-<a href="https://learn.microsoft.com/dotnet/csharp/"><img alt="C#" src="https://img.shields.io/badge/C%23-14-239120"></a>
-<a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6"></a>
-<a href="https://react.dev/"><img alt="React" src="https://img.shields.io/badge/React-61DAFB"></a>
-<a href="https://taro-docs.jd.com/"><img alt="Taro" src="https://img.shields.io/badge/Taro-blue"></a>
-<a href="https://pro.ant.design/"><img alt="AntDesignPro" src="https://img.shields.io/badge/AntDesignPro-0170FE"></a>
-<a href="https://www.mysql.com/"><img alt="MySQL" src="https://img.shields.io/badge/MySQL-4479A1"></a>
-<a href="https://redis.io/"><img alt="Redis" src="https://img.shields.io/badge/Redis-DC382D"></a>
-<a href="docs/"><img alt="docs" src="https://img.shields.io/badge/docs-VitePress-646CFF"></a>
+<a href="https://github.com/cuihairu/doggo/releases"><img alt="Status" src="https://img.shields.io/badge/status-in%20development-orange"></a> <a href="https://github.com/cuihairu/doggo/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/cuihairu/doggo/actions/workflows/ci.yml/badge.svg"></a> <a href="https://codecov.io/gh/cuihairu/doggo"><img alt="codecov" src="https://codecov.io/gh/cuihairu/doggo/branch/main/graph/badge.svg"></a> <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg"></a> <a href="https://dotnet.microsoft.com/"><img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4"></a> <a href="https://learn.microsoft.com/dotnet/csharp/"><img alt="C#" src="https://img.shields.io/badge/C%23-14-239120"></a> <a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6"></a> <a href="https://react.dev/"><img alt="React" src="https://img.shields.io/badge/React-61DAFB"></a> <a href="https://taro-docs.jd.com/"><img alt="Taro" src="https://img.shields.io/badge/Taro-blue"></a> <a href="https://pro.ant.design/"><img alt="AntDesignPro" src="https://img.shields.io/badge/AntDesignPro-0170FE"></a> <a href="https://www.mysql.com/"><img alt="MySQL" src="https://img.shields.io/badge/MySQL-4479A1"></a> <a href="https://redis.io/"><img alt="Redis" src="https://img.shields.io/badge/Redis-DC382D"></a> <a href="docs/"><img alt="docs" src="https://img.shields.io/badge/docs-VitePress-646CFF"></a>
 </p>
 
 </div>
