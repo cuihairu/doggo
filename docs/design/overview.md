@@ -1,52 +1,52 @@
-# 设计总览
+# Design Overview
 
 
-## 目标
+## Goals
 
-把原平台的业务能力用统一的 C# / .NET 技术栈重写为开源版本,同时补齐原有版本缺失的资讯聚合能力(CS2 / Dota 2)。
+Rewrite the legacy platform's business capabilities in a unified C# / .NET stack as an open-source edition, and at the same time add the news aggregation capability that the original edition lacked (CS2 / Dota 2).
 
-## 模块映射
+## Module mapping
 
-| 原平台模块 | 开源版模块 | 说明 |
+| Legacy module | Open-source edition module | Notes |
 | --- | --- | --- |
-| server + service(Java) | `Doggo.Api`(ASP.NET Core) | C 端 REST API 与业务逻辑 |
-| bot(Java 桥接层 + 外部机器人进程) | [vapor](https://github.com/cuihairu/vapor) | 控制平面/代理架构直接覆盖原"桥接层 + 外部进程"的职责;原 Redis Stream 协议被 vapor 的 REST API / Webhook 取代 |
-| scraper(Selenium 价格爬虫) | vapor(Steam 侧)+ `Doggo.Scraper`(资讯) | 行情收敛到 Steam 侧;资讯爬虫为新增能力 |
-| admin(Java 后台 API) | `Doggo.Api` 的 admin 路由区 | 不再单独起进程 |
-| tracking(广告回传) | 无 | 不在开源版范围 |
-| React 管理后台 | `admin/` 前端 | 沿用 React 生态,选型 Ant Design Pro |
-| (开源版新增) | `web/`、`miniapp/`、`mobile/` 客户端 | 共用 `Doggo.Api`;React + TypeScript,小程序与手机端用 Taro 跨端 |
-| common / dao | `Doggo.Domain` / `Doggo.Infrastructure` | EF Core 替代 MyBatis-Plus |
+| server + service (Java) | `Doggo.Api` (ASP.NET Core) | Consumer REST API and business logic |
+| bot (Java bridge layer + external bot process) | [vapor](https://github.com/cuihairu/vapor) | The control plane / proxy architecture directly covers the old "bridge layer + external process" responsibilities; the original Redis Stream protocol is replaced by vapor's REST API / webhooks |
+| scraper (Selenium price crawler) | vapor (Steam side) + `Doggo.Scraper` (news) | Market data converges on the Steam side; the news scraper is a new capability |
+| admin (Java backend API) | The admin route group of `Doggo.Api` | No separate process |
+| tracking (ad attribution) | none | Out of scope for the open-source edition |
+| React admin console | `admin/` frontend | Stays on React, using Ant Design Pro |
+| (new in the open-source edition) | `web/`, `miniapp/`, `mobile/` clients | All share `Doggo.Api`; React + TypeScript, with miniapp and mobile using Taro for cross-platform |
+| common / dao | `Doggo.Domain` / `Doggo.Infrastructure` | EF Core replaces MyBatis-Plus |
 
-## 关键设计决策
+## Key design decisions
 
-1. **机器人不重写,复用 vapor。** 原平台最难维护的部分是"外部机器人进程 + 自定义消息协议"。vapor 已实现凭据管理、SteamGuard、交易、库存、开箱动作与插件体系,Doggo 只做集成方。
-2. **平台不控制开箱概率。** 开箱走真实 Steam 掉落,Doggo 只负责流程状态机与记录;需要概率的玩法(roll 房)使用可审计的权重算法(AliasMethod)。
-3. **资讯为独立管道。** CS2 / Dota 2 资讯源与 Steam 无关,由 `Doggo.Scraper` 自建,输出标准化条目;与行情数据互不依赖。
-4. **支付可插拔。** 原平台硬编码多个国内支付渠道;开源版抽象为支付接口,渠道实现按需提供。
-5. **金额用整型最小单位**(分),避免浮点误差;多币种仅做展示换算。
+1. **Do not rewrite the bot; reuse vapor.** The hardest part of the legacy platform to maintain was the "external bot process + custom message protocol". vapor already implements credential management, SteamGuard, trading, inventory, case-opening actions and the plugin system; Doggo is only the integrator.
+2. **The platform does not control opening probabilities.** Case openings use real Steam drops; Doggo owns only the flow state machine and records. Gameplay that needs probabilities (roll rooms) uses an auditable weighted algorithm (AliasMethod).
+3. **News is an independent pipeline.** CS2 / Dota 2 news sources have nothing to do with Steam; `Doggo.Scraper` implements them in-house and emits standardised entries. News data and market data do not depend on each other.
+4. **Payments are pluggable.** The legacy platform hardcoded several domestic payment channels; the open-source edition abstracts them into a payment interface with channel implementations provided as needed.
+5. **Money uses integer minor units** (cents) to avoid floating-point error; multi-currency is display conversion only.
 
-## 技术选型
+## Tech choices
 
-| 关注点 | 选型 | 理由 |
+| Concern | Choice | Why |
 | --- | --- | --- |
-| 运行时 | .NET 10 (LTS) | 长期支持,Linux 一等公民 |
-| Web 框架 | ASP.NET Core | 内置 JWT 认证、OpenAPI |
-| ORM | EF Core + MySql.EntityFrameworkCore | Pomelo 尚无 EF Core 10 版本;provider 注册收敛在一处,后续可一行切换 |
-| 缓存 | Redis(StackExchange.Redis) | 与原平台一致的缓存/计数器用途 |
-| 资讯抓取 | HttpClient + AngleSharp / Playwright for .NET | 静态页与动态页分治 |
-| Steam 集成 | vapor(SteamKit2) | 见上 |
-| 调度 | Quartz.NET 或内置 PeriodicTimer | 定时任务与补偿 |
-| 前端语言 | TypeScript | 全部客户端统一 |
-| C 端 Web(`web/`) | React + Vite | 用户站 |
-| 管理后台(`admin/`) | Ant Design Pro(UmiJS) | 中后台成熟方案 |
-| 小程序(`miniapp/`) | Taro + React | 一套代码编译到微信/支付宝等小程序 |
-| 手机端(`mobile/`) | Taro + React | 与小程序共享大部分代码,编译到 React Native / H5 |
-| 文档 | VitePress | 本站点 |
+| Runtime | .NET 10 (LTS) | Long-term support, first-class on Linux |
+| Web framework | ASP.NET Core | Built-in JWT authentication, OpenAPI |
+| ORM | EF Core + MySql.EntityFrameworkCore | Pomelo has no EF Core 10 version yet; provider registration is concentrated in one place so it can be switched with one line later |
+| Cache | Redis (StackExchange.Redis) | Same cache / counter use as the legacy platform |
+| News scraping | HttpClient + AngleSharp / Playwright for .NET | Static pages and dynamic pages handled separately |
+| Steam integration | vapor (SteamKit2) | See above |
+| Scheduling | Quartz.NET or the built-in PeriodicTimer | Timed jobs and compensation |
+| Frontend language | TypeScript | Unified across all clients |
+| Consumer web (`web/`) | React + Vite | The user site |
+| Admin console (`admin/`) | Ant Design Pro (UmiJS) | A mature mid-to-backend choice |
+| Miniapp (`miniapp/`) | Taro + React | One code base compiling to WeChat / Alipay miniapps |
+| Mobile (`mobile/`) | Taro + React | Shares most code with the miniapp, compiling to React Native / H5 |
+| Documentation | VitePress | This site |
 
-## 仓库布局
+## Repository layout
 
-根目录按"应用"分层,不直接放源码目录:
+The root is layered by "application"; source directories are not placed directly at the top level:
 
 ```
 doggo/
@@ -68,4 +68,4 @@ doggo/
 └── deploy/                # Docker Compose、nginx 配置
 ```
 
-原则:同一 API 服务(`Doggo.Api`)支撑全部客户端;客户端之间不共享运行时代码,只共享 REST 契约。
+Principle: one API service (`Doggo.Api`) backs every client; clients share no runtime code with each other, only the REST contract.

@@ -1,70 +1,70 @@
-# 快速开始
+# Getting Started
 
 
-## 环境要求
+## Requirements
 
-| 依赖 | 版本 | 用途 |
+| Dependency | Version | Used for |
 | --- | --- | --- |
-| .NET SDK | 10.0 | 服务端、爬虫、机器人 |
-| Docker + Docker Compose | 稳定版 | 部署(MySQL、Redis 等) |
-| Node.js | 20+ | 文档站点(VitePress) |
+| .NET SDK | 10.0 | server, scrapers, bots |
+| Docker + Docker Compose | stable | deployment (MySQL, Redis, etc.) |
+| Node.js | 20+ | documentation site (VitePress) |
 
-## 本地开发
+## Local development
 
 ```bash
-# 克隆仓库
+# Clone the repository
 git clone https://github.com/cuihairu/doggo.git
 cd doggo
 
-# 构建后端解决方案
+# Build the backend solution
 dotnet build server/Doggo.slnx
 
-# 启动基础设施(MySQL 8.4 + Redis 7,带健康检查)
-cp deploy/.env.example deploy/.env   # 按需修改密码与端口
+# Start the infrastructure (MySQL 8.4 + Redis 7, with health checks)
+cp deploy/.env.example deploy/.env   # change passwords and ports as needed
 docker compose -f deploy/docker-compose.yml up -d
 
-# 安装 EF 工具并应用数据库迁移
+# Install the EF tools and apply the database migrations
 dotnet tool install --global dotnet-ef
 cd server
 dotnet ef database update --project src/Doggo.Infrastructure --startup-project src/Doggo.Api
 ```
 
-若主机 3306 / 6379 端口已被占用,在 `deploy/.env` 里改 `MYSQL_PORT` / `REDIS_PORT`,并在启动应用时用环境变量覆盖连接串:
+If ports 3306 / 6379 on the host are already taken, change `MYSQL_PORT` / `REDIS_PORT` in `deploy/.env` and override the connection strings with environment variables when starting the application:
 
 ```bash
 ConnectionStrings__Default="Server=localhost;Port=13306;Database=doggo;User=doggo;Password=..."
 ConnectionStrings__Redis="localhost:16379"
 ```
 
-### 验证
+### Verification
 
 ```bash
 curl http://localhost:<port>/healthz
 # {"status":"ok","database":true,"redis":true}
 ```
 
-## 文档站点
+## Documentation site
 
-文档使用 VitePress 构建,位于 `docs/` 目录:
+The docs are built with VitePress and live in `docs/`:
 
 ```bash
 pnpm install
 
-# 本地预览,默认 http://localhost:5173
+# Local preview, defaults to http://localhost:5173
 pnpm docs:dev
 
-# 构建静态页面到 docs/.vitepress/dist
+# Build the static pages into docs/.vitepress/dist
 pnpm docs:build
 ```
 
-## 路线图
+## Roadmap
 
-- [x] 项目文档与架构设计(`docs/`)
-- [x] 领域模型与数据层(`server/src/Doggo.Domain`,EF 迁移随部署执行)
-- [x] 资讯爬虫与聚合管道(`server/src/Doggo.Scraper`)
-- [x] 饰品行情同步(基于 vapor)(`server/src/Doggo.Infrastructure/Vapor`,Worker 定时同步)
-- [x] 开箱模拟玩法(`server/src/Doggo.Infrastructure/Cases`)
-- [x] REST API 与用户体系(`server/src/Doggo.Api`,JWT + Steam OpenID)
-- [x] 管理后台(`admin/` 前端 + `/api/admin`)
-- [x] 外部价格爬虫(`server/src/Doggo.PriceCrawler`,并入 Scraper 进程)
-- [x] 漏斗数据分析(事件通道 + 每日聚合 + 后台漏斗页)
+- [x] Project documentation and architecture design (`docs/`)
+- [x] Domain model and data layer (`server/src/Doggo.Domain`, EF migrations run with the deployment)
+- [x] News scraper and aggregation pipeline (`server/src/Doggo.Scraper`)
+- [x] Skin market sync (based on vapor) (`server/src/Doggo.Infrastructure/Vapor`, scheduled by the Worker)
+- [x] Case-opening simulation (`server/src/Doggo.Infrastructure/Cases`)
+- [x] REST API and user accounts (`server/src/Doggo.Api`, JWT + Steam OpenID)
+- [x] Admin console (`admin/` frontend + `/api/admin`)
+- [x] Third-party price crawler (`server/src/Doggo.PriceCrawler`, merged into the Scraper process)
+- [x] Funnel analytics (event channel + daily aggregation + admin funnel page)

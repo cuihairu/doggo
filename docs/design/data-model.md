@@ -1,84 +1,84 @@
-# 数据模型
+# Data Model
 
 
-开源版目标数据模型,按域分组。字段从原平台约 70 张表中提炼,结合 .NET 技术栈做了整理;机器人账号凭据等敏感数据**不落 Doggo 库**,由 vapor 管理。
+The target data model of the open-source edition, grouped by domain. Fields were distilled from about 70 tables in the legacy platform and reorganised for the .NET stack; sensitive data such as bot account credentials is **not stored in the Doggo database** and is managed by vapor.
 
-## 用户域
+## User domain
 
-| 实体 | 要点 |
+| Entity | Highlights |
 | --- | --- |
-| UserAccount | 手机/邮箱注册、昵称、头像、邀请码、状态;密码哈希 |
-| UserSteamProfile | 用户 Steam 绑定:SteamId、昵称、头像 |
-| UserTradeUrl | 用户交易链接(多条、可设默认、校验状态与错误) |
-| UserCoin / UserCoinLog | 积分余额与流水;FIFO 消费、按批次过期 |
-| UserCoupon / Coupon | 优惠券:类型(满减/折扣)、门槛、有效期、可用商品范围 |
-| RedeemCode | 积分/优惠券兑换码,批量生成与核销 |
-| UserLoginLog / UserVisit | 登录记录(IP/UA/结果)、访问统计(日 UV/PV) |
-| InviteRewardLog | 邀请奖励流水 |
-| SignRecord | 周期签到(自然周)与补签 |
+| UserAccount | Phone / email registration, nickname, avatar, invite code, status; password hash |
+| UserSteamProfile | The user's Steam binding: SteamId, nickname, avatar |
+| UserTradeUrl | User trade links (multiple, default selectable, validation status and error) |
+| UserCoin / UserCoinLog | Point balance and ledger; FIFO consumption, expiry by batch |
+| UserCoupon / Coupon | Coupons: type (threshold discount / percentage), threshold, validity, applicable product scope |
+| RedeemCode | Points / coupon redemption codes, batch generation and redemption |
+| UserLoginLog / UserVisit | Login records (IP / UA / result), visit statistics (daily UV / PV) |
+| InviteRewardLog | Invite reward ledger |
+| SignRecord | Cyclic check-in (calendar week) and make-up signing |
 
-## 商品域
+## Product domain
 
-| 实体 | 要点 |
+| Entity | Highlights |
 | --- | --- |
-| Product | 商品:类型(箱子/钥匙/组合)、classId、采购价、参考价、价格修正、最终价、上架状态 |
-| CasePlan / CasePlanOption | 套餐与选项:起批数量、加价率(定价用)、可否用券/积分、返现倍率、数量档位 |
-| PromotionPlan | 限量促销:折扣价、库存、每人限购、每日重置 |
-| QuantityOption | 数量档位与库存告警阈值 |
-| CaseContent | 箱子内容物展示:标题、品质(七档)、颜色、图片、参考价 |
-| Recommend | 推荐位 |
-| ExchangeRate | 多币种汇率(展示用) |
+| Product | Product: type (case / key / bundle), classId, purchase price, reference price, price adjustment, final price, listing status |
+| CasePlan / CasePlanOption | Plans and options: minimum batch quantity, markup rate (for pricing), whether coupons / points can be used, cashback multiplier, quantity tiers |
+| PromotionPlan | Limited promotion: discounted price, stock, per-user limit, daily reset |
+| QuantityOption | Quantity tiers and stock alert threshold |
+| CaseContent | Case contents display: title, quality (seven grades), colour, image, reference price |
+| Recommend | Recommendation slots |
+| ExchangeRate | Multi-currency rates (for display) |
 
-## 订单域
+## Order domain
 
-| 实体 | 要点 |
+| Entity | Highlights |
 | --- | --- |
-| UserOrder | 入口、商品类型、套餐、价格四件套(原价/售价/总价/成本)、积分抵扣、券抵扣、返现、支付渠道与回调、交易链接引用、状态、serviceMode(自开/代开) |
-| PaymentRecord | 支付流水:渠道、金额、回调载荷、幂等键 |
-| RefundRecord | 退款记录 |
+| UserOrder | Entry, product type, plan, the four prices (list / sale / total / cost), points deduction, coupon deduction, cashback, payment channel and callback, trade-link reference, status, serviceMode (self-open / proxy-open) |
+| PaymentRecord | Payment ledger: channel, amount, callback payload, idempotency key |
+| RefundRecord | Refund record |
 
-## 开箱域
+## Case-opening domain
 
-| 实体 | 要点 |
+| Entity | Highlights |
 | --- | --- |
-| GroupBuying | 批次:商品、批次号、座位数、已售、状态、乐观锁版本 |
-| GroupBuyingSeat | 座位:序号、箱子 assetId、钥匙 assetId、奖品 assetId、状态(售卖中→…→完成) |
-| UserPrize | 奖品:assetId/classId/instanceId、市场名、品质、外观、floatValue、稀有度、图标、检查链接、可交易时间、估价、订单关联、来源 |
-| UserPrizeLog | 开箱日志(开箱时间、账号引用、结果) |
-| RollRoom(+Config/Participants) | roll 房:模板、规则、状态、奖品配置(饰品/积分 + 权重)、参与者、开奖与领奖记录 |
+| GroupBuying | Batch: product, batch number, seat count, seats sold, status, optimistic-lock version |
+| GroupBuyingSeat | Seat: index, case assetId, key assetId, prize assetId, status (selling → … → done) |
+| UserPrize | Prize: assetId / classId / instanceId, market hash name, quality, appearance, floatValue, rarity, icon, inspection link, tradeable time, estimated value, order link, source |
+| UserPrizeLog | Opening log (opening time, account reference, result) |
+| RollRoom (+Config/Participants) | Roll room: template, rules, status, prize configuration (item / points + weights), participants, draw and claim records |
 
-## 资讯域(新增)
+## News domain (new)
 
-| 实体 | 要点 |
+| Entity | Highlights |
 | --- | --- |
-| NewsSource | 资讯源:名称、类型(官方/社区)、抓取配置、启停 |
-| NewsItem | 资讯条目:标题、摘要、正文、原文链接、来源、游戏(CS2/Dota2)、分类、标签、发布时间、指纹去重键 |
-| Article | 运营文章:富文本、Banner 图、分类、关键词、阅读数、上下架 |
-| Notice / Banner / Partner | 公告、广告位、合作伙伴 |
+| NewsSource | News source: name, type (official / community), scraping configuration, enabled flag |
+| NewsItem | News entry: title, summary, body, original link, source, game (CS2 / Dota2), category, tags, publish time, fingerprint dedup key |
+| Article | Editorial article: rich text, banner image, category, keywords, view count, listing status |
+| Notice / Banner / Partner | Announcements, ad slots, partners |
 
-## 行情域
+## Market domain
 
-| 实体 | 要点 |
+| Entity | Highlights |
 | --- | --- |
-| MarketItem | 饰品/箱子资料:classId、市场名、图标、类型 |
-| MarketPriceSnapshot | 价格快照:vapor 同步的时间点价格,按日聚合供趋势 |
-| SyncCursor | 同步游标(按数据源) |
+| MarketItem | Skin / case metadata: classId, market hash name, icon, type |
+| MarketPriceSnapshot | Price snapshot: the point-in-time price synced by vapor, aggregated per day for trends |
+| SyncCursor | Sync cursor (per data source) |
 
-## 系统域
+## System domain
 
-| 实体 | 要点 |
+| Entity | Highlights |
 | --- | --- |
-| AdminAccount / Role / Permission | RBAC:后台账号、角色、权限、角色-权限关联 |
-| AdminLoginLog / IpWhitelist | 后台登录日志、IP 白名单 |
-| SiteSetting | 站点配置 key-value(功能开关) |
-| SupportQrcode | 客服二维码(时段生效) |
-| NotificationChannel / Event | 通知渠道配置与事件记录 |
-| ShortUrl | 短链与点击计数 |
+| AdminAccount / Role / Permission | RBAC: admin accounts, roles, permissions, role-permission links |
+| AdminLoginLog / IpWhitelist | Admin login logs, IP allowlist |
+| SiteSetting | Site configuration key/value pairs (feature flags) |
+| SupportQrcode | Support QR code (time-windowed) |
+| NotificationChannel / Event | Notification channel configuration and event records |
+| ShortUrl | Short URLs and click counts |
 
-## 通用约定
+## Common conventions
 
-- 主键:应用侧生成(如 ULID/雪花),避免自增 ID 外泄规模。
-- 金额:`long`,最小货币单位(分);币种字段随行。
-- 软删除:删除时间戳;查询默认过滤。
-- 时间:UTC 存储,展示层转时区。
-- 外部资产引用(Steam assetId 等)保存原始值 + 来源游标,便于对账。
+- Primary keys: generated on the application side (e.g. ULID / snowflake), to avoid leaking scale through auto-increment IDs.
+- Money: `long` in minor currency units (cents); the currency field travels with the row.
+- Soft delete: a deleted-at timestamp; queries filter it by default.
+- Time: stored in UTC, converted to the local zone at display time.
+- External asset references (Steam assetId and so on) keep the raw value plus the source cursor, for easier reconciliation.

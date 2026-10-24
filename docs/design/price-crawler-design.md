@@ -1,96 +1,96 @@
-# 价格爬虫模块设计
+# Price Crawler Module Design
 
 
-> 状态：已实现（2026-10-13，提交 0b08b2c）。本文为设计输入，实现期记录见 §11。
-> 关联文档：`docs/design/overview.md`、`docs/design/data-model.md`。
+> Status: implemented (2026-10-13, commit 0b08b2c). This page is the design input; the implementation record is in §11.
+> Related docs: `docs/design/overview.md`, `docs/design/data-model.md`.
 
-## 1. 目标与非目标
+## 1. Goals and non-goals
 
-### 目标
+### Goals
 
-- 监控第三方网站上 CS2 / Dota2 相关商品的价格，形成可持续积累的外部价格序列。
-- 输出趋势指标（日环比、周同比、区间涨跌），供前端展示与后台分析。
-- 与站内行情（vapor → `MarketPriceSnapshot` / `MarketPriceDaily`）做对照，产出爬取价与站内价的价差报告。
-- 模块独立：`Doggo.PriceCrawler` 为独立 classlib，可独立打包（NuGet），doggo 内以项目引用接入；站点适配器、调度、清洗、落库、频控、合规全部在模块内，不污染既有项目。
+- Monitor prices of CS2 / Dota2 items on third-party sites, building an external price series that accumulates over time.
+- Produce trend indicators (day-over-day, week-over-week, range change) for front-end display and back-office analysis.
+- Compare against the in-site market (vapor → `MarketPriceSnapshot` / `MarketPriceDaily`) and produce a spread report between crawled prices and in-site prices.
+- Module independence: `Doggo.PriceCrawler` is a standalone classlib, independently packageable (NuGet), wired into doggo via a project reference; site adapters, scheduling, cleaning, persistence, rate control and compliance all live inside the module, polluting no existing project.
 
-### 非目标
+### Non-goals
 
-- 不抓取 Steam 官方社区市场行情。Steam 侧行情由 vapor 推送、`MarketPriceSnapshot` 承接，本模块只抓"其他网站"。
-- 不做自动比价调价，不回写、不覆盖 `MarketPriceSnapshot` / `MarketPriceDaily`；爬取数据只读对照。
-- 不做交易、下单、挂单、库存同步。
-- 不重写 `Doggo.Scraper`，不改资讯管道；只复用其骨架（见 2.3）。
-- 不做通用爬虫框架；站点适配器按站点逐个实现。
-- 不替代既有趋势链路（`MarketPriceDaily` OHLC），趋势指标只基于外部爬取序列计算。
+- No scraping of the Steam official community market. Steam-side market data is pushed by vapor and lands in `MarketPriceSnapshot`; this module only scrapes "other sites".
+- No automated price comparison or repricing, no write-back or overwriting of `MarketPriceSnapshot` / `MarketPriceDaily`; crawled data is read-only for comparison.
+- No trading, ordering, listing or inventory syncing.
+- No rewrite of `Doggo.Scraper`, no changes to the news pipeline; only its skeleton is reused (see 2.3).
+- No general-purpose crawler framework; site adapters are implemented per site.
+- No replacement of the existing trend pipeline (`MarketPriceDaily` OHLC); trend indicators are computed from the external crawled series only.
 
-## 2. 模块边界与形态
+## 2. Module boundary and shape
 
-### 2.1 形态
+### 2.1 Shape
 
-| 项 | 决策 |
+| Item | Decision |
 | --- | --- |
-| 项目 | 新建 `server/src/Doggo.PriceCrawler/`，.NET classlib（`Microsoft.NET.Sdk`） |
-| 模块内容 | 适配器接口与实现、调度器、robots 检查、清洗管道、换算与聚合查询、admin endpoint 扩展方法、`PriceCrawlerOptions` |
-| 依赖方向 | `Doggo.PriceCrawler` → `Doggo.Domain`（+ AngleSharp，HTML 解析用）；不直接依赖 `Doggo.Infrastructure` |
-| 落库方式 | 模块内定义仓储接口（映射/序列/查询），由 `Doggo.Infrastructure` 实现并注册（与 `MarketStore` 同层） |
-| 实体位置 | `Doggo.Domain/Price/`（与 `Market` 平级），配置与迁移在 `Doggo.Infrastructure` |
+| Project | new `server/src/Doggo.PriceCrawler/`, .NET classlib (`Microsoft.NET.Sdk`) |
+| Module contents | adapter interfaces and implementations, scheduler, robots checks, cleaning pipeline, conversion and aggregation queries, admin endpoint extension methods, `PriceCrawlerOptions` |
+| Dependency direction | `Doggo.PriceCrawler` → `Doggo.Domain` (+ AngleSharp for HTML parsing); no direct dependency on `Doggo.Infrastructure` |
+| Persistence | repository interfaces defined in the module (mapping/series/queries), implemented and registered by `Doggo.Infrastructure` (same layer as `MarketStore`) |
+| Entity location | `Doggo.Domain/Price/` (a sibling of `Market`), configuration and migrations in `Doggo.Infrastructure` |
 
-理由：打包边界干净，将来独立成项目时不背 EF/MySql 依赖；在 doggo 内只是多一行注册。
+Rationale: a clean packaging boundary — if it becomes an independent project later it carries no EF/MySql dependency; inside doggo it is one extra line of registration.
 
-### 2.2 宿主接入建议
+### 2.2 Host wiring recommendation
 
-建议：一期并入 `Doggo.Scraper` 进程。
+Recommendation: merge into the `Doggo.Scraper` process for phase 1.
 
-| 方案 | 做法 | 优点 | 代价 |
+| Option | Approach | Pros | Cost |
 | --- | --- | --- | --- |
-| A 并入 Scraper | `Doggo.Scraper` 引用 `Doggo.PriceCrawler`，`Program.cs` 多注册一个 HostedService + 配置节 + HttpClient | 复用 Hosting 骨架/配置/DB 注入/日志；零新增部署单元；`Dockerfile.worker` 已按 PROJECT 参数化，不改 | 同进程共享 CPU/带宽/内存 |
-| B 独立 Worker | 新建 `Doggo.PriceCrawler.Worker`，`Dockerfile.worker` 加第三个 PROJECT | 进程隔离、独立扩缩容、故障不互相传导 | 多一份部署、配置、监控；一期站点少，性价比低 |
+| A merge into Scraper | `Doggo.Scraper` references `Doggo.PriceCrawler`; `Program.cs` registers one more HostedService + config section + HttpClient | reuses the Hosting skeleton/config/DB injection/logging; zero new deployment units; `Dockerfile.worker` is already parameterised by PROJECT, untouched | shares CPU/bandwidth/memory in the same process |
+| B standalone Worker | new `Doggo.PriceCrawler.Worker`, a third PROJECT in `Dockerfile.worker` | process isolation, independent scaling, faults do not propagate | one more deployment, config and monitoring surface; few sites in phase 1, poor value |
 
-推荐 A：一期站点数量少、抓取频率低，独立进程的运维成本大于隔离收益；资讯与价格互不依赖（各自 BackgroundService、各自 scope、独立 HttpClient 与限流），同进程风险可控。
+A recommended: few sites and low fetch frequency in phase 1 — the ops cost of a separate process outweighs the isolation benefit; news and prices are mutually independent (each with its own BackgroundService, scope, HttpClient and rate limiting), so co-hosting the risk is manageable.
 
-拆离路径：`Doggo.PriceCrawler` 不依赖 `Doggo.Scraper` 任何类型，接口与实体独立；将来拆独立 Worker 只需新建一个入口项目（拷贝 `Program.cs` 模式）+ `Dockerfile.worker` 增加一个 PROJECT，模块代码不动。
+Split-off path: `Doggo.PriceCrawler` depends on no `Doggo.Scraper` type, with independent interfaces and entities; to split into a standalone Worker later, only a new entry project (copying the `Program.cs` pattern) + one more PROJECT in `Dockerfile.worker` is needed — the module code does not move.
 
-### 2.3 复用清单（Doggo.Scraper）
+### 2.3 Reuse list (Doggo.Scraper)
 
-| 复用对象 | 来源 | 复用方式 |
+| Reused item | Source | How reused |
 | --- | --- | --- |
-| Worker 骨架 | `ScraperWorker.cs` | 同模式新建 `PriceCrawlerWorker`（BackgroundService + 每轮 scope） |
-| 配置绑定 | `ScraperOptions` + `Program.cs` | 同模式新建 `PriceCrawlerOptions`，`Bind("PriceCrawler")` |
-| 抓取抽象 | `IPageFetcher` / `HttpPageFetcher` | 直接注入复用；超时/重试逻辑已在其中 |
-| Playwright 抓取 | `PlaywrightPageFetcher` | 待拍板（见 10.4）；启用则注册到 crawler |
-| 适配器注册表 | `SourceAdapterRegistry` | 同模式新建 `SiteAdapterRegistry`（`IEnumerable` 注入 + 字典查找） |
-| 熔断/失败计数思路 | `ScraperScheduler` | 同思路在新调度器实现；失败计数存自己的表 |
-| 指纹去重思路 | `NewsFingerprint` | 模式参考；价格去重新建（窗口语义不同） |
-| EF/审计约定 | `DoggoDbContext` | 新实体沿用 Guid v7 + `CreatedAtUtc`/`UpdatedAtUtc` + varchar(255) |
-| Dockerfile.worker | PROJECT 参数 | 一期不改；拆离时加 PROJECT |
+| Worker skeleton | `ScraperWorker.cs` | new `PriceCrawlerWorker` in the same pattern (BackgroundService + per-round scope) |
+| Config binding | `ScraperOptions` + `Program.cs` | new `PriceCrawlerOptions` in the same pattern, `Bind("PriceCrawler")` |
+| Fetch abstraction | `IPageFetcher` / `HttpPageFetcher` | injected and reused directly; timeout/retry logic is already in there |
+| Playwright fetching | `PlaywrightPageFetcher` | pending a decision (see 10.4); if enabled, registered to the crawler |
+| Adapter registry | `SourceAdapterRegistry` | new `SiteAdapterRegistry` in the same pattern (`IEnumerable` injection + dictionary lookup) |
+| Circuit-breaker / failure-count approach | `ScraperScheduler` | same approach reimplemented in the new scheduler; failure counts stored in its own table |
+| Fingerprint dedup approach | `NewsFingerprint` | pattern reference; price dedup is new (different window semantics) |
+| EF / audit conventions | `DoggoDbContext` | new entities follow Guid v7 + `CreatedAtUtc`/`UpdatedAtUtc` + varchar(255) |
+| Dockerfile.worker | PROJECT parameter | unchanged in phase 1; add a PROJECT when splitting off |
 
-不直接复用：`HtmlSanitizer`（资讯正文清洗，价格场景不需要）；`AngleSharp` 的用法模式可参考 `HtmlSourceAdapter`（CSS selector + ConfigJson），但价格解析按站点定制。
+Not reused directly: `HtmlSanitizer` (news body cleaning, not needed for prices); the AngleSharp usage pattern of `HtmlSourceAdapter` (CSS selector + ConfigJson) is a reference, but price parsing is per-site custom.
 
-### 2.4 新建清单（Doggo.PriceCrawler）
+### 2.4 New-build list (Doggo.PriceCrawler)
 
-| 组件 | 职责 |
+| Component | Responsibility |
 | --- | --- |
-| `ISiteAdapter` + 站点适配器 | 每站点一个实现：发现条目、抓取价格、唯一键、币种、限速建议 |
-| `PriceCrawlerWorker` / Scheduler | 每站点独立循环、错峰、全局并发闸、失败退避、熔断 |
-| `RobotsChecker` + 缓存 | robots.txt 抓取/解析/缓存/Disallow 判定/Crawl-delay |
-| `PriceFingerprint` | 页面指纹与去重键（URL 归一化 + 窗口键，参考 `NewsFingerprint` 模式） |
-| 清洗管道 | 解析校验、币种归一、窗口去重、异常值标记、换算落库 |
-| `ExchangeRateReader` | 只读 `ExchangeRate`，换算 CNY（见 4.6） |
-| `PriceCrawlerQueries` | 序列查询、价差报告、趋势计算（查询时算） |
-| `PriceCrawlerAdminEndpoints` | admin 查询/确认接口（endpoint 扩展方法） |
-| `PriceCrawlerOptions` + 配置节 | 见第 9 章 |
+| `ISiteAdapter` + site adapters | one implementation per site: discover items, fetch prices, unique key, currency, rate-limit hints |
+| `PriceCrawlerWorker` / Scheduler | an independent loop per site, staggered starts, a global concurrency gate, failure backoff, circuit breaker |
+| `RobotsChecker` + cache | robots.txt fetch/parse/cache/Disallow check/Crawl-delay |
+| `PriceFingerprint` | page fingerprint and dedup key (URL normalisation + window key, following the `NewsFingerprint` pattern) |
+| Cleaning pipeline | parse validation, currency normalisation, window dedup, outlier flagging, conversion and persistence |
+| `ExchangeRateReader` | reads `ExchangeRate` only, converts to CNY (see 4.6) |
+| `PriceCrawlerQueries` | series queries, spread report, trend computation (computed at query time) |
+| `PriceCrawlerAdminEndpoints` | admin query/review endpoints (endpoint extension methods) |
+| `PriceCrawlerOptions` + config section | see chapter 9 |
 
-### 2.5 与既有链路的边界
+### 2.5 Boundary against existing pipelines
 
-| 链路 | 边界 |
+| Pipeline | Boundary |
 | --- | --- |
-| vapor → `MarketPriceSnapshot` | 不动；Steam 官方行情唯一来源 |
-| `MarketPriceDaily` | 只读，作为价差对照的站内基准 |
-| `Doggo.Scraper` 资讯 | 互不依赖；同进程但各自 HostedService/scope/HttpClient |
-| `Doggo.Api` | 只加 admin 查询注册；不改既有接口 |
+| vapor → `MarketPriceSnapshot` | untouched; the sole source of Steam official market data |
+| `MarketPriceDaily` | read-only, as the in-site baseline for spread comparison |
+| `Doggo.Scraper` news | mutually independent; same process but separate HostedService/scope/HttpClient each |
+| `Doggo.Api` | only adds admin query registration; no existing endpoint changes |
 
-## 3. 站点适配器模型
+## 3. Site adapter model
 
-### 3.1 接口草图
+### 3.1 Interface sketch
 
 ```csharp
 namespace Doggo.PriceCrawler;
@@ -117,21 +117,21 @@ public sealed record ExternalItemRef(string ExternalId, string Title, string Det
 public sealed record ExternalPriceFetch(string ExternalId, long PriceCents, string CurrencyCode, DateTimeOffset ObservedAtUtc);
 ```
 
-约定：
+Conventions:
 
-- `ExternalId` 是站点商品在适配器内的唯一标识（URL slug / 商品 id 等），同一站点内稳定；跨站点不可比。
-- `PriceCents` 为站点币种的最小单位分；币种由 `CurrencyCode` 声明，适配器不得隐式换算。
-- `ObservedAtUtc` 是适配器观察到该价格的 UTC 时间（页面标注时间优先，否则抓取时间）。
-- 抓取失败/条目缺失：适配器返回空集或跳过该条目，不抛异常（网络异常除外）；调度器按结果记 HTTP 状态。
+- `ExternalId` is the site-side item's unique key inside the adapter (URL slug / item id etc.), stable within a site; not comparable across sites.
+- `PriceCents` is the minor unit of the site's currency; the currency is declared by `CurrencyCode` and the adapter must not convert implicitly.
+- `ObservedAtUtc` is the UTC time the adapter observed the price (the time labelled on the page if present, otherwise the fetch time).
+- Fetch failures / missing items: the adapter returns an empty set or skips the item without throwing (network exceptions excepted); the scheduler records the HTTP status per result.
 
-### 3.2 适配器注册与发现
+### 3.2 Adapter registration and discovery
 
-- 注册：`builder.Services.AddSingleton<ISiteAdapter, XxxSiteAdapter>()`（每站点一个），调度器注入 `IEnumerable<ISiteAdapter>` 构建 `SiteAdapterRegistry`（仿 `SourceAdapterRegistry`）。
-- 站点清单来自配置 `PriceCrawler:Sites`（Key/Enabled/IntervalMinutes/MaxItemsPerRun 等）；未配置或未启用的站点即使适配器已注册也不调度。
-- 适配器实现内部：HTML 站用 AngleSharp 解析（参考 `HtmlSourceAdapter` 的 CSS selector + ConfigJson 模式）；JSON API 站直接反序列化；渲染型站点经 `IPageFetcher`（Playwright，待拍板）。
-- 适配器版本号（SemVer）随 `AdapterVersion` 字段落库，便于回溯解析逻辑变更。
+- Registration: `builder.Services.AddSingleton<ISiteAdapter, XxxSiteAdapter>()` (one per site); the scheduler injects `IEnumerable<ISiteAdapter>` and builds the `SiteAdapterRegistry` (mirroring `SourceAdapterRegistry`).
+- The site list comes from config `PriceCrawler:Sites` (Key/Enabled/IntervalMinutes/MaxItemsPerRun etc.); sites not configured or not enabled are not scheduled even if the adapter is registered.
+- Inside adapter implementations: HTML sites parse with AngleSharp (following the `HtmlSourceAdapter` CSS selector + ConfigJson pattern); JSON API sites deserialize directly; render-heavy sites go through `IPageFetcher` (Playwright, pending a decision).
+- The adapter version (SemVer) is persisted in the `AdapterVersion` field, for tracing parsing-logic changes.
 
-### 3.3 发现与抓取流程
+### 3.3 Discovery and fetch flow
 
 ```
 发现（低频，默认每日一次，可配置）：
@@ -141,181 +141,191 @@ public sealed record ExternalPriceFetch(string ExternalId, long PriceCents, stri
   取该站点 Unconfirmed + Confirmed 映射（限 MaxItemsPerRun）→ FetchPricesAsync → 原始记录 → 清洗管道 → 序列
 ```
 
-## 4. 数据模型
+In English:
 
-### 4.1 实体总览
+```
+Discovery (low frequency, default once per day, configurable):
+  in-site MarketItem (optionally filtered by game/whitelist) → call DiscoverAsync → new ExternalIds written to PriceCrawlItemMap (Unconfirmed)
 
-| 实体 | 用途 |
+Fetch (per-site interval, default 3600s):
+  take the site's Unconfirmed + Confirmed mappings (capped at MaxItemsPerRun) → FetchPricesAsync → raw records → cleaning pipeline → series
+```
+
+## 4. Data model
+
+### 4.1 Entity overview
+
+| Entity | Purpose |
 | --- | --- |
-| `PriceCrawlItemMap` | 外部条目 ↔ 站内 MarketItemId 映射，含人工确认状态 |
-| `PriceCrawlRaw` | 原始抓取记录（原始价、币种、HTTP 状态、页面指纹） |
-| `PriceCrawlSeries` | 清洗后价格序列（原始价 + CNY 换算价，窗口去重，异常标记） |
-| `PriceCrawlTrend`（可选） | 日级趋势指标物化表（默认不启用，见 4.5） |
+| `PriceCrawlItemMap` | external item ↔ in-site MarketItemId mapping, with manual confirmation status |
+| `PriceCrawlRaw` | raw fetch record (raw price, currency, HTTP status, page fingerprint) |
+| `PriceCrawlSeries` | cleaned price series (raw price + CNY conversion, window dedup, outlier flags) |
+| `PriceCrawlTrend` (optional) | daily trend indicator materialisation table (off by default, see 4.5) |
 
-通用约定（沿用 `DoggoDbContext`）：主键 Guid v7 应用侧生成；`CreatedAtUtc`/`UpdatedAtUtc` 由 `SaveChanges` 自动覆盖；string 默认 varchar(255)；时间 UTC。实体放 `Doggo.Domain/Price/`，配置与迁移在 `Doggo.Infrastructure`（`ApplyConfigurationsFromAssembly` 自动应用 `IEntityTypeConfiguration`）。
+Common conventions (following `DoggoDbContext`): primary keys are Guid v7 generated on the application side; `CreatedAtUtc`/`UpdatedAtUtc` are auto-overwritten by `SaveChanges`; strings default to varchar(255); times are UTC. Entities live in `Doggo.Domain/Price/`, configuration and migrations in `Doggo.Infrastructure` (`ApplyConfigurationsFromAssembly` applies `IEntityTypeConfiguration` automatically).
 
-### 4.2 PriceCrawlItemMap（外部商品映射）
+### 4.2 PriceCrawlItemMap (external item mapping)
 
-| 字段 | 类型 | 含义 | 索引/约束 |
+| Field | Type | Meaning | Index / constraint |
 | --- | --- | --- | --- |
 | Id | Guid | PK | PK |
-| SiteKey | string(32) | 站点标识 | UQ(SiteKey, ExternalId) |
-| ExternalId | string(255) | 站点商品唯一标识 | UQ(SiteKey, ExternalId) |
-| ExternalTitle | string(255) | 站点商品名（冗余快照） | |
-| ExternalUrl | string(2048) | 详情页 | |
-| MarketItemId | Guid? | 站内商品；未确认 null | IX(MarketItemId) |
+| SiteKey | string(32) | site key | UQ(SiteKey, ExternalId) |
+| ExternalId | string(255) | site-side item unique key | UQ(SiteKey, ExternalId) |
+| ExternalTitle | string(255) | site-side item name (redundant snapshot) | |
+| ExternalUrl | string(2048) | detail page | |
+| MarketItemId | Guid? | in-site item; null when unconfirmed | IX(MarketItemId) |
 | MapStatus | int | 0 Unconfirmed / 1 Confirmed / 2 Rejected | IX(MapStatus) |
-| MatchSource | int | 0 Auto（发现）/ 1 Manual（人工绑定） | |
-| CreatedAtUtc / UpdatedAtUtc | DateTime | 审计自动 | |
+| MatchSource | int | 0 Auto (discovery) / 1 Manual (human binding) | |
+| CreatedAtUtc / UpdatedAtUtc | DateTime | automatic audit | |
 
-说明：唯一约束 (SiteKey, ExternalId) 防止同一站点同商品重复建映射；MarketItemId 可空，确认后回填。
+Note: the unique constraint (SiteKey, ExternalId) prevents duplicate mappings of the same item on the same site; MarketItemId is nullable and backfilled on confirmation.
 
-### 4.3 PriceCrawlRaw（原始抓取记录）
+### 4.3 PriceCrawlRaw (raw fetch record)
 
-| 字段 | 类型 | 含义 | 索引/约束 |
+| Field | Type | Meaning | Index / constraint |
 | --- | --- | --- | --- |
 | Id | Guid | PK | PK |
-| SiteKey | string(32) | 站点标识 | IX(SiteKey, ExternalId, ObservedAtUtc) |
-| ExternalId | string(255) | 条目标识 | 同上 |
-| PriceCents | long? | 解析后的原始价（站点币种，分）；解析失败 null | |
-| CurrencyCode | string(8) | ISO 币种 | |
-| RawPriceText | string(64) | 页面原始价文本（含符号，便于回溯） | |
-| PageFingerprint | string(64) | 归一化页面 SHA-256（`PriceFingerprint`） | |
-| HttpStatusCode | int | 最近一次请求状态码 | |
-| ObservedAtUtc | DateTime | 观察时间 | 同上 |
-| FetchedAtUtc | DateTime | 抓取完成时间（排重用） | |
-| AdapterVersion | string(32) | 适配器版本 | |
+| SiteKey | string(32) | site key | IX(SiteKey, ExternalId, ObservedAtUtc) |
+| ExternalId | string(255) | item key | same |
+| PriceCents | long? | parsed raw price (site currency, cents); null on parse failure | |
+| CurrencyCode | string(8) | ISO currency | |
+| RawPriceText | string(64) | raw price text from the page (with symbols, for traceability) | |
+| PageFingerprint | string(64) | normalised page SHA-256 (`PriceFingerprint`) | |
+| HttpStatusCode | int | status code of the latest request | |
+| ObservedAtUtc | DateTime | observation time | same |
+| FetchedAtUtc | DateTime | fetch completion time (for dedup) | |
+| AdapterVersion | string(32) | adapter version | |
 
-说明：原始记录只增不改，用于回溯与对账；保留期见待拍板 10.8。
+Note: raw records are append-only, for tracing and reconciliation; retention is pending decision 10.8.
 
-### 4.4 PriceCrawlSeries（清洗后价格序列）
+### 4.4 PriceCrawlSeries (cleaned price series)
 
-| 字段 | 类型 | 含义 | 索引/约束 |
+| Field | Type | Meaning | Index / constraint |
 | --- | --- | --- | --- |
 | Id | Guid | PK | PK |
-| MapId | Guid | 关联映射 | IX(MapId) |
-| MarketItemId | Guid | 站内商品（仅 Confirmed 映射落序列） | IX(MarketItemId, ObservedAtUtc) |
-| SiteKey | string(32) | 站点标识 | UQ(SiteKey, ExternalId, WindowKey) |
-| ExternalId | string(255) | 条目标识 | 同上 |
-| PriceCents | long | 清洗后原始价（站点币种，分） | |
-| CurrencyCode | string(8) | ISO 币种 | |
-| ConvertedCents | long? | 换算 CNY 价；汇率缺失 null | |
-| ExchangeRate | decimal? | 所用汇率（原值留存） | |
-| ObservedAtUtc | DateTime | 观察时间（窗口对齐） | |
-| WindowKey | string(32) | 去重窗口键（yyyyMMddHHmm，按 DedupWindowMinutes 对齐） | UQ(SiteKey, ExternalId, WindowKey) |
-| IsSuspect | bool | 异常值标记（偏离滚动中位数） | |
-| CreatedAtUtc | DateTime | 审计自动 | |
+| MapId | Guid | linked mapping | IX(MapId) |
+| MarketItemId | Guid | in-site item (only Confirmed mappings land in the series) | IX(MarketItemId, ObservedAtUtc) |
+| SiteKey | string(32) | site key | UQ(SiteKey, ExternalId, WindowKey) |
+| ExternalId | string(255) | item key | same |
+| PriceCents | long | cleaned raw price (site currency, cents) | |
+| CurrencyCode | string(8) | ISO currency | |
+| ConvertedCents | long? | converted CNY price; null when the rate is missing | |
+| ExchangeRate | decimal? | the rate used (original value retained) | |
+| ObservedAtUtc | DateTime | observation time (window-aligned) | |
+| WindowKey | string(32) | dedup window key (yyyyMMddHHmm, aligned by DedupWindowMinutes) | UQ(SiteKey, ExternalId, WindowKey) |
+| IsSuspect | bool | outlier flag (deviation from the rolling median) | |
+| CreatedAtUtc | DateTime | automatic audit | |
 
-去重口径：UQ(SiteKey, ExternalId, WindowKey) 保证同一条目同一窗口只有一条，"取最后值"由清洗管道保证（见第 6 章）。
+Dedup rule: UQ(SiteKey, ExternalId, WindowKey) guarantees at most one row per item per window; "take the last value" is guaranteed by the cleaning pipeline (see chapter 6).
 
-### 4.5 PriceCrawlTrend（趋势指标，可选物化）
+### 4.5 PriceCrawlTrend (trend indicators, optional materialisation)
 
-| 字段 | 类型 | 含义 | 索引/约束 |
+| Field | Type | Meaning | Index / constraint |
 | --- | --- | --- | --- |
 | Id | Guid | PK | PK |
-| MarketItemId | Guid | 站内商品 | UQ(MarketItemId, SiteKey, Date) |
-| SiteKey | string(32) | 站点 | 同上 |
-| Date | DateOnly | UTC 日 | 同上 |
-| CloseCents | long | 当日最后清洗价（CNY 换算后；无汇率则原币） | |
-| DayOverDayPct | decimal? | 日环比 | |
-| WeekOverWeekPct | decimal? | 周同比 | |
-| PeriodChangePct | decimal? | 区间涨跌（近 7/30 日，查询参数决定） | |
-| ComputedAtUtc | DateTime | 计算时间 | |
+| MarketItemId | Guid | in-site item | UQ(MarketItemId, SiteKey, Date) |
+| SiteKey | string(32) | site | same |
+| Date | DateOnly | UTC day | same |
+| CloseCents | long | the day's last cleaned price (CNY-converted; original currency when no rate) | |
+| DayOverDayPct | decimal? | day-over-day | |
+| WeekOverWeekPct | decimal? | week-over-week | |
+| PeriodChangePct | decimal? | range change (last 7/30 days, decided by a query parameter) | |
+| ComputedAtUtc | DateTime | computation time | |
 
-物化 vs 查询时算：默认**查询时算**（数据量小、口径可随时调整、无额外写入）。当序列规模增长（站点 × 条目 × 日频）或 admin 高频查询时，启用此表做日级缓存，每日收盘后批量刷新。是否物化见待拍板 10.3。
+Materialise vs compute-at-query-time: the default is **compute at query time** (small data volume, definitions adjustable at any time, no extra writes). When the series grows (sites × items × daily frequency) or admin queries become hot, enable this table as a daily cache refreshed in batch after each daily close. Whether to materialise is pending decision 10.3.
 
-### 4.6 与 ExchangeRates 的关系
+### 4.6 Relationship with ExchangeRates
 
-- `ExchangeRate`（CurrencyCode, Rate, Source）为既有实体，语义"多币种汇率（展示用）"。本模块**只读**，不写入、不刷新（刷新链路若有则另行设计）。
-- 换算方向约定：1 单位 CurrencyCode = Rate CNY（待拍板 10.6 确认；若既有数据方向相反则改乘为除）。
-- ConvertedCents = round(PriceCents × Rate)；汇率缺该币种 → ConvertedCents = null、ExchangeRate = null，序列保留原币值，不阻断。
-- 汇率快照留存：`ExchangeRate` 字段记录所用原值，便于历史回溯（当前汇率可能变化）。
+- `ExchangeRate` (CurrencyCode, Rate, Source) is an existing entity, meaning "multi-currency rates (for display)". This module is **read-only** on it — no writes, no refreshes (a refresh pipeline, if any, is a separate design).
+- Conversion direction convention: 1 unit of CurrencyCode = Rate CNY (to be confirmed in pending decision 10.6; if the existing data runs the other way, flip multiply to divide).
+- ConvertedCents = round(PriceCents × Rate); if the rate lacks the currency → ConvertedCents = null, ExchangeRate = null, the series keeps the original currency value, nothing blocks.
+- Rate snapshot retention: the `ExchangeRate` field records the original value used, for historical traceability (the current rate may change).
 
-### 4.7 注册与迁移
+### 4.7 Registration and migrations
 
-- 实体注册：`DoggoDbContext` 增加 `DbSet<PriceCrawlItemMap> PriceCrawlItemMaps` 等四行（与其他域一致）。
-- 配置：`IEntityTypeConfiguration` 放 `Doggo.Infrastructure/Persistence/`（`ApplyConfigurationsFromAssembly` 自动应用）；唯一索引与索引在配置中声明。
-- 迁移：在 `Doggo.Infrastructure` 的 Migrations 目录追加（沿用既有迁移流程）。
+- Entity registration: `DoggoDbContext` adds four lines like `DbSet<PriceCrawlItemMap> PriceCrawlItemMaps` (consistent with other domains).
+- Configuration: `IEntityTypeConfiguration` files go in `Doggo.Infrastructure/Persistence/` (applied automatically by `ApplyConfigurationsFromAssembly`); unique indexes and indexes are declared in configuration.
+- Migrations: appended in the Migrations directory of `Doggo.Infrastructure` (following the existing migration process).
 
-## 5. 调度与频控
+## 5. Scheduling and rate control
 
-### 5.1 调度模型
+### 5.1 Scheduling model
 
-| 项 | 设计 |
+| Item | Design |
 | --- | --- |
-| 模型 | 每站点一个独立异步循环（站点队列），站点内串行，站点间受全局并发闸限制 |
-| 站点间隔 | 每站点独立 IntervalMinutes（默认 60），配置项 |
-| 全局并发 | SemaphoreSlim 跨站点共享，默认 8（配置项） |
-| 错峰 | 首次唤醒延迟 = 站点索引 × 分散秒数 + 随机抖动，避免整点并发 |
-| 发现节奏 | 每站点每日一次（默认 04:00 UTC 前后，可配置），与抓取循环解耦 |
-| 站点级熔断 | 连续失败 ≥ 阈值 → 冷却期内跳过（见 5.2） |
-| 优雅退出 | CancellationToken 贯通；每轮 scope 独立，异常不扩散到其他站点 |
+| Model | one independent async loop per site (a per-site queue), serial within a site, sites throttled by a global concurrency gate |
+| Site interval | an independent IntervalMinutes per site (default 60), a config item |
+| Global concurrency | a SemaphoreSlim shared across sites, default 8 (config item) |
+| Staggering | first wake-up delay = site index × spread seconds + random jitter, avoiding on-the-hour concurrency |
+| Discovery cadence | once per day per site (default around 04:00 UTC, configurable), decoupled from the fetch loop |
+| Per-site circuit breaker | consecutive failures ≥ threshold → skipped during the cooldown (see 5.2) |
+| Graceful exit | CancellationToken throughout; each round has its own scope, exceptions do not spread to other sites |
 
-### 5.2 失败退避（指数 + 抖动）
+### 5.2 Failure backoff (exponential + jitter)
 
-| 参数 | 默认 | 说明 |
+| Parameter | Default | Notes |
 | --- | --- | --- |
-| MaxAttempts | 3 | 单次任务最大尝试次数 |
-| BaseDelaySeconds | 5 | 退避基数 |
-| Factor | 2 | 指数因子：第 n 次失败后延迟 = Base × 2^n |
-| CapSeconds | 1800 | 最大退避 30 分钟 |
-| JitterRatio | 0.25 | 抖动比例：最终延迟 = min(Cap, Base × 2^n) × (1 + rand × 0.25) |
-| CircuitFailureThreshold | 10 | 连续失败熔断阈值 |
-| CircuitCooldownMinutes | 60 | 熔断冷却时间 |
-| 成功清零 | — | 任一次成功 → 连续失败计数清零 |
+| MaxAttempts | 3 | max attempts per task |
+| BaseDelaySeconds | 5 | backoff base |
+| Factor | 2 | exponential factor: delay after the nth failure = Base × 2^n |
+| CapSeconds | 1800 | max backoff 30 minutes |
+| JitterRatio | 0.25 | jitter ratio: final delay = min(Cap, Base × 2^n) × (1 + rand × 0.25) |
+| CircuitFailureThreshold | 10 | consecutive-failure breaker threshold |
+| CircuitCooldownMinutes | 60 | breaker cooldown |
+| Reset on success | — | any success → consecutive-failure counter resets to zero |
 
-说明：退避在站点级生效（站点休眠），不影响其他站点；退避与 5.1 的间隔叠加（取较大者）。
+Note: backoff applies at site level (the site sleeps) and does not affect other sites; backoff stacks with the interval in 5.1 (the larger wins).
 
-### 5.3 robots.txt 检查
+### 5.3 robots.txt checks
 
-流程：
+Flow:
 
-1. 首次访问某 host：GET /robots.txt，解析 Disallow / Crawl-delay / Sitemap。
-2. 缓存：IMemoryCache（或 Redis）按 host 缓存，TTL 默认 24h（配置项 `Robots:CacheHours`）。
-3. 抓取前逐 URL 判定：路径前缀命中 Disallow → 跳过并计数（不请求）。
-4. Crawl-delay 声明值 > 站点配置间隔 → 取较大值。
-5. robots.txt 获取失败：默认 fail-open（视为无限制）+ 日志；可配置 fail-close。
-6. 逐站点启用开关（`PriceCrawler:Sites:RobotsEnabled`），默认开；站点启用前需人工确认合规（待拍板 10.9）。
+1. First visit to a host: GET /robots.txt, parse Disallow / Crawl-delay / Sitemap.
+2. Cache: IMemoryCache (or Redis) keyed by host, TTL default 24h (config item `Robots:CacheHours`).
+3. Before fetching, check each URL: a Disallow path-prefix hit → skip and count (no request made).
+4. A declared Crawl-delay greater than the site's configured interval → the larger wins.
+5. robots.txt fetch failure: fail-open by default (treated as unrestricted) + logging; configurable to fail-close.
+6. A per-site toggle (`PriceCrawler:Sites:RobotsEnabled`), on by default; before enabling a site, compliance must be confirmed manually (pending decision 10.9).
 
-### 5.4 UA 声明与抓取时段
+### 5.4 UA declaration and fetch windows
 
-- UA：`DoggoPriceBot/1.0 (+https://<站点域名>/price-crawler; contact: <管理邮箱>)`，可配置；不伪装成浏览器。
-- 时段窗口：默认不限制；可选 NightWindowUtc（如 02:00–06:00）暂停抓取，避开目标站点高峰。窗口内站点循环休眠。
+- UA: `DoggoPriceBot/1.0 (+https://<site-domain>/price-crawler; contact: <admin email>)`, configurable; never disguised as a browser.
+- Time window: unrestricted by default; an optional NightWindowUtc (e.g. 02:00–06:00) pauses fetching, avoiding the target site's peak. Within the window the site's loop sleeps.
 
-## 6. 清洗去重口径
+## 6. Cleaning and dedup rules
 
-| 步骤 | 规则 |
+| Step | Rule |
 | --- | --- |
-| 解析校验 | PriceCents 必须 > 0 且 ≤ 上限（默认 10,000,000,000 分，配置项）；否则视为解析失败，不进入序列，计入原始记录的 HTTP 状态/错误 |
-| 币种归一 | 站点声明币种 → ISO 4217 大写三字母；未知/缺失 → 默认丢弃并计数（待拍板 10.6 可改保留原值） |
-| 窗口去重 | 同 (SiteKey, ExternalId) 按 DedupWindowMinutes（默认 60）对齐 WindowKey，窗口内取最后一条（FetchedAtUtc 最大） |
-| 异常值 | 滚动中位数（过去 N=20 个清洗点）偏离 ±SuspectThresholdPct（默认 50%）→ IsSuspect=true，保留不丢弃；价差报告默认排除，查询可含 |
-| 换算 | ConvertedCents = round(PriceCents × Rate)（汇率存在时）；缺失 → null |
-| 跨站点 | 不合并：不同站点是不同行，对照按站点维度分别进行 |
-| 映射门控 | 仅 MapStatus=Confirmed 的映射进入序列（MarketItemId）；Unconfirmed 只落原始记录与映射，供人工确认时参考历史 |
+| Parse validation | PriceCents must be > 0 and ≤ the cap (default 10,000,000,000 cents, a config item); otherwise treated as a parse failure — not entering the series, counted in the raw record's HTTP status/errors |
+| Currency normalisation | the site-declared currency → ISO 4217 uppercase three letters; unknown/missing → dropped and counted by default (pending decision 10.6 may change this to keep the original value) |
+| Window dedup | for the same (SiteKey, ExternalId), align the WindowKey by DedupWindowMinutes (default 60); within a window keep the last row (max FetchedAtUtc) |
+| Outliers | deviation beyond ±SuspectThresholdPct (default 50%) from the rolling median (the past N=20 cleaned points) → IsSuspect=true, kept not dropped; excluded from spread reports by default, includable in queries |
+| Conversion | ConvertedCents = round(PriceCents × Rate) (when a rate exists); missing → null |
+| Cross-site | no merging: different sites are different rows; comparisons happen per site dimension |
+| Mapping gate | only mappings with MapStatus=Confirmed enter the series (with MarketItemId); Unconfirmed only lands in raw records and the mapping, as history reference for manual confirmation |
 
-## 7. 聚合分析口径
+## 7. Aggregation and analysis rules
 
-### 7.1 对照维度与基准
+### 7.1 Comparison dimensions and baseline
 
-| 维度 | 口径 |
+| Dimension | Rule |
 | --- | --- |
-| 条目 | 同 MarketItemId（映射 Confirmed） |
-| 币种 | 统一 CNY：爬取价用 ConvertedCents；站内基准用 `MarketPriceDaily.CloseCents`（既有口径，平台币种 CNY） |
-| 时间 | UTC 日对齐：每日取爬取序列最后一条（IsSuspect=false）的 ConvertedCents 作为日爬取价，与当日 Daily 对齐 |
-| 缺失 | 某日无爬取点 → 该日无对照；Daily 缺失（vapor 未覆盖该 item）→ 标记"无站内基准"，不计价差 |
+| Item | the same MarketItemId (mapping Confirmed) |
+| Currency | unified CNY: crawled prices use ConvertedCents; the in-site baseline uses `MarketPriceDaily.CloseCents` (existing convention, platform currency CNY) |
+| Time | UTC day alignment: each day takes the ConvertedCents of the last non-suspect series point as the day's crawled price, aligned with that day's Daily |
+| Missing | a day with no crawled point → no comparison that day; a missing Daily (vapor does not cover the item) → flagged "no in-site baseline", no spread computed |
 
-### 7.2 价差指标
+### 7.2 Spread indicators
 
-| 指标 | 定义 |
+| Indicator | Definition |
 | --- | --- |
-| 绝对价差 SpreadCents | 爬取价 − 站内价（分，CNY） |
-| 百分比价差 SpreadPct | (爬取价 − 站内价) ÷ 站内价 × 100，站内价为 0 时 null |
-| 趋势指标（外部序列自身） | 日环比 = (今收 − 昨收) ÷ 昨收 × 100；周同比 = (今收 − 7 天前收) ÷ 7 天前收 × 100；区间涨跌 = (区间末 − 区间初) ÷ 区间初 × 100（默认近 7 日，可参数化） |
+| Absolute spread SpreadCents | crawled price − in-site price (cents, CNY) |
+| Percentage spread SpreadPct | (crawled price − in-site price) ÷ in-site price × 100, null when the in-site price is 0 |
+| Trend indicators (of the external series itself) | day-over-day = (today's close − yesterday's close) ÷ yesterday's close × 100; week-over-week = (today's close − the close 7 days ago) ÷ that close × 100; range change = (range end − range start) ÷ range start × 100 (default last 7 days, parameterisable) |
 
-### 7.3 查询示例（草图）
+### 7.3 Query sketches
 
-1. 价差报告（EF，按 UTC 日 join `MarketPriceDaily`）：
+1. Spread report (EF, joined with `MarketPriceDaily` by UTC day):
 
 ```csharp
 var rows = await db.PriceCrawlSeries
@@ -342,9 +352,9 @@ var report = rows.Select(r => new
 }).ToList();
 ```
 
-（实际实现走模块内 `PriceCrawlerQueries`，避免在 Api 层拼 EF；此处为口径示意。）
+(The real implementation goes through the module's `PriceCrawlerQueries`, avoiding EF assembly in the Api layer; this is a rule sketch.)
 
-2. 某 item 外部价格序列（按站点分组）：
+2. An item's external price series (grouped by site):
 
 ```csharp
 var points = await db.PriceCrawlSeries
@@ -354,9 +364,9 @@ var points = await db.PriceCrawlSeries
     .ToListAsync(ct);
 ```
 
-## 8. 接口面（admin 草图）
+## 8. Endpoint surface (admin sketch)
 
-路由组 `/api/admin/price-crawl`（沿用 Admin 策略）。已实现（maps 列表与审阅、prices 序列、spread-report 比价），鉴权沿用 Admin 策略。
+Route group `/api/admin/price-crawl` (Admin policy inherited). Implemented (maps list and review, prices series, spread-report), authorised by the Admin policy.
 
 ```
 GET /api/admin/price-crawl/maps?siteKey=&mapStatus=&page=&pageSize=
@@ -375,9 +385,9 @@ POST /api/admin/price-crawl/maps/{mapId}/confirm   { } → 200 { mapId, mapStatu
 POST /api/admin/price-crawl/maps/{mapId}/reject    { } → 200 { mapId, mapStatus: "Rejected" }
 ```
 
-说明：endpoint 扩展方法 `MapPriceCrawlerAdminEndpoints(this IEndpointRouteBuilder)` 放 `Doggo.PriceCrawler`；`Doggo.Api` 在 AdminEndpoints 组内一行注册（或独立组）。鉴权沿用 Admin policy。
+Note: the endpoint extension method `MapPriceCrawlerAdminEndpoints(this IEndpointRouteBuilder)` lives in `Doggo.PriceCrawler`; `Doggo.Api` registers it in one line inside the AdminEndpoints group (or as its own group). Authorisation follows the Admin policy.
 
-## 9. 配置项清单
+## 9. Configuration items
 
 ```jsonc
 {
@@ -408,40 +418,40 @@ POST /api/admin/price-crawl/maps/{mapId}/reject    { } → 200 { mapId, mapStatu
 }
 ```
 
-## 10. 待拍板项
+## 10. Pending decisions
 
-| # | 事项 | 默认建议 | 决策人 |
+| # | Item | Default recommendation | Decider |
 | --- | --- | --- | --- |
-| 1 | 目标站点清单（首批站点、URL、API/HTML 形态） | 用户给出后定首批适配器 | 用户 |
-| 2 | 映射是否需人工审核后才纳入价差报告 | 仅 Confirmed 纳入；Unconfirmed 只积累数据 | 用户 |
-| 3 | 趋势指标物化 vs 查询时算 | 查询时算；规模增长后再物化 | 用户 |
-| 4 | 是否允许 Playwright 渲染型抓取 | 默认不允许（仅 HttpClient）；站点需要再议 | 用户 |
-| 5 | 宿主形态：并入 Scraper vs 独立 Worker | 一期并入 Doggo.Scraper 进程 | 用户 |
-| 6 | ExchangeRate 方向约定与缺失汇率/未知币种处理 | 1 外币 = Rate CNY；缺失不换算、保留原值；未知币种丢弃计数 | 用户 |
-| 7 | 抓取频率与夜间窗口 | 站点默认 60min；夜间窗口默认关 | 用户 |
-| 8 | 数据保留策略（原始记录保留天数、序列保留、清理任务） | 原始 90 天、序列永久；后补清理任务 | 用户 |
-| 9 | 目标站点合规授权（robots/ToS 是否允许价格抓取） | 逐站点人工确认后才启用 | 用户 |
-| 10 | 首批监控范围（全量 MarketItem vs 白名单） | 按 game 全量 + 配置白名单 | 用户 |
+| 1 | Target site list (first batch of sites, URLs, API/HTML shape) | fix the first batch of adapters once the user provides them | user |
+| 2 | Whether mappings need manual review before entering the spread report | Confirmed only; Unconfirmed merely accumulates data | user |
+| 3 | Trend indicators materialised vs computed at query time | query time; materialise when scale grows | user |
+| 4 | Whether Playwright render-heavy fetching is allowed | disallowed by default (HttpClient only); revisit if a site needs it | user |
+| 5 | Host shape: merged into Scraper vs standalone Worker | merged into the Doggo.Scraper process in phase 1 | user |
+| 6 | ExchangeRate direction convention and handling of missing rates / unknown currencies | 1 foreign = Rate CNY; no conversion when missing, keep the original value; drop and count unknown currencies | user |
+| 7 | Fetch frequency and night window | default 60min per site; night window off by default | user |
+| 8 | Data retention policy (raw record retention days, series retention, cleanup task) | raw 90 days, series forever; add a cleanup task later | user |
+| 9 | Compliance authorisation for target sites (whether robots/ToS allow price scraping) | enable a site only after per-site manual confirmation | user |
+| 10 | First-batch monitoring scope (all MarketItems vs whitelist) | all items by game + configurable whitelist | user |
 
-## 11. 实现状态（2026-10-13，提交 0b08b2c）
+## 11. Implementation status (2026-10-13, commit 0b08b2c)
 
-待拍板 2-10 已按默认建议落地：仅 Confirmed 映射进序列与比价；趋势查询时算、未物化；未启用 Playwright（仅 HttpClient + AngleSharp）；宿主并入 Scraper 进程；汇率方向 1 外币 = Rate CNY，缺失不换算保留原值、未知币种丢弃计数；站点默认 60 分钟间隔、夜间窗口已实现；原始行 90 天批量清理；robots 门禁默认开；监控按 game 全量 + 配置白名单。1（目标站点清单）仍待用户给出，站点适配器为配置驱动，配置即接入。
+Pending decisions 2-10 landed per the default recommendations: only Confirmed mappings enter the series and comparisons; trend is computed at query time, not materialised; Playwright not enabled (HttpClient + AngleSharp only); the host is merged into the Scraper process; the rate direction is 1 foreign = Rate CNY, missing rates keep the original value without conversion, unknown currencies are dropped and counted; sites default to a 60-minute interval and the night window is implemented; raw rows are cleaned in batch after 90 days; the robots gate is on by default; monitoring is all items by game + a configurable whitelist. 1 (the target site list) still awaits the user; the site adapters are config-driven — a config is an onboarding.
 
-实体落库为 ItemMap / Raw / Series / SiteState 四表（设计草表中的 Trend 物化表未建，趋势查询时算）；比价对照走 `RecentCompareCentsAsync` 滚动 20 点做疑点判定。模块 81 例 + Api 5 例测试先写后绿。
+Entities landed as the four tables ItemMap / Raw / Series / SiteState (the Trend materialisation table from the design sketch was not created; trend is computed at query time); spread comparison goes through `RecentCompareCentsAsync` with a rolling 20 points for suspect detection. The module has 81 + Api 5 tests, written first and green.
 
-## 12. 前台暴露口径（2026-10-16 代决，用户可推翻）
+## 12. Front-end exposure rule (2026-10-16 代决, user may override)
 
-前台只暴露聚合口径，不暴露逐站点明细：
+The front end exposes the aggregate rule only, never per-site rows:
 
-| 项 | 口径 |
+| Item | Rule |
 | --- | --- |
-| 数值 | 近 7 天内每个已确认站点最新一条非疑点、已换算（CNY）的爬取价，跨站点取中位数 |
-| 排除 | `IsSuspect=true` 与 `ConvertedCents` 为空（缺汇率）的观测点 |
-| 站内基准 | `MarketPriceDaily` 最新收盘（§7.1） |
-| 价差 | (外部中位数 − 站内收盘) ÷ 站内收盘 × 100；站内收盘为 0 或无外部数据时为 null |
-| 展示位 | web 行情趋势页；列表页不加列，mobile / miniapp 一期不加 |
-| 未覆盖 | 站点未接入或该 item 无序列时字段为 null，页面不渲染对照块 |
+| Value | for each confirmed site, the latest non-suspect, CNY-converted crawled price within the last 7 days; the median across sites |
+| Exclusions | observations with `IsSuspect=true` or `ConvertedCents` null (missing rate) |
+| In-site baseline | the latest close of `MarketPriceDaily` (§7.1) |
+| Spread | (external median − in-site close) ÷ in-site close × 100; null when the in-site close is 0 or there is no external data |
+| Placement | the web market trend page; no extra column on list pages, mobile / miniapp do not add it in phase 1 |
+| Not covered | when no site is onboarded or the item has no series, the fields are null and the page does not render the comparison block |
 
-理由：疑点行与缺汇率的原值不能直接对外；聚合中位数是可直接引用的单一数；逐站点报价表的转发面留在 admin；用户判断「站内价是否合理」只需一个基准。实现不改写 `MarketPriceSnapshot` / `MarketPriceDaily`（§1 只读对照约束），不新增表、不物化（§10-3 默认查询时算）。
+Rationale: suspect rows and unconverted raw values cannot go out directly; the aggregate median is a single directly quotable number; the per-site quote table stays on the admin side; the user only needs one baseline to judge "is the in-site price reasonable". The implementation does not write back to `MarketPriceSnapshot` / `MarketPriceDaily` (the §1 read-only comparison constraint) and adds no table, no materialisation (§10-3 default: compute at query time).
 
-实现为 `GET /api/market/items/{id}/reference`（MarketEndpoints）：中位数与价差、疑点与未换算排除、无序列返回 null、未知 item 404 共 4 例测试。
+Implemented as `GET /api/market/items/{id}/reference` (MarketEndpoints): median and spread, suspect and unconverted exclusions, nulls when no series, 404 for unknown items — 4 test cases.

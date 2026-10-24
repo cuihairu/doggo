@@ -1,34 +1,34 @@
-# 部署
+# Deployment
 
 
-本文描述用 Docker Compose 部署 Doggo 全栈的流程:MySQL、Redis、API、迁移、Scraper、Worker、主站与后台。镜像由每日构建流水线发布到 GHCR(`nightly` 滚动 tag);正式版本发布是手动步骤,不在这条链路上。
+This page describes how to deploy the full Doggo stack with Docker Compose: MySQL, Redis, API, migrations, Scraper, Worker, the web site and the admin console. Images are published to GHCR by the daily build pipeline (rolling `nightly` tag); releasing a formal version is a manual step and is not part of this chain.
 
-## 前置条件
+## Prerequisites
 
-- 一台 Linux 主机,Docker Engine 与 docker compose 插件可用
-- 一个域名,指向主机;TLS 证书(推荐 certbot 签发)
-- 目录约定:`/opt/doggo` 放仓库(clone 或 rsync)
+- One Linux host with Docker Engine and the docker compose plugin available
+- A domain pointed at the host, plus a TLS certificate (certbot recommended)
+- Directory convention: `/opt/doggo` holds the repository (clone or rsync)
 
-## 配置
+## Configuration
 
 ```bash
 cd /opt/doggo
 cp deploy/.env.example deploy/.env
 ```
 
-必填三项:
+Three required values:
 
-| 变量 | 说明 |
+| Variable | Meaning |
 | --- | --- |
-| `MYSQL_ROOT_PASSWORD` | MySQL root 密码,备份脚本也用它 |
-| `MYSQL_PASSWORD` | 应用账号 `doggo` 的密码 |
-| `AUTH_SECRET_KEY` | JWT 签名密钥,`openssl rand -base64 48` 生成 |
+| `MYSQL_ROOT_PASSWORD` | MySQL root password; the backup script uses it too |
+| `MYSQL_PASSWORD` | Password for the `doggo` application account |
+| `AUTH_SECRET_KEY` | JWT signing key, generate with `openssl rand -base64 48` |
 
-可选项:端口(`WEB_PORT`/`ADMIN_PORT`/`API_PORT`)、Vapor 对接(`VAPOR_*`,留空即关闭)、微信登录(`WECHAT_APP_ID`/`WECHAT_APP_SECRET`,留空时 `/api/auth/wechat` 返回 503)。
+Optional: ports (`WEB_PORT` / `ADMIN_PORT` / `API_PORT`), vapor integration (`VAPOR_*`, leave empty to disable), WeChat login (`WECHAT_APP_ID` / `WECHAT_APP_SECRET`, when empty `/api/auth/wechat` returns 503).
 
-所有敏感配置只走环境变量,不落仓库。
+All sensitive configuration goes through environment variables only and is never committed to the repository.
 
-## 启动
+## Starting
 
 ```bash
 cd /opt/doggo
@@ -36,40 +36,40 @@ docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d
 docker compose -f deploy/docker-compose.prod.yml ps
 ```
 
-服务职责:
+What each service does:
 
-| 服务 | 说明 |
+| Service | Description |
 | --- | --- |
-| `mysql` / `redis` | 数据层,带健康检查;数据在 `mysql-data` / `redis-data` 卷里 |
-| `migrator` | 一次性跑 `dotnet ef database update`,失败即非零退出 |
-| `api` | 等待 migrator 成功后才启动,监听容器 8080(宿主默认 8082) |
-| `scraper` / `worker` | 资讯抓取与后台任务,共用同一个 `Dockerfile.worker`,以 `PROJECT` 参数区分 |
-| `web` | 主站静态文件 + `/api` 反代,宿主默认 8080 |
-| `admin` | 管理后台静态文件 + `/api` 反代,宿主默认 8081 |
+| `mysql` / `redis` | Data layer with health checks; data lives in the `mysql-data` / `redis-data` volumes |
+| `migrator` | Runs `dotnet ef database update` once and exits non-zero on failure |
+| `api` | Starts only after the migrator succeeds; listens on container port 8080 (host default 8082) |
+| `scraper` / `worker` | News scraping and background jobs, sharing one `Dockerfile.worker` and differing by the `PROJECT` argument |
+| `web` | Static files for the main site plus an `/api` reverse proxy, host default 8080 |
+| `admin` | Static files for the admin console plus an `/api` reverse proxy, host default 8081 |
 
-本机源码构建(不走 GHCR)时,compose 会直接 `build`,无需额外操作。
+When building from local source (not from GHCR), compose simply `build`s and needs no extra step.
 
-## nginx 网关(域名 + HTTPS)
+## nginx gateway (domain + HTTPS)
 
-`deploy/nginx/doggo.conf.template` 是宿主 nginx 的模板:HTTP 跳 HTTPS、主域名(web + `/api`)、admin 独立域名,`/api/admin/` 的 IP 白名单是注释占位(allow/deny 行需自行取消注释并填真实地址)。替换 `DOGGO_DOMAIN`、`ADMIN_DOMAIN`、`CERT_PATH` 后:
+`deploy/nginx/doggo.conf.template` is the host nginx template: HTTP redirects to HTTPS, the main domain (web + `/api`), a separate admin domain, and the IP allowlist for `/api/admin/` is a commented placeholder (uncomment the allow/deny lines and fill in real addresses yourself). After replacing `DOGGO_DOMAIN`, `ADMIN_DOMAIN` and `CERT_PATH`:
 
 ```bash
 cp deploy/nginx/doggo.conf.template /etc/nginx/sites-available/doggo.conf
-# 编辑上面的占位符
+# edit the placeholders above
 nginx -t && systemctl reload nginx
 ```
 
-certbot 签发(示例):
+certbot issuance (example):
 
 ```bash
 certbot --nginx -d DOGGO_DOMAIN -d ADMIN_DOMAIN
 ```
 
-admin 域名建议先填好 `allow` 列表再放开 `deny all`,后台入口与 `/api/admin/` 都只对白名单开放。
+For the admin domain, fill in the `allow` list before opening up `deny all` — both the admin entry point and `/api/admin/` should stay allowlist-only.
 
-## 备份
+## Backups
 
-`deploy/backup/backup-mysql.sh` 每晚做一次 `--single-transaction` 全量 dump(gzip),保留 7 天日备 + 8 个周备,周日额外归档到 weekly 池:
+`deploy/backup/backup-mysql.sh` runs one `--single-transaction` full dump (gzip) every night, keeping 7 daily backups plus 8 weekly ones, with Sunday also archived into the weekly pool:
 
 ```bash
 cp deploy/backup/backup-mysql.sh /usr/local/bin/doggo-backup.sh
@@ -77,16 +77,16 @@ chmod 700 /usr/local/bin/doggo-backup.sh
 crontab -e   # 17 3 * * * /usr/local/bin/doggo-backup.sh >> /var/log/doggo-backup.log 2>&1
 ```
 
-恢复:
+Restore:
 
 ```bash
 docker exec -i doggo-mysql sh -c \
   'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" doggo' < /var/backups/doggo/daily/doggo-XXXX.sql.gz
 ```
 
-Redis 数据是缓存/队列性质,不做持久化备份;唯一状态数据在 MySQL。备份目录建议再做一次异地同步(rclone/rsync)。
+Redis data is cache/queue in nature and is not backed up durably; the only stateful data is in MySQL. Consider syncing the backup directory off-host as well (rclone/rsync).
 
-## 升级
+## Upgrades
 
 ```bash
 cd /opt/doggo
@@ -94,10 +94,10 @@ git pull
 docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
 ```
 
-`up -d --build` 会重建变更的服务;migrator 在 api 之前执行,新列/新索引先落库,老进程短暂混跑是安全的(迁移遵循只增不改的惯例)。
+`up -d --build` rebuilds only changed services; the migrator runs before the api, so new columns and indexes land first and a brief mix of old and new processes is safe (migrations follow an additive-only convention).
 
-## 持续交付
+## Continuous delivery
 
-`.github/workflows/daily.yml` 的 `images` job 每日构建五个镜像推到 `ghcr.io/<owner>/doggo-{api,scraper,worker,web,admin}:nightly`(48 小时无提交自动跳过)。要自动滚动到服务器:设仓库变量 `DEPLOY_ENABLED=true` 与 `DEPLOY_SSH_HOST`/`DEPLOY_SSH_USER`/`DEPLOY_SSH_KEY` 三个 secret,`deploy` job 会 ssh 到目标机执行 `compose pull && up -d`。
+The `images` job in `.github/workflows/daily.yml` builds five images every day and pushes them to `ghcr.io/<owner>/doggo-{api,scraper,worker,web,admin}:nightly` (auto-skipped when there are no commits for 48 hours). To roll to the server automatically, set the repository variable `DEPLOY_ENABLED=true` and the `DEPLOY_SSH_HOST` / `DEPLOY_SSH_USER` / `DEPLOY_SSH_KEY` secrets; the `deploy` job then sshes to the target machine and runs `compose pull && up -d`.
 
-`nightly` 是滚动 tag,不做版本号 tag、不发 GitHub Release;发正式版由用户手动给出版本号后另行操作。
+`nightly` is a rolling tag: no version-number tags and no GitHub Release. A formal release happens only after the user supplies a version number.

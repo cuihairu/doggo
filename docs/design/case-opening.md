@@ -1,36 +1,36 @@
-# 开箱系统设计
+# Case-Opening System Design
 
 
-## 基本立场
+## Basic stance
 
-- **平台不控制开箱概率。** 开箱在真实 CS2 游戏内发生,掉落由 Valve 服务器决定。Doggo 的职责是:库存管理、流程状态机、结果记录、饰品交付。
-- 需要概率算法的玩法只有 roll 房抽奖,使用权重 + 别名抽样法(AliasMethod),权重配置可审计。
-- 展示用的"箱子内容物"配置(品质/图片/参考价)只用于资料展示,不参与掉落判定。
+- **The platform does not control opening probabilities.** Openings happen inside real CS2 and the drop is decided by Valve servers. Doggo's responsibilities are: inventory management, flow state machine, result records, item delivery.
+- The only gameplay needing a probability algorithm is the roll room draw, which uses weights plus alias sampling (AliasMethod); the weight configuration is auditable.
+- The display "case contents" configuration (quality / image / reference price) is metadata for display only and takes no part in drop decisions.
 
-## 三种开箱模式
+## Three opening modes
 
-| 模式 | 流程 | 执行者 |
+| Mode | Flow | Executor |
 | --- | --- | --- |
-| 自开 | 平台交付账号凭据 + Steam Guard 令牌 → 用户在游戏内开箱 → 平台拉快照与订单关联 → 用户申请取回 | 用户 |
-| 批次代开 | 账号上的一串箱子按座位售卖 → 付款占座 → 提交开箱 → 机器人按队列开箱(带同账号前排未开箱) → 结果回调生成奖品 | vapor 代理 |
-| 一键开箱 | 开掉账号下全部箱子 | vapor 代理 |
+| Self-open | The platform hands over account credentials + Steam Guard token → the user opens the case in game → the platform pulls a snapshot and links it to the order → the user requests the item back | the user |
+| Batch proxy-open | A series of cases on an account is sold by seat → payment reserves a seat → the opening is submitted → the bot opens cases in queue (with earlier unopened cases on the same account) → the result callback creates the prize | vapor proxy |
+| One-click open | Opens every case on the account | vapor proxy |
 
-## 与 vapor 的集成
+## Integration with vapor
 
-原平台通过 Redis Stream 下发指令(`open_crate` / `open_all_crate` / `inventory` / `inventory_history` / `trading` 等),由外部机器人进程消费。开源版中这一层由 vapor 承担:
+The legacy platform issued commands over Redis Stream (`open_crate` / `open_all_crate` / `inventory` / `inventory_history` / `trading`, etc.) consumed by an external bot process. In the open-source edition that layer is vapor:
 
-| 原指令 | vapor 能力 |
+| Legacy command | vapor capability |
 | --- | --- |
-| open_crate / open_all_crate | CS:GO 插件的 `case_open` action;真实开箱在 vapor 侧受 `open.enabled` 门禁,请求携带 `caseId`(批次上的 VaporCaseId)与该座位的 `crateAssetId` / `keyAssetId` |
-| inventory / inventory_history | 库存 action 与变更事件 |
-| trading | 交易报价 action(`send_trade_offer`,资产条目键为 `asset_id` / `app_id`) |
-| password_auth / enable_guard | 凭据与 SteamGuard 会话管理 |
+| open_crate / open_all_crate | the `case_open` action of the CS:GO plugin; a real opening is gated by `open.enabled` on the vapor side, the request carries the `VaporCaseId` on the batch plus the seat's `crateAssetId` / `keyAssetId` |
+| inventory / inventory_history | the inventory action and change events |
+| trading | the trade-offer action (`send_trade_offer`, asset item keys `asset_id` / `app_id`) |
+| password_auth / enable_guard | credential and SteamGuard session management |
 
-Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook / SSE 订阅结果事件;按订单号关联回本地奖品记录。2026-10-14 核对 vapor 源码:其通知目前只有 `job` / `session` / `auth` 三类,尚无开箱域事件,座位结果经 `/api/group-buyings/{id}/seats/{seatNo}/result` 接口回填;Webhook 侧的 `case_opening` 事件类别保留为 doggo 侧约定,待 vapor 提供域事件后接上。
+Integration from the Doggo side: actions are started through the vapor REST API and result events are subscribed via webhooks / SSE; results are linked back to the local prize record by order number. Checked against the vapor source on 2026-10-14: its notifications currently cover only the `job` / `session` / `auth` categories with no case-opening domain event yet, so seat results are back-filled through the `/api/group-buyings/{id}/seats/{seatNo}/result` endpoint; the `case_opening` event category on the webhook side is kept as a doggo-side convention until vapor provides domain events.
 
-## 状态机
+## State machines
 
-### 订单
+### Order
 
 ```
 待支付 → 待结算 → 待取回 → 取回中 → 已完成
@@ -39,50 +39,52 @@ Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook / SSE �
    └→ 已退款
 ```
 
-- 待结算:已支付,账号/座位已交付或锁定。
-- 待取回:箱子已开,饰品在机器人库存中。
-- 取回中:交易报价已发起,未确认。
-- 补偿任务:取回检查(30 秒粒度,可配置)、未支付取消。
+- Pending settlement: paid, the account / seat has been delivered or locked.
+- Pending claim: the case has been opened and the item sits in the bot's inventory.
+- Claiming: the trade offer was sent and is not confirmed yet.
+- Compensation jobs: claim checks (30 second granularity, configurable), unpaid cancellation.
 
-### 库存座位(批次代开)
+### Inventory seat (batch proxy-open)
 
 ```
 售卖中 → 锁定 → 已付款 → 开箱中 → 已开箱 → 获取库存 → 完成库存 → 交易中 → 完成
 ```
 
-座位记录:批次 lot、序号 seat、箱子 assetId、钥匙 assetId、奖品 assetId、historyId 游标;批次用乐观锁控制并发售卖。
+In English: selling → locked → paid → opening → opened → fetching inventory → inventory done → trading → done.
 
-### 机器人账号(在 vapor 侧)
+Seat record fields: batch lot, seat index, case assetId, key assetId, prize assetId, historyId cursor; the batch uses optimistic locking to control concurrent sales.
 
-备货 → 盘点 → 审核 → 上架 → 锁定 → 已售 → 已取回,旁路:可复用 / 异常 / 逾期。Doggo 不直接管理账号凭据,通过 vapor 的账号接口查询状态。
+### Bot account (on the vapor side)
 
-## 奖品记录
+Stocked → inventoried → reviewed → listed → locked → sold → claimed, with bypass states reusable / abnormal / overdue. Doggo does not manage account credentials directly; it queries status through vapor's account API.
 
-开箱结果落库字段(原平台字段全集,开源版沿用):
+## Prize records
 
-- 资产:`assetId` / `classId` / `instanceId`
-- 资料:市场名、品质(七档稀有度)、外观(磨损档)、`floatValue`、稀有度、图标
-- 取回:检查链接、可交易时间
-- 估值:成交时市价(来自行情同步)
-- 关联:订单号、账号、开箱时间、来源(自开/代开/一键)
+Fields persisted for an opening result (the full legacy field set, carried over by the open-source edition):
 
-## 饰品取回
+- Asset: `assetId` / `classId` / `instanceId`
+- Metadata: market hash name, quality (seven rarity grades), appearance (wear tier), `floatValue`, rarity, icon
+- Claim: inspection link, tradeable time
+- Valuation: market price at sale time (from market sync)
+- Links: order number, account, opening time, source (self-open / proxy-open / one-click)
 
-1. 用户配置 Steam 交易链接(多条,可设默认),平台校验有效性;
-2. 校验取回条件:订单内箱子/钥匙已用尽、无交易冷却;
-3. 发起交易报价(vapor trading action),等待确认;
-4. 报价确认后订单完成;失败回退"待取回"并记录错误,由补偿任务重试。
+## Item claim
 
-## roll 房(权重抽奖)
+1. The user configures Steam trade links (multiple, one default), the platform validates them.
+2. Claim preconditions are checked: all cases / keys in the order are used up, no trade cooldown.
+3. A trade offer is sent (vapor trading action) and confirmation is awaited.
+4. Once the offer is confirmed the order completes; on failure it rolls back to "pending claim" with the error recorded and is retried by the compensation job.
 
-- 房间状态机:创建中 → 进行中 → 开奖中 → 开奖结束 → 领奖 → 结束,自动滚动下一期。
-- 参与规则:登录领取、每单参与、免单套餐、邀请码(固定/随机)、出特定稀有度免单等,规则可组合配置。
-- 开奖:按奖品权重 AliasMethod 抽取;奖品来源为库存饰品(走交易发货)或积分。
-- 定时任务:到期开奖检查。
+## Roll rooms (weighted draw)
 
-## 并发与一致性要点
+- Room state machine: creating → running → drawing → draw finished → claiming → finished, auto-rolling to the next round.
+- Participation rules: claim on login, per-order participation, free-plan orders, invite codes (fixed / random), free order when a specific rarity is drawn, and so on; rules can be combined in configuration.
+- Draw: weighted AliasMethod draw over the prizes; prizes come from inventory items (shipped by trade) or from points.
+- Timed job: expiry draw checks.
 
-- 占座/锁库存:批次行乐观锁 + 座位状态条件更新,失败即售罄。
-- 支付回调幂等:订单状态条件更新,重复回调直接返回成功。
-- 开箱结果幂等:按任务/事件 ID 去重,奖品记录唯一约束(订单号 + assetId)。
-- 交易状态:以 Steam 侧事实为准,本地状态允许回退,禁止跳步。
+## Concurrency and consistency notes
+
+- Seat reservation / inventory locking: optimistic lock on the batch row plus conditional seat-status updates; failure means sold out.
+- Payment callback idempotency: conditional order-status update; a duplicate callback simply returns success.
+- Opening result idempotency: dedup by task / event ID, and a unique constraint on the prize record (order number + assetId).
+- Trade status: the Steam side is the source of truth; local status may roll back but must never skip a step.

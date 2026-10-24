@@ -3,17 +3,17 @@ layout: home
 
 hero:
   name: Doggo
-  text: 开源游戏资讯平台
-  tagline: CS2 / Dota 2 资讯聚合、饰品行情、开箱模拟,基于 C# / .NET 构建,支持 Linux 与 Docker 部署
+  text: Open-source gaming news platform
+  tagline: CS2 / Dota 2 news aggregation, item market data and case opening, built on C# / .NET, deployed on Linux and Docker
   image:
     src: /logo.svg
     alt: Doggo
   actions:
     - theme: brand
-      text: 快速开始
+      text: Getting Started
       link: /guide/getting-started
     - theme: alt
-      text: 功能总览
+      text: Features
       link: /guide/features
     - theme: alt
       text: GitHub
@@ -21,210 +21,181 @@ hero:
 
 features:
   - icon: 📰
-    title: 资讯聚合
-    details: 抓取 CS2 与 Dota 2 的官方公告、更新日志、赛事动态,经过清洗与去重后统一展示。
+    title: News Aggregation
+    details: Scrapes official announcements, patch notes and esports updates for CS2 and Dota 2, then cleans and dedupes them into a single feed.
   - icon: 📈
-    title: 饰品行情
-    details: 同步武器箱与饰品资料,跟踪 Steam 市场价格,提供行情查询与趋势展示。
+    title: Item Market
+    details: Syncs weapon case and item metadata, tracks Steam market prices, and provides market lookups and trend charts.
   - icon: 🎁
-    title: 开箱模拟
-    details: 按武器箱掉落概率与磨损区间实现的开箱玩法,包含库存管理与开箱记录。
+    title: Case Opening
+    details: Case-opening gameplay built on weapon case drop probabilities and wear tiers, with inventory management and opening records.
   - icon: 🤖
-    title: Steam 机器人
-    details: Steam 侧的行情同步、库存与交易能力基于 vapor 实现,Doggo 通过其 API 集成。
+    title: Steam Bot
+    details: Steam-side market sync, inventory and trading are implemented in vapor; Doggo integrates them through its API.
   - icon: 🛠️
-    title: 管理后台
-    details: 用户、饰品、箱子、资讯、订单与统计数据的运营管理界面。
+    title: Admin Console
+    details: Operations UI for users, items, cases, news, orders and statistics.
   - icon: ⚙️
-    title: 统一技术栈
-    details: 服务端、爬虫、机器人统一使用 C# / .NET,原生支持 Linux。
+    title: Single Tech Stack
+    details: Server, scraper and bot all run on C# / .NET, natively on Linux.
 ---
 
-<script setup lang="ts">
-// 首次访问按浏览器语言选择文档语言（vitepress 无此能力，GitHub Pages 不支持 _redirects）
-// 优先级：localStorage 手动选择 > navigator.language > 保持当前 locale
-import { onBeforeMount } from 'vue'
-const KEY = 'doggo-lang-auto-picked'
-const BASE = '/doggo/'
-const ROOT_PATH = BASE
-const ZH_PATH = BASE + 'zh/'
-onBeforeMount(() => {{
-  if (typeof window === 'undefined') return
-  const p = window.location.pathname
-  if (p !== ROOT_PATH && p !== ROOT_PATH.slice(0, -1)) return
-  const picked = localStorage.getItem(KEY)
-  if (picked) {{ if (picked !== p) window.location.replace(picked); return }}
-  const langs = (navigator.languages?.length ? navigator.languages : [navigator.language]).map(l => l.toLowerCase())
-  if (langs.some(l => l.startsWith('zh'))) window.location.replace(ZH_PATH)
-}})
-if (typeof window !== 'undefined') {{
-  window.addEventListener('click', (e) => {{
-    const a = (e.target as HTMLElement)?.closest?.('a') as HTMLAnchorElement | null
-    const href = a?.getAttribute('href') || ''
-    if (href.startsWith(ZH_PATH) || href.startsWith('zh/')) localStorage.setItem(KEY, ZH_PATH)
-    else if (href === ROOT_PATH || href === ROOT_PATH.slice(0, -1)) localStorage.setItem(KEY, ROOT_PATH)
-  }}, true)
-}}
-</script>
+## UI Preview
 
+The screenshots below are taken from a locally running instance (seed data) and are described feature by feature.
 
-## 界面预览
+### Player Web
 
-以下截图取自本地运行的真实界面(种子数据),按功能逐项说明。
+#### Home
 
-### 玩家端 Web
+![Player home](/screenshots/web-home.png)
 
-#### 首页
+Aggregates the latest news, market entry points and shop recommendations; the top navigation covers news, market, shop and roll rooms.
 
-![玩家端首页](/screenshots/web-home.png)
+#### News Detail
 
-聚合最新资讯、行情入口与商店推荐,顶部导航覆盖资讯、行情、商店与 Roll 房。
+![News detail](/screenshots/web-news-detail.png)
 
-#### 资讯详情
+The article body is cleaned and deduped after scraping; the source and publish time are shown.
 
-![资讯详情](/screenshots/web-news-detail.png)
+#### Market List
 
-文章正文在抓取后经过清洗与去重,可查看来源与发布时间。
+![Market list](/screenshots/web-market-list.png)
 
-#### 饰品行情列表
+Items can be filtered by game and type, showing the latest price and update time.
 
-![饰品行情列表](/screenshots/web-market-list.png)
+#### Price Trend
 
-按游戏与类型筛选饰品,展示最新价与更新时间。
+![Price trend](/screenshots/web-market-trend.png)
 
-#### 价格趋势
+A single item shows a daily trend chart plus an open, high, low, close price history table.
 
-![价格趋势](/screenshots/web-market-trend.png)
+#### Shop List
 
-单个饰品提供日线走势图与开、高、低、收历史价格表。
+![Shop list](/screenshots/web-product-list.png)
 
-#### 商店列表
+On-sale weapon cases are listed in listing order with price and category.
 
-![商店列表](/screenshots/web-product-list.png)
+#### Case Detail
 
-在售武器箱按上架顺序排列,展示价格与分类。
+![Case detail](/screenshots/web-product-detail.png)
 
-#### 箱子详情
+Shows the case contents, drop probabilities, wear tiers and the purchasable plans.
 
-![箱子详情](/screenshots/web-product-detail.png)
+#### Order Payment
 
-展示箱子内物品、掉落概率、磨损区间与可选购买方案。
+![Order payment](/screenshots/web-order-pay.png)
 
-#### 订单支付
+Placing an order starts a payment countdown; payment channel selection and confirmation follow step by step.
 
-![订单支付](/screenshots/web-order-pay.png)
+#### Team Case Opening
 
-下单后生成支付倒计时,按步骤完成渠道选择与支付确认。
+![Team case opening](/screenshots/web-case-opening.png)
 
-#### 团队开箱
+Group case opening allocates prizes by seat; claimed prizes are moved to the inventory automatically.
 
-![团队开箱](/screenshots/web-case-opening.png)
+#### My Prizes
 
-多人拼团开箱按座位分配奖品,领奖后自动存入库存。
+![My prizes](/screenshots/web-my-prizes.png)
 
-#### 我的奖品
+Opening results are kept in the inventory; wear and reference price are visible.
 
-![我的奖品](/screenshots/web-my-prizes.png)
+#### Login
 
-开箱所得奖品统一入库存,可查看磨损与参考价。
+![Login page](/screenshots/web-login.png)
 
-#### 登录
+Phone number plus password login; opening, orders and inventory become available after signing in.
 
-![登录页](/screenshots/web-login.png)
+### Admin Console
 
-手机号加密码登录,登录后可使用开箱、订单与库存功能。
+#### Admin Login
 
-### 管理后台
+![Admin login](/screenshots/admin-login.png)
 
-#### 后台登录
+Admin account login; non-admin access is redirected back to the login page.
 
-![后台登录](/screenshots/admin-login.png)
+#### Dashboard
 
-管理员账号登录入口,非管理员访问自动跳回登录页。
+![Dashboard](/screenshots/admin-dashboard.png)
 
-#### 数据面板
+Summarises users, orders and revenue, with a 14-day trend and a product revenue ranking.
 
-![数据面板](/screenshots/admin-dashboard.png)
+#### Orders
 
-汇总用户、订单与营收数据,提供近 14 天走势与商品营收排行。
+![Orders](/screenshots/admin-orders.png)
 
-#### 订单管理
+Filter orders by status, view prize details and handle refunds.
 
-![订单管理](/screenshots/admin-orders.png)
+#### Products
 
-按状态筛选订单,可查看奖品明细并处理退款。
+![Products](/screenshots/admin-products.png)
 
-#### 商品管理
+Manages weapon case products, promotions and exchange rates, and controls listing status.
 
-![商品管理](/screenshots/admin-products.png)
+#### News
 
-维护武器箱商品、促销与汇率,控制上架状态。
+![News](/screenshots/admin-articles.png)
 
-#### 资讯管理
+Manages news entries, news sources, announcements and home banners.
 
-![资讯管理](/screenshots/admin-articles.png)
+#### Users
 
-管理资讯条目、资讯源、公告与首页 Banner。
+![Users](/screenshots/admin-users.png)
 
-#### 用户管理
+Views user profiles, roles and status; an individual user's order history can be queried.
 
-![用户管理](/screenshots/admin-users.png)
+#### Funnel
 
-查看用户资料、角色与状态,可查询单个用户的订单流水。
+![Funnel](/screenshots/admin-funnel.png)
 
-#### 转化漏斗
+Statistics conversion and drop-off rates across the view, add-to-cart, order and payment steps, aggregated daily.
 
-![转化漏斗](/screenshots/admin-funnel.png)
+#### Price Crawler
 
-按浏览、加购、下单、支付四步统计转化率与流失率,按日聚合。
+![Price crawler](/screenshots/admin-price-crawl.png)
 
-#### 价格爬虫
+Reviews third-party site price mappings and compares them with the in-site spread.
 
-![价格爬虫](/screenshots/admin-price-crawl.png)
+#### Settings
 
-审阅第三方站点的价格映射,并与站内价差对照。
+![Settings](/screenshots/admin-settings.png)
 
-#### 系统设置
+Maintains site parameters and the crawler site overview online; deployment-level configuration stays in server environment variables.
 
-![系统设置](/screenshots/admin-settings.png)
+### Mobile App
 
-在线维护站点参数与爬虫站点总览,部署级配置仍在服务端环境变量。
+#### Home
 
-### 移动端 App
+![Mobile home](/screenshots/mobile-home.png)
 
-#### 首页
+The bottom navigation covers case opening, market and orders entry points.
 
-![移动端首页](/screenshots/mobile-home.png)
+#### Case List
 
-底部导航覆盖商品开箱、行情与订单入口。
+![Mobile case list](/screenshots/mobile-products.png)
 
-#### 商品开箱列表
+Lists on-sale weapon cases with prices; tap through to details.
 
-![移动端商品列表](/screenshots/mobile-products.png)
+#### Case Detail and Ordering
 
-展示在售武器箱与价格,点击进入详情。
+![Mobile case detail](/screenshots/mobile-product-detail.png)
 
-#### 开箱详情与下单
+Lists the case contents and probabilities; a plan can be selected and ordered directly.
 
-![移动端开箱详情](/screenshots/mobile-product-detail.png)
+#### Login
 
-列出箱内物品与概率,可选套餐直接下单。
+![Mobile login](/screenshots/mobile-login.png)
 
-#### 登录
+Account and password login; unauthenticated users are guided to log in when ordering.
 
-![移动端登录](/screenshots/mobile-login.png)
+#### Opening Result
 
-账号密码登录,未登录用户下单时引导登录。
+![Mobile opening result](/screenshots/mobile-opening.png)
 
-#### 开箱结果
+The opening result shows the prize, wear and reference price immediately, and the prize is moved to the inventory automatically.
 
-![移动端开箱结果](/screenshots/mobile-opening.png)
+#### Orders
 
-开箱即时展示奖品、磨损与参考价,奖品自动存入库存。
+![Mobile orders](/screenshots/mobile-orders.png)
 
-#### 订单
-
-![移动端订单](/screenshots/mobile-orders.png)
-
-订单按状态展示,支付金额、时间与渠道可查。
-
+Orders are shown by status, with payment amount, time and channel.
