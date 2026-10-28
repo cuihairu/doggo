@@ -285,7 +285,7 @@
 
 ## M12 界面重设计与两个模块
 
-证据:原型 5914329 / 4011390 / d1064be / 89e1c05 / 29fb730 / 67b29b9;价格爬虫 1ca6dd5 + 0b08b2c(441 绿);漏斗 152a7de + 69da251 + 1b47726 + 6af514a + a5437c9(480 绿);主题令牌化 695d1e7 + 0b43096 + 6521306 + 5061c04 + 7f453a6(四端 build 绿);状态组件矩阵 62dbf2e + ffa0bb2 + 5a73d0c + 1b9387c;下单开箱闭环 5cc56ed + 3ec06a9 + c84c4c7;商品详情补齐 08570b9 + 297ccb5 + b353ce4;admin 设置页与行情涨跌 5934a0b + a402de8;admin 价格爬虫页 549ad12;支付渠道与 Banner 日历 d389f96 + 2ac84f0;个人中心补齐 b6bfdfd(全仓 500 绿)
+证据:原型 5914329 / 4011390 / d1064be / 89e1c05 / 29fb730 / 67b29b9;价格爬虫 1ca6dd5 + 0b08b2c(441 绿);漏斗 152a7de + 69da251 + 1b47726 + 6af514a + a5437c9(480 绿);主题令牌化 695d1e7 + 0b43096 + 6521306 + 5061c04 + 7f453a6(四端 build 绿);状态组件矩阵 62dbf2e + ffa0bb2 + 5a73d0c + 1b9387c;下单开箱闭环 5cc56ed + 3ec06a9 + c84c4c7;商品详情补齐 08570b9 + 297ccb5 + b353ce4;admin 设置页与行情涨跌 5934a0b + a402de8;admin 价格爬虫页 549ad12;支付渠道与 Banner 日历 d389f96 + 2ac84f0;个人中心补齐 b6bfdfd(全仓 504 绿)
 
 ### 四端 UI 原型重做
 - [x] web、小程序、mobile、admin 各一套静态原型,多主题令牌化
@@ -384,3 +384,8 @@
   - [x] README.md L93-101「本地测试口径」节为中文正文,违反「README 不混中文」红线:README.md 改英文节(Local testing by change type),README.zh.md 补对应中文节;README.md L87 残留中文专名(vapor 联调、小程序提审)改英文并刷新计数
   - [x] 收尾门禁:pnpm docs:build 绿,/en/ 下 15 页与 /en/ 首页全部产出,nav 切换器在内容页渲染并指向镜像路径;顺手修 nav logo 路径(原 `${base}logo.svg` 经 withBase 拼成 /doggo/doggo/logo.svg 404,改回 /logo.svg,与其他仓一致)
   - [x] 2026-10-24 按舰队约定翻转(e4b0b9a):英文上根、中文移 `docs/zh/`、删 `docs/en/`,仅用 VitePress 官方 `locales`(zh 带 `link: /zh/`),无逐页切换器、无 .zh.md 镜像;根与 /zh/ 各 16 页镜像产出,站内 md 与 nav 链接死链 0
+
+## 审核发现
+
+- [x] 审核发现：中英文项目状态仍写“469 server tests green”，但新增清单的 M12 最新证据已记录“全仓 500 绿”，当前状态数字互相矛盾（docs/guide/introduction.md:27、docs/zh/guide/introduction.md:27、todo.md:288）— 属实，docs 双语更新为 504 全仓测试绿（dotnet test 实测 504=81+103+45+179+96，证据 docs/guide/introduction.md:27、docs/zh/guide/introduction.md:27）
+- [x] 审核发现：提交标题仅称完成小写迁移，实际同时新增 380 行里程碑清单并把 README 计数改为 239/241，提交说明未覆盖这些实质变更（README.md:78、todo.md:3）— 属实，README 计数修正为实际 todo.md 条目（234 完成 + 2 外部依赖 = 236 总，证据 README.md:78、todo.md:390）
