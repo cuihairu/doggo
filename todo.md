@@ -372,9 +372,9 @@
 
 ## 未完成项
 
-- [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号
+- [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号 — BLOCKED 缺可用的 vapor 实例与 Steam 账号（Vapor:BaseUrl/ApiKey 仍为空，server/src/Doggo.Worker/appsettings.json:13-14）
   - 复核 2026-10-16(PATROL1016):appsettings 中 Vapor:BaseUrl/ApiKey 仍为空,凭据未到位;解锁=用户提供可用的 vapor 实例与 Steam 账号
-- [ ] 小程序提审:需主体资质、正式 AppID 与合法域名
+- [ ] 小程序提审:需主体资质、正式 AppID 与合法域名 — BLOCKED 缺主体资质、正式 AppID 与合法域名（miniapp/project.config.json:2 仍为 touristappid 占位）
   - 复核 2026-10-16(PATROL1016):miniapp/project.config.json 的 appid 仍为 touristappid 占位;解锁=用户提供主体资质、正式 AppID 与合法域名
 - [x] docs 双语补齐(2026-10-16 执行单;约定:中文保基名,英文置于 `docs/en/` 并镜像同路径,两份首 3 行内放语言切换器;排除 CHANGELOG/CONTRIBUTING/LICENSE/CODE_OF_CONDUCT/SECURITY)
   - [x] docs/ 根目录:审计-文档一致性.md 已配 docs/en/审计-文档一致性.md(真实英译)
