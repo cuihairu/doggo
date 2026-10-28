@@ -24,7 +24,7 @@ The project originates from a platform already running in production. The core c
 
 ## Project status
 
-All M0-M12 milestones are delivered (469 server tests green; web/admin/miniapp/mobile builds pass). The remaining open items are concentrated in external dependencies such as the vapor integration and the miniapp review; the list is in TODO.md at the repository root. Contributions and discussion are welcome through Issues and PRs.
+All M0-M12 milestones are delivered (469 server tests green; web/admin/miniapp/mobile builds pass). The remaining open items are concentrated in external dependencies such as the vapor integration and the miniapp review; the list is in todo.md at the repository root. Contributions and discussion are welcome through Issues and PRs.
 
 ## License
 

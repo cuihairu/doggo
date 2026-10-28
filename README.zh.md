@@ -74,7 +74,7 @@ doggo/
 
 ## 项目状态
 
-服务端、管理后台、微信小程序与 Android 手机端已实现,任务拆分与进度见 [TODO.md](TODO.md)。欢迎通过 Issue 与 PR 参与讨论与共建。
+服务端、管理后台、微信小程序与 Android 手机端已实现,任务拆分与进度见 [todo.md](todo.md)。欢迎通过 Issue 与 PR 参与讨论与共建。
 
 ## 许可证
 
