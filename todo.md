@@ -389,3 +389,4 @@
 
 - [x] 审核发现：中英文项目状态仍写“469 server tests green”，但新增清单的 M12 最新证据已记录“全仓 500 绿”，当前状态数字互相矛盾（docs/guide/introduction.md:27、docs/zh/guide/introduction.md:27、todo.md:288）— 属实，docs 双语更新为 504 全仓测试绿（dotnet test 实测 504=81+103+45+179+96，证据 docs/guide/introduction.md:27、docs/zh/guide/introduction.md:27）
 - [x] 审核发现：提交标题仅称完成小写迁移，实际同时新增 380 行里程碑清单并把 README 计数改为 239/241，提交说明未覆盖这些实质变更（README.md:78、todo.md:3）— 属实，README 计数修正为实际 todo.md 条目（234 完成 + 2 外部依赖 = 236 总，证据 README.md:78、todo.md:390）
+- [x] 审核发现：a285f53..HEAD 未发现问题
