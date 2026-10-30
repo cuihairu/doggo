@@ -334,6 +334,7 @@
   - 复核 2026-10-16(PATROL1016):仍无用户裁决记录,维持已裁决搁置,不重开;解锁=用户明确拍板口径
   - 代决 2026-10-16(FW1016D):前台只暴露聚合中位数,不暴露逐站点明细;记录见 docs/design/price-crawler-design.md §12
   - 证据:GET /api/market/items/{id}/reference + MarketApiTests 4 例(Api.Tests 96 例全绿);web 行情趋势页对照块(pnpm build 绿)
+  - 已代决:按 docs/review/2026-10-30-decisions.md 执行(2026-10-30)(维持原裁决,解锁=用户拍板口径)
 
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目
@@ -374,8 +375,10 @@
 
 - [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号 — BLOCKED 缺可用的 vapor 实例与 Steam 账号（Vapor:BaseUrl/ApiKey 仍为空，server/src/Doggo.Worker/appsettings.json:13-14）
   - 复核 2026-10-16(PATROL1016):appsettings 中 Vapor:BaseUrl/ApiKey 仍为空,凭据未到位;解锁=用户提供可用的 vapor 实例与 Steam 账号
+  - 已代决:按 docs/review/2026-10-30-decisions.md 执行(2026-10-30)(需用户输入,暂缓)
 - [ ] 小程序提审:需主体资质、正式 AppID 与合法域名 — BLOCKED 缺主体资质、正式 AppID 与合法域名（miniapp/project.config.json:2 仍为 touristappid 占位）
   - 复核 2026-10-16(PATROL1016):miniapp/project.config.json 的 appid 仍为 touristappid 占位;解锁=用户提供主体资质、正式 AppID 与合法域名
+  - 已代决:按 docs/review/2026-10-30-decisions.md 执行(2026-10-30)(需用户输入,暂缓)
 - [x] docs 双语补齐(2026-10-16 执行单;约定:中文保基名,英文置于 `docs/en/` 并镜像同路径,两份首 3 行内放语言切换器;排除 CHANGELOG/CONTRIBUTING/LICENSE/CODE_OF_CONDUCT/SECURITY)
   - [x] docs/ 根目录:审计-文档一致性.md 已配 docs/en/审计-文档一致性.md(真实英译)
   - [x] docs/index.md:用户已代决=站点级 i18n(config.mts 加 `locales.{root,en}`,英文首页挂 /en/;home 页不塞逐页切换器,语言切换走站点级导航 `VPNavBarTranslations`,两个 locale 各声明 label 即出现)。复核注:home 布局正文实际会渲染(dist/index.html 的 `.vp-doc` 内含「界面预览」与截图 `<img>`),原「不渲染正文、切换器无处放」的判断有误;按代决执行,不影响验收
