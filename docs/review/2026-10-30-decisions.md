@@ -6,9 +6,9 @@
 
 ---
 
-## 条目 1：vapor 联调（todo.md:375）
+## 条目 1：vapor 联调（todo.md:376）
 
-**事实**：`server/src/Doggo.Worker/appsettings.json:13-16` 的 `Vapor` 节四项全部为空——`BaseUrl:14`、`ApiKey:15`、`WebhookSecret`、`DefaultTarget` 均为 `""`；同文件 `ConnectionStrings.Default:9` 仍为 `change-me` 占位密码。`todo.md:375` 复核（2026-10-16 PATROL1016）确认凭据未到位。需**可用的 vapor 实例**（BaseUrl + ApiKey/WebhookSecret）与 **Steam 账号**。
+**事实**：`server/src/Doggo.Worker/appsettings.json:13-16` 的 `Vapor` 节四项全部为空——`BaseUrl:13`、`ApiKey:14`、`WebhookSecret`、`DefaultTarget` 均为 `""`；同文件 `ConnectionStrings.Default:9` 仍为 `change-me` 占位密码。`todo.md:377` 复核（2026-10-16 PATROL1016）确认凭据未到位。需**可用的 vapor 实例**（BaseUrl + ApiKey/WebhookSecret）与 **Steam 账号**。
 
 ### 推荐决策
 
@@ -34,9 +34,9 @@
 
 ---
 
-## 条目 2：小程序提审（todo.md:377）
+## 条目 2：小程序提审（todo.md:379）
 
-**事实**：`miniapp/project.config.json:2` 的 `appid` 仍为 `"touristappid"` 占位（微信开发工具游客模式 id，仅限本地预览，不能上传提审）；`todo.md:377` 复核（2026-10-16 PATROL1016）确认 appid 仍为占位。需**主体资质**、**正式 AppID**、**合法域名**（服务器域名需加入微信后台「合法域名」白名单）。
+**事实**：`miniapp/project.config.json:2` 的 `appid` 仍为 `"touristappid"` 占位（微信开发工具游客模式 id，仅限本地预览，不能上传提审）；`todo.md:380` 复核（2026-10-16 PATROL1016）确认 appid 仍为占位。需**主体资质**、**正式 AppID**、**合法域名**（服务器域名需加入微信后台「合法域名」白名单）。
 
 ### 推荐决策
 
@@ -58,8 +58,6 @@
 
 - 不用 `touristappid` 冒提审、不代申请主体资质/正式 AppID。
 - 不 bump version、不打 tag、不建 Release、不跑发版 workflow。
-
----
 
 ---
 
@@ -94,6 +92,6 @@
 
 | 条目 | 推荐决策 | 立即动作 | 状态 |
 |---|---|---|---|
-| vapor 联调（todo.md:375） | 暂缓，需用户提供 vapor 实例+Steam 账号 | 无 | 需用户输入，暂缓 |
-| 小程序提审（todo.md:377） | 暂缓，需用户提供主体资质+正式 AppID+合法域名 | 无 | 需用户输入，暂缓 |
+| vapor 联调（todo.md:376） | 暂缓，需用户提供 vapor 实例+Steam 账号 | 无 | 需用户输入，暂缓 |
+| 小程序提审（todo.md:379） | 暂缓，需用户提供主体资质+正式 AppID+合法域名 | 无 | 需用户输入，暂缓 |
 | 站内 vs 外部参考价对照表（todo.md:333） | 维持聚合口径裁决，需用户拍板 | 无 | 需用户拍板，暂缓 |

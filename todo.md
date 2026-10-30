@@ -394,3 +394,6 @@
 - [x] 审核发现：提交标题仅称完成小写迁移，实际同时新增 380 行里程碑清单并把 README 计数改为 239/241，提交说明未覆盖这些实质变更（README.md:78、todo.md:3）— 属实，README 计数修正为实际 todo.md 条目（234 完成 + 2 外部依赖 = 236 总，证据 README.md:78、todo.md:390）
 - [x] 审核发现：a285f53..HEAD 未发现问题
 - [x] 审核发现：本范围新增第 3 条审核记录后，todo.md 实际为 235 完成 + 2 未完成 = 237 总，但 README.md:78 仍写「234 of 236 checklist items」，计数过期不一致（README.md:78、todo.md:392）— 属实，README 计数修正为勾选本条后的实际值 236 完成 + 2 外部依赖 = 238 总（todo.md 顶层级实测 236 完成 + 2 未完成），证据 README.md:78、todo.md:393
+- [x] 审核发现：决策文档引用的 todo.md 行号过期——同批在条目上方插入 3 行「已代决」后，vapor/小程序条目已移至 todo.md:376/379，文档仍写 todo.md:375/377（分别指向空白行/复核行）（docs/review/2026-10-30-decisions.md:9、docs/review/2026-10-30-decisions.md:37、docs/review/2026-10-30-decisions.md:97）— 属实，文档 todo.md 引用更新为 376/379，证据 docs/review/2026-10-30-decisions.md:9、docs/review/2026-10-30-decisions.md:37、docs/review/2026-10-30-decisions.md:96（条目 3 的 todo.md:333-336 引用已核验仍有效，未改）
+- [x] 审核发现：决策文档 appsettings 行号错位——BaseUrl 实际在 server/src/Doggo.Worker/appsettings.json:13、ApiKey 在 :14，文档却写 BaseUrl:14/ApiKey:15（docs/review/2026-10-30-decisions.md:11）— 属实，文档改为 BaseUrl:13/ApiKey:14，证据 docs/review/2026-10-30-decisions.md:11
+- [x] 审核发现：决策文档条目 2 与条目 3 之间出现连续两个「---」分隔线（docs/review/2026-10-30-decisions.md:62、docs/review/2026-10-30-decisions.md:64）— 属实，删除多余分隔线，仅留一条（docs/review/2026-10-30-decisions.md:62）
