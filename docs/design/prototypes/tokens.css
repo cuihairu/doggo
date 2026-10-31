@@ -4,7 +4,7 @@
  *   1. 结构令牌（--sp-*、--fs-*、--topbar-h 等）：全主题共享，写在 :root 且不被任何主题覆盖。
  *      这是"换主题不改布局"的保证——切换 data-theme 只改颜色与图案令牌，结构与间距一个都不动。
  *   2. 视觉令牌（颜色 + 图案）：每个主题一个 [data-theme="..."] 块，逐项给出。
- *   视觉令牌含 --primary-strong：比 --primary 更深/更稳、对文本 AA 的承载色；品牌装饰仍用 --primary。
+ *   视觉令牌含 --primary-strong：按主题明暗方向调整 --primary、对文本 AA 的承载色；品牌装饰仍用 --primary。
  *
  * 主题 = 颜色令牌 + 图案/装饰件。装饰件通过 body::before 读取 --pattern 实现，
  * 页面结构里不出现任何主题判断，装饰层挂在 body 上、z-index 低于内容。
