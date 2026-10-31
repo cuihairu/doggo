@@ -226,8 +226,8 @@ export default function ProductDetailPage() {
         {product.iconUrl && (
           <img src={product.iconUrl} alt="" style={{ width: 180, height: 180, objectFit: 'contain' }} />
         )}
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
             <div style={{ fontSize: 22, color: 'var(--primary)', fontWeight: 700 }}>
               ¥{(product.finalPriceCents / 100).toFixed(2)}
             </div>

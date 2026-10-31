@@ -101,6 +101,7 @@ a {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 16px;
+  overflow-wrap: break-word;
 }
 
 .grid {
@@ -178,6 +179,8 @@ a {
   font-size: 14px;
   background: var(--surface);
   color: var(--text);
+  width: 100%;
+  min-width: 0;
 }
 
 .error-text {
@@ -435,5 +438,15 @@ a {
 
   .app-main {
     padding: 16px 16px 48px;
+  }
+
+  /* 商品/开箱四列在窄屏压成 88px 且文本溢出，收敛为两列。 */
+  .grid.cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* 三列卡片（资讯/Roll/用户中心）在窄屏压成 110px，收敛为两列。 */
+  .grid.cols-3 {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
