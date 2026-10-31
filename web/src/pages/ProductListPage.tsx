@@ -160,7 +160,7 @@ export default function ProductListPage() {
                 <img src={product.iconUrl} alt="" style={{ width: 110, height: 110, objectFit: 'contain' }} />
               )}
               <div style={{ fontSize: 14, margin: '8px 0 4px' }}>{product.name}</div>
-              <div style={{ color: 'var(--primary)', fontWeight: 600 }}>
+              <div style={{ color: 'var(--primary-strong)', fontWeight: 600 }}>
                 ¥{(product.finalPriceCents / 100).toFixed(2)}
               </div>
               {product.regularPriceCents > product.finalPriceCents && (

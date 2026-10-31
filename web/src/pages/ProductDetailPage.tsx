@@ -342,7 +342,7 @@ export default function ProductDetailPage() {
       >
         <div style={{ flex: 1 }}>
           <div className="muted" style={{ fontSize: 12 }}>应付（券后）</div>
-          <div style={{ fontSize: 18, color: 'var(--primary)', fontWeight: 700 }}>
+          <div style={{ fontSize: 18, color: 'var(--primary-strong)', fontWeight: 700 }}>
             ¥{(estimatedCents / 100).toFixed(2)}
           </div>
         </div>

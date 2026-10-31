@@ -40,6 +40,7 @@
   --muted: #646a73;
   --border: #dee0e3;
   --primary: #2f66d0;
+  --primary-strong: var(--primary);
   --primary-text: #ffffff;
   --primary-weak: #e8effc;
   --danger: #d83931;
@@ -63,6 +64,7 @@
   --muted: #9aa3ad;
   --border: #333b45;
   --primary: #6a96f0;
+  --primary-strong: #709af1;
   --primary-text: #0e1116;
   --primary-weak: rgba(106, 150, 240, 0.18);
   --danger: #ef5350;
@@ -86,6 +88,7 @@
   --muted: #a35a4d;
   --border: #f3d3c8;
   --primary: #c62828;
+  --primary-strong: var(--primary);
   --primary-text: #ffffff;
   --primary-weak: #fde3e0;
   --danger: #e2503f;
@@ -110,6 +113,7 @@
   --muted: #8d6752;
   --border: #f0dccf;
   --primary: #e06a3c;
+  --primary-strong: #b2461c;
   --primary-text: #ffffff;
   --primary-weak: #fbe3d6;
   --danger: #d8433a;
@@ -134,6 +138,7 @@
   --muted: #517669;
   --border: #cfe2da;
   --primary: #0f7a5c;
+  --primary-strong: #0f7659;
   --primary-text: #ffffff;
   --primary-weak: #d7ece4;
   --danger: #d8543f;
@@ -158,6 +163,7 @@
   --muted: #93a0bd;
   --border: #2f3a55;
   --primary: #e3b548;
+  --primary-strong: var(--primary);
   --primary-text: #1a2236;
   --primary-weak: rgba(227, 181, 72, 0.16);
   --danger: #f2726a;
@@ -184,6 +190,7 @@
   --muted: #98645a;
   --border: #f5d5cc;
   --primary: #d8322a;
+  --primary-strong: #c52c24;
   --primary-text: #ffffff;
   --primary-weak: #fbe3df;
   --danger: #e2503f;
@@ -208,6 +215,7 @@
   --muted: #8a6d7c;
   --border: #f2dde8;
   --primary: #e0688f;
+  --primary-strong: #c2285a;
   --primary-text: #ffffff;
   --primary-weak: #fbe0eb;
   --danger: #d8433a;
@@ -234,6 +242,7 @@
   --muted: #50777e;
   --border: #cbe7eb;
   --primary: #0f9bb0;
+  --primary-strong: #0b7585;
   --primary-text: #ffffff;
   --primary-weak: #d6f0f4;
   --danger: #d8433a;
@@ -258,6 +267,7 @@
   --muted: #886940;
   --border: #ecdcc4;
   --primary: #b4622a;
+  --primary-strong: #9d5525;
   --primary-text: #ffffff;
   --primary-weak: #f7e4d3;
   --danger: #d8433a;
@@ -282,6 +292,7 @@
   --muted: #5f717e;
   --border: #d8e2ea;
   --primary: #3d7ea6;
+  --primary-strong: #367094;
   --primary-text: #ffffff;
   --primary-weak: #e0eef7;
   --danger: #d8433a;

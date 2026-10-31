@@ -184,7 +184,7 @@ export default function UserCenterPage() {
           <p className="muted">{profile.phone || profile.email}</p>
           <p className="muted">邀请码 {profile.inviteCode}</p>
           <p>
-            积分余额 <strong style={{ color: 'var(--primary)' }}>{coins?.balance ?? '…'}</strong>
+            积分余额 <strong style={{ color: 'var(--primary-strong)' }}>{coins?.balance ?? '…'}</strong>
           </p>
         </div>
 

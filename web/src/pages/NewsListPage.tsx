@@ -81,7 +81,7 @@ export default function NewsListPage() {
         <div className="card" style={{ marginBottom: 16 }}>
           {notices.map((notice, index) => (
             <p key={notice.id} className="muted" style={{ margin: index > 0 ? '8px 0 0' : 0 }}>
-              <strong style={{ color: 'var(--primary)' }}>公告</strong> {notice.title}：{notice.content}
+              <strong style={{ color: 'var(--primary-strong)' }}>公告</strong> {notice.title}：{notice.content}
             </p>
           ))}
         </div>
