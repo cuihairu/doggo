@@ -373,7 +373,7 @@
 
 ## 未完成项
 
-- [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号 — BLOCKED 缺可用的 vapor 实例与 Steam 账号（Vapor:BaseUrl/ApiKey 仍为空，server/src/Doggo.Worker/appsettings.json:13-14）
+- [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号 — BLOCKED 缺可用的 vapor 实例与 Steam 账号（Vapor:BaseUrl/ApiKey 仍为空，server/src/Doggo.Worker/appsettings.json:13-14；复核 2026-11-01）
   - 复核 2026-10-16(PATROL1016):appsettings 中 Vapor:BaseUrl/ApiKey 仍为空,凭据未到位;解锁=用户提供可用的 vapor 实例与 Steam 账号
   - 已代决:按 docs/review/2026-10-30-decisions.md 执行(2026-10-30)(需用户输入,暂缓)
 - [ ] 小程序提审:需主体资质、正式 AppID 与合法域名 — BLOCKED 缺主体资质、正式 AppID 与合法域名（miniapp/project.config.json:2 仍为 touristappid 占位）
