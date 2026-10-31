@@ -413,3 +413,27 @@ a {
 .theme-swatch[data-theme='winter'] {
   background: #3d7ea6;
 }
+
+/* ---------- 响应式（ui-system.md §5）：窄屏导航换行，不再横向溢出 ---------- */
+
+@media (max-width: 720px) {
+  .app-nav {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 52px;
+    padding: 8px 16px;
+    gap: 8px 16px;
+  }
+
+  .app-nav .spacer {
+    display: none;
+  }
+
+  .app-nav .theme-switch {
+    margin-left: auto;
+  }
+
+  .app-main {
+    padding: 16px 16px 48px;
+  }
+}
