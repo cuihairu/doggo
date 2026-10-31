@@ -59,20 +59,20 @@
 - **修复**：`theme.css` 增加 `@media (prefers-reduced-motion:reduce){.skeleton::after,.open-glow{animation:none}}`。
 - **Commit**：`d84843d`。
 
-## 遗留问题（记录，未改动）
+## 遗留问题（记录，已随后续修复解决）
 
 ### P1 · 品牌主色作前景时低于 AA（灯笼/春/夏/秋/冬）
 
 - **对比度**（`--primary` vs `--primary-text`，即 `.btn` 白字）：灯笼 3.34、春 3.21、夏 3.31、秋 4.45、冬 4.44；链接/价格（`--primary` vs `--surface`）同水平。均低于 4.5:1（`brand`/`dark`/`cny`/`端午`/`中秋` 达标）。
 - **定位**：`web/src/tokens.css` 各主题 `--primary`/`--primary-text`；消费方 `web/src/theme.css` `.btn`、`.btn.secondary`、`.rarity-tag`、`.app-nav a.active`，以及各页价格/标题元素。
-- **为什么不修**：`--primary` 是品牌色，改它属于"改视觉方向"，超出本次边界。
-- **建议**：**加法式**新增 `--primary-strong`（每个主题取比 `--primary` 深一档、对白字 ≥4.5:1 的色值），仅用于按钮填充/链接前景等**文字承载**场景；品牌标记（logo、色板、选中态描边）继续用 `--primary` 不变。这既不碰品牌色，又满足 AA。
+- **为什么当时未修**：`--primary` 是品牌色，改它属于"改视觉方向"，超出本次边界。
+- **解决**：随 `c287e55` 采纳**加法式** `--primary-strong`（每个主题取比 `--primary` 深一档、对白字 ≥4.5:1 的色值），仅用于按钮填充/链接前景等**文字承载**场景；品牌标记（logo、色板、选中态描边）继续用 `--primary` 不变。11/11 主题 `--primary-strong` 对文本对比度均 ≥4.5:1。
 - **截图**：`2026-10-31-ui-audit/web-products-desktop.png`（蓝色价格 5.34:1 达标，供对照）、`web-lantern-narrow.png`（灯笼主题，按钮为问题项）。
 
 ### P3 · 春主题 `--muted` 在页面背景上 4.33:1
 
 - `spring` 的 `--muted #8a6d7c` 对 `--bg #fdf6f9` 为 4.33:1（略低于 AA），但对 `--surface` 为 4.61:1（达标）。受影响面为直接落在背景上的瞬态文字（"加载中…"、空态）。
-- **建议**：将 spring `--muted` 微调至约 `#836878` 即可双场景达标。
+- **解决**：随 `fa5a8aa` 将 spring `--muted` 微调至 `#876a79`，对 `--bg` 提升至 4.52:1，双场景达标。
 - **截图**：`2026-10-31-ui-audit/web-home-desktop.png`。
 
 ## 不可审计项
