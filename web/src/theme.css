@@ -450,3 +450,19 @@ a {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ---------- 键盘可达：统一焦点环 ---------- */
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- 动效可访问性：尊重系统减弱动效 ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after,
+  .open-glow {
+    animation: none;
+  }
+}
