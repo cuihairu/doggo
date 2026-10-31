@@ -39,20 +39,20 @@ export function Btn({
 }) {
   const t = useTheme()
   const filled = tone !== 'plain'
-  const bg = tone === 'danger' ? t.danger : t.primary
+  const bg = tone === 'danger' ? t.danger : t.primaryStrong
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || busy || !onPress}
       style={({ pressed }) => [
         styles.btn,
-        filled ? { backgroundColor: bg } : { backgroundColor: t.card, borderWidth: 1, borderColor: t.primary },
+        filled ? { backgroundColor: bg } : { backgroundColor: t.card, borderWidth: 1, borderColor: t.primaryStrong },
         (disabled || busy) && { opacity: 0.5 },
         pressed && { opacity: 0.85 },
         style
       ]}
     >
-      <Text style={[styles.btnText, { color: filled ? t.primaryText : t.primary }]}>
+      <Text style={[styles.btnText, { color: filled ? t.primaryText : t.primaryStrong }]}>
         {busy ? '处理中…' : children}
       </Text>
     </Pressable>
@@ -119,7 +119,7 @@ export function Skeleton({ cards = 3 }: { cards?: number }) {
 
 export function Price({ children }: { children: ReactNode }) {
   const t = useTheme()
-  return <Text style={{ color: t.primary, fontWeight: '700', fontSize: 15 }}>{children}</Text>
+  return <Text style={{ color: t.primaryStrong, fontWeight: '700', fontSize: 15 }}>{children}</Text>
 }
 
 /** Error state: warn icon + reason + retry; `children` renders an alternative path. */

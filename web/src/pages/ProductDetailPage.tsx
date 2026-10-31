@@ -228,7 +228,7 @@ export default function ProductDetailPage() {
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 22, color: 'var(--primary)', fontWeight: 700 }}>
+            <div style={{ fontSize: 22, color: 'var(--primary-strong)', fontWeight: 700 }}>
               ¥{(product.finalPriceCents / 100).toFixed(2)}
             </div>
             {product.regularPriceCents > product.finalPriceCents && (

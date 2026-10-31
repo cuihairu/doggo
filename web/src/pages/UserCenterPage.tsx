@@ -225,7 +225,7 @@ export default function UserCenterPage() {
                   borderRadius: 4,
                   fontSize: 12,
                   background: day.signed ? 'var(--primary-weak)' : 'var(--bg)',
-                  color: day.signed ? 'var(--primary)' : 'var(--muted)',
+                  color: day.signed ? 'var(--primary-strong)' : 'var(--muted)',
                 }}
               >
                 {day.date.slice(5)}

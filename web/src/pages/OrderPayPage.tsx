@@ -77,7 +77,7 @@ function OrderContent({ order }: { order: OrderView }) {
             套餐：{order.planTitle ?? '单开'} × 1
           </div>
         </div>
-        <div style={{ fontSize: 20, color: 'var(--primary)', fontWeight: 700 }}>{yuan(order.totalCostCents)}</div>
+        <div style={{ fontSize: 20, color: 'var(--primary-strong)', fontWeight: 700 }}>{yuan(order.totalCostCents)}</div>
       </div>
     </div>
   )
@@ -161,7 +161,7 @@ function AmountCard({
           )}
           <tr>
             <td style={{ fontWeight: 600 }}>应付</td>
-            <td style={{ fontSize: 20, color: 'var(--primary)', fontWeight: 700 }}>{yuan(order.totalCostCents)}</td>
+            <td style={{ fontSize: 20, color: 'var(--primary-strong)', fontWeight: 700 }}>{yuan(order.totalCostCents)}</td>
           </tr>
         </tbody>
       </table>

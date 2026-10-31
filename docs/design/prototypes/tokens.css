@@ -4,6 +4,7 @@
  *   1. 结构令牌（--sp-*、--fs-*、--topbar-h 等）：全主题共享，写在 :root 且不被任何主题覆盖。
  *      这是"换主题不改布局"的保证——切换 data-theme 只改颜色与图案令牌，结构与间距一个都不动。
  *   2. 视觉令牌（颜色 + 图案）：每个主题一个 [data-theme="..."] 块，逐项给出。
+ *   视觉令牌含 --primary-strong：比 --primary 更深/更稳、对文本 AA 的承载色；品牌装饰仍用 --primary。
  *
  * 主题 = 颜色令牌 + 图案/装饰件。装饰件通过 body::before 读取 --pattern 实现，
  * 页面结构里不出现任何主题判断，装饰层挂在 body 上、z-index 低于内容。
@@ -52,6 +53,7 @@
   --muted: #646a73;
   --border: #dee0e3;
   --primary: #2f66d0;
+  --primary-strong: var(--primary);
   --primary-text: #ffffff;
   --primary-weak: #e8effc;
   --danger: #d83931;
@@ -75,6 +77,7 @@
   --muted: #9aa3ad;
   --border: #333b45;
   --primary: #6a96f0;
+  --primary-strong: #709af1;
   --primary-text: #0e1116;
   --primary-weak: rgba(106, 150, 240, 0.18);
   --danger: #ef5350;
@@ -98,6 +101,7 @@
   --muted: #a35a4d;
   --border: #f3d3c8;
   --primary: #c62828;
+  --primary-strong: var(--primary);
   --primary-text: #ffffff;
   --primary-weak: #fde3e0;
   --danger: #e2503f;
@@ -120,9 +124,10 @@
   --surface: #fffdfb;
   --surface-2: #fbefe9;
   --text: #4a2a1c;
-  --muted: #a97b62;
+  --muted: #8d6752;
   --border: #f0dccf;
   --primary: #e06a3c;
+  --primary-strong: #b2461c;
   --primary-text: #ffffff;
   --primary-weak: #fbe3d6;
   --danger: #d8433a;
@@ -145,9 +150,10 @@
   --surface: #ffffff;
   --surface-2: #e2efe9;
   --text: #123c30;
-  --muted: #5c8577;
+  --muted: #517669;
   --border: #cfe2da;
   --primary: #0f7a5c;
+  --primary-strong: #0f7659;
   --primary-text: #ffffff;
   --primary-weak: #d7ece4;
   --danger: #d8543f;
@@ -173,6 +179,7 @@
   --muted: #93a0bd;
   --border: #2f3a55;
   --primary: #e3b548;
+  --primary-strong: var(--primary);
   --primary-text: #1a2236;
   --primary-weak: rgba(227, 181, 72, 0.16);
   --danger: #f2726a;
@@ -197,9 +204,10 @@
   --surface: #ffffff;
   --surface-2: #fdeae6;
   --text: #3d1414;
-  --muted: #a06a5f;
+  --muted: #98645a;
   --border: #f5d5cc;
   --primary: #d8322a;
+  --primary-strong: #c52c24;
   --primary-text: #ffffff;
   --primary-weak: #fbe3df;
   --danger: #e2503f;
@@ -222,9 +230,10 @@
   --surface: #ffffff;
   --surface-2: #fbeef5;
   --text: #33262e;
-  --muted: #8a6d7c;
+  --muted: #876a79;
   --border: #f2dde8;
   --primary: #e0688f;
+  --primary-strong: #c2285a;
   --primary-text: #ffffff;
   --primary-weak: #fbe0eb;
   --danger: #d8433a;
@@ -249,9 +258,10 @@
   --surface: #ffffff;
   --surface-2: #e1f3f6;
   --text: #123c44;
-  --muted: #5b8890;
+  --muted: #50777e;
   --border: #cbe7eb;
   --primary: #0f9bb0;
+  --primary-strong: #0b7585;
   --primary-text: #ffffff;
   --primary-weak: #d6f0f4;
   --danger: #d8433a;
@@ -274,9 +284,10 @@
   --surface: #fffdf9;
   --surface-2: #f6ebdc;
   --text: #3c2a18;
-  --muted: #997748;
+  --muted: #886940;
   --border: #ecdcc4;
   --primary: #b4622a;
+  --primary-strong: #9d5525;
   --primary-text: #ffffff;
   --primary-weak: #f7e4d3;
   --danger: #d8433a;
@@ -299,9 +310,10 @@
   --surface: #ffffff;
   --surface-2: #e9eff5;
   --text: #1c2833;
-  --muted: #6b7f8e;
+  --muted: #5f717e;
   --border: #d8e2ea;
   --primary: #3d7ea6;
+  --primary-strong: #367094;
   --primary-text: #ffffff;
   --primary-weak: #e0eef7;
   --danger: #d8433a;
