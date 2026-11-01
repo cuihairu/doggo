@@ -118,6 +118,28 @@
 
 **修复后复评**：18/18 组合 `overflow=false`、0 控制台错误、0 页面异常；健康评分由审计基线 78/100 提升至 92/100（修复 P0 窄屏溢出、P1 次要文字对比度、P1 键盘焦点、P2 减弱动效后）。遗留清单已随 `c287e55` 收敛：采纳「加法式 `--primary-strong`」并把 web 价格/按钮/chip 与 mobile 按钮/Price 前景改用它后，11/11 主题 `--primary-strong` 对文本对比度均 ≥4.5:1（品牌主色前景 AA 已解决）；春主题 `--muted` 边缘对比度亦经 `#876a79` 提升至 4.52:1（达标）。
 
+## 修复对照（before/after 同视图截图，四联矩阵）
+
+> 成对截图存放于本文件同目录的 `shots-after/`。**before 的产生方式（可复核）**：在当前构建的同视图上，以 `git show` 取出修复前提交（D1–D4 取 `e022a1c`，D5/D6 取 `34b8c24`）中被改动规则的**原值**注入页面（如 D1 注入修复前的 `.app-nav{flex-wrap:nowrap}`/`repeat(4,1fr)` 等），复现修复前渲染；成对截图逐张附计算样式实测值（见各行列注）。D4 在 `prefers-reduced-motion: reduce` 模拟下拍摄——修复前 `animation=shimmer`（不尊重偏好），修复后 `animation=none`。
+
+| # | 问题 | before | after | commit |
+|---|---|---|---|---|
+| D1 | P0 窄屏全站横向溢出（390px 下 `scrollWidth` 423→390，导航挤压换行） | `shots-after/doggo-D1-narrow-overflow-before.png` | `shots-after/doggo-D1-narrow-overflow-after.png` | `62ee688`、`8485bbd` |
+| D2 | P1 次要文字对比度低于 AA（灯笼 `--muted` `#a97b62`→`#8d6752`，六主题同修） | `shots-after/doggo-D2-muted-contrast-before.png` | `shots-after/doggo-D2-muted-contrast-after.png` | `d13150c` |
+| D3 | P1 无键盘焦点指示（`outline` none→`2px solid var(--primary)`） | `shots-after/doggo-D3-focus-ring-before.png` | `shots-after/doggo-D3-focus-ring-after.png` | `d84843d` |
+| D4 | P2 动效不尊重减弱动效（reduce 下 `skeleton::after` `shimmer`→`none`） | `shots-after/doggo-D4-reduced-motion-before.png` | `shots-after/doggo-D4-reduced-motion-after.png` | `d84843d` |
+| D5 | P1 品牌主色前景低于 AA（灯笼 `--primary-strong` `var(--primary)=#e06a3c` 3.34:1→`#b2461c` ≥4.5:1，11 主题） | `shots-after/doggo-D5-primary-aa-before.png` | `shots-after/doggo-D5-primary-aa-after.png` | `5b393a7`、`c287e55` |
+| D6 | P3 春主题 `--muted` 边缘对比度（`#8a6d7c` 4.33:1→`#876a79` 4.52:1） | `shots-after/doggo-D6-spring-muted-before.png` | `shots-after/doggo-D6-spring-muted-after.png` | `fa5a8aa` |
+
+各对实测（Playwright 计算样式，成对同视图）：
+
+- **D1**：before `clientWidth=390 scrollWidth=423 overflow=true` → after `clientWidth=390 scrollWidth=390 overflow=false`。
+- **D2**：before `.muted` 颜色 `rgb(169,123,98)`（`#a97b62`）→ after `rgb(141,103,82)`（`#8d6752`）。
+- **D3**：before 焦点元素 `outline=none` → after `outline=solid 2px`。
+- **D4**：before（reduce 模拟）`skeleton::after animation=shimmer` → after `animation=none`。
+- **D5**：before `.btn` 背景 `rgb(224,106,60)`（`#e06a3c`，对白字 3.34:1）→ after `rgb(178,70,28)`（`#b2461c`，≥4.5:1）。
+- **D6**：before `.muted` 颜色 `rgb(138,109,124)`（`#8a6d7c`）→ after `rgb(135,106,121)`（`#876a79`）。
+
 ## 结论
 
 本次修复 4 类问题（窄屏溢出、次要文字对比度、键盘焦点、减弱动效），全部通过回归验证；遗留 2 项（品牌主色前景 AA 与春主题边缘对比度）经 `c287e55`/`fa5a8aa` 采纳加法式 `--primary-strong` 与 `--muted` 微调后均已解决（11/11 主题 `--primary-strong` 对文本 ≥4.5:1，春主题 `--muted` 4.52:1）。**核心短板已清，达标门前不再有待拍板项。**
