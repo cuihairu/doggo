@@ -2,6 +2,7 @@
 
 > 只列需求,每条一句。已完成项的证据(提交号与该批测试数)写在所属节标题行。
 
+
 ## M0 项目骨架与基础设施
 
 证据:422cfbc / 268cd82 / 29c7d69 / fbc5470 / ffa6347 / e899982 / 65217de / f3e6b46
@@ -37,6 +38,7 @@
 - [x] deploy/.env.example
 - [x] EF Core 连接配置与启动迁移验证
 - [x] Redis 连接配置验证
+
 
 ## M1 领域模型与数据层
 
@@ -78,6 +80,7 @@
 - [x] 首个 EF 迁移建表并在本地库验证
 - [x] 数据层行为测试:ID 生成、审计时间戳、软删除过滤
 
+
 ## M2 资讯聚合
 
 证据:f1e3930 / 7b2ec76
@@ -104,6 +107,7 @@
 - [x] 运营内容接口:GET /api/notices、GET /api/banners、GET /api/articles/{id}
 - [x] 集成测试:抓取到清洗到去重到落库到 API 输出
 
+
 ## M3 行情同步
 
 证据:38e67d0 / b088bb5 / bd05f01 / 6560fda
@@ -117,6 +121,7 @@
 - [x] GET /api/market/items/{id}/prices 历史价格序列
 - [x] GET /api/exchange-rates 汇率接口
 - [x] vapor 不可用时的降级策略,读最近快照并任务退避
+
 
 ## M4 商品与订单
 
@@ -144,6 +149,7 @@
 - [x] 取回结果回调处理,订单完成或回退
 - [x] 取回重试策略与错误记录
 
+
 ## M5 开箱系统
 
 证据:8a29637 / 56ad25d / b4b9e77 / c2b64c7
@@ -169,6 +175,7 @@
 - [x] 房间自动滚动下一期
 - [x] C 端接口 GET /api/roll/rooms 与 GET /api/roll/rooms/{id}
 
+
 ## M6 用户体系与营销
 
 证据:24e4fb2 / 94572a1 / 5a05b39 / 8a75fe5 / d75da6b
@@ -186,6 +193,7 @@
 - [x] 优惠券领取、可用商品判定、下单抵扣、退款回补
 - [x] 邀请奖励:绑定邀请码与奖励入账
 - [x] 签到:自然周周期与补签规则
+
 
 ## M7 客户端
 
@@ -228,6 +236,7 @@
 - [x] 核心页面适配:账密登录、RN 组件、暗色主题、订单本地查询
 - [x] Android APK 打包流水线与模拟器验收
 
+
 ## M8 部署与运维
 
 证据:86be665 / 8aa1fb7 / b00c44e / 56c5143 / 7d0e385 / 88043bf / 086ed86
@@ -242,6 +251,7 @@
 - [x] 部署文档
 - [x] 备份策略:7 日备与 8 周备
 
+
 ## M9 手机版本
 
 证据:3d59054 / a64e882 / 6bb6b58 / c45beee / a9cab04 / 27efb0a / 6df1172 / 9755539 / 0a6c225 / 3ea774f
@@ -253,6 +263,7 @@
 - [x] 下单优惠券抵扣选择器
 - [x] 无套餐商品数量档按档计价下单
 - [x] 真机或模拟器安装验收,核心流程实走:登录、浏览、开箱、订单可查
+
 
 ## M10 运营内容与 C 端接口接通
 
@@ -271,6 +282,7 @@
 - [x] 用户端金币流水明细 GET /api/coins/logs,三端展示
 - [x] 领券中心:GET /api/coupons 与 POST /api/coupons/{id}/claim,三端接通
 
+
 ## M11 邀请返利可见化与前端搜索分页
 
 证据:8be678b / 1b6111e / 2f04b68 / 03e7526 / 0676920 / a997fb9
@@ -282,6 +294,7 @@
 - [x] 翻页计数改用服务端返回行数
 - [x] web 行情类型筛选
 - [x] 该批测试基线 355 例全绿
+
 
 ## M12 界面重设计与两个模块
 
@@ -331,10 +344,6 @@
 - [x] 服务端:GET /api/market/items 增 changeCents/changeBps,取最近两个日线收盘,单日线或前收为 0 时为 null;2 例新测试
 - [x] mobile/miniapp:行情列表日涨跌红绿(服务端 changeBps)、搜索框与游戏/类型筛选,shared fetchMarket 收 filters
 - [x] 站内 vs 外部参考价对照表:2026-10-16 代决按聚合口径落地(用户授权代决,可推翻)
-  - 复核 2026-10-16(PATROL1016):仍无用户裁决记录,维持已裁决搁置,不重开;解锁=用户明确拍板口径
-  - 代决 2026-10-16(FW1016D):前台只暴露聚合中位数,不暴露逐站点明细;记录见 docs/design/price-crawler-design.md §12
-  - 证据:GET /api/market/items/{id}/reference + MarketApiTests 4 例(Api.Tests 96 例全绿);web 行情趋势页对照块(pnpm build 绿)
-  - 已代决:按 docs/review/2026-10-30-decisions.md 执行(2026-10-30)(维持原裁决,解锁=用户拍板口径)
 
 ### 价格爬虫独立模块
 - [x] 独立 classlib Doggo.PriceCrawler,只依赖 Domain,可独立成项目
@@ -357,6 +366,7 @@
 - [x] 客户端封装:shared/src/events.ts 与 web/src/api/events.ts,商品详情页两处埋点,下单请求带 X-Doggo-Session
 - [x] 该批新增 28 例测试,全仓 469 绿
 
+
 ## 持续事项
 
 证据:c88d823 / 2f41ab5 / d611fc6
@@ -364,60 +374,57 @@
 - [x] 每个里程碑完成后同步更新 docs 与 README
 - [x] 核心业务逻辑保持 80% 以上单测覆盖,daily.yml 持续采集
 - [x] 敏感配置只走环境变量,不落仓库
-- [x] 文档首页：按功能配截图预览（来源：用户 2026-10-14）
-  - 要求：把界面**按功能**截图，放在**文档首页做预览**，**按功能逐项介绍**（不是一个大图了事）
-  - 验收：每个主要功能一张截图 + 一句说明；截图取自**真实运行的界面**，不是示意图；首页能直接看到
-  - 证据：2180556（web 10 张）/ 956d9b0（admin 9 张）/ 9668bf1（mobile 7 张）；pnpm docs:build ×3 全绿
-- [x] 统一 TODO 文件名为小写 todo.md并修齐全仓引用与中英审计文档（2026-10-28，本次提交）
-  - 证据：README 中英、docs/guide 中英、PR 模板、两审计文档 D-11 的 TODO.md→todo.md 引用已同步；`git grep 'TODO\.md'` 无残留；仓库根仅存 todo.md
+- [x] 文档首页：按功能配截图预览（证据：2180556/956d9b0/9668bf1；docs:build ×3 绿）
+- [x] 统一 TODO 文件名为小写 todo.md 并修齐全仓引用与中英审计文档（2026-10-28）
+
 
 ## 未完成项
 
-- [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号 — BLOCKED 缺可用的 vapor 实例与 Steam 账号（Vapor:BaseUrl/ApiKey 仍为空，server/src/Doggo.Worker/appsettings.json:13-14；复核 2026-11-01）
-  - 复核 2026-10-16(PATROL1016):appsettings 中 Vapor:BaseUrl/ApiKey 仍为空,凭据未到位;解锁=用户提供可用的 vapor 实例与 Steam 账号
-  - 已代决:按 docs/review/2026-10-30-decisions.md 执行(2026-10-30)(需用户输入,暂缓)
-- [ ] 小程序提审:需主体资质、正式 AppID 与合法域名 — BLOCKED 缺主体资质、正式 AppID 与合法域名（miniapp/project.config.json:2 仍为 touristappid 占位；复核 2026-11-01）
-  - 复核 2026-10-16(PATROL1016):miniapp/project.config.json 的 appid 仍为 touristappid 占位;解锁=用户提供主体资质、正式 AppID 与合法域名
-  - 已代决:按 docs/review/2026-10-30-decisions.md 执行(2026-10-30)(需用户输入,暂缓)
-- [x] docs 双语补齐(2026-10-16 执行单;约定:中文保基名,英文置于 `docs/en/` 并镜像同路径,两份首 3 行内放语言切换器;排除 CHANGELOG/CONTRIBUTING/LICENSE/CODE_OF_CONDUCT/SECURITY)
-  - [x] docs/ 根目录:审计-文档一致性.md 已配 docs/en/审计-文档一致性.md(真实英译)
-  - [x] docs/index.md:用户已代决=站点级 i18n(config.mts 加 `locales.{root,en}`,英文首页挂 /en/;home 页不塞逐页切换器,语言切换走站点级导航 `VPNavBarTranslations`,两个 locale 各声明 label 即出现)。复核注:home 布局正文实际会渲染(dist/index.html 的 `.vp-doc` 内含「界面预览」与截图 `<img>`),原「不渲染正文、切换器无处放」的判断有误;按代决执行,不影响验收
-  - [x] docs/guide/ 6 篇(introduction/features/architecture/getting-started/deployment/miniapp-compliance)配英文版(真实英译,已移至 docs/en/guide/,切换器指向 /en/ 路径)
-  - [x] docs/design/ 7 篇(overview/data-model/case-opening/legacy-analysis/ui-system/price-crawler-design/analytics-funnel-design) + prototypes/README.md 配英文版(真实英译,均低于执行单 1000 行门槛;已移至 docs/en/design/);全部中文原文补切换器(首 3 行内)
-  - [x] README.md L93-101「本地测试口径」节为中文正文,违反「README 不混中文」红线:README.md 改英文节(Local testing by change type),README.zh.md 补对应中文节;README.md L87 残留中文专名(vapor 联调、小程序提审)改英文并刷新计数
-  - [x] 收尾门禁:pnpm docs:build 绿,/en/ 下 15 页与 /en/ 首页全部产出,nav 切换器在内容页渲染并指向镜像路径;顺手修 nav logo 路径(原 `${base}logo.svg` 经 withBase 拼成 /doggo/doggo/logo.svg 404,改回 /logo.svg,与其他仓一致)
-  - [x] 2026-10-24 按舰队约定翻转(e4b0b9a):英文上根、中文移 `docs/zh/`、删 `docs/en/`,仅用 VitePress 官方 `locales`(zh 带 `link: /zh/`),无逐页切换器、无 .zh.md 镜像;根与 /zh/ 各 16 页镜像产出,站内 md 与 nav 链接死链 0
+- [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号 — BLOCKED 缺可用的 vapor 实例与 Steam 账号
+- [ ] 小程序提审:需主体资质、正式 AppID 与合法域名 — BLOCKED 缺主体资质、正式 AppID 与合法域名
+- [x] docs 双语补齐
+- [x] docs/ 根目录:审计-文档一致性.md 已配 docs/en/审计-文档一致性.md(真实英译)
+- [x] docs/index.md:用户已代决=站点级 i18n(config.mts 加 `locales.{root,en}`,英文首页挂 /en/;home 页不塞逐页切换器,语言切换走站点级导航 `VPNavBarTranslations`,两个 locale 各声明 label 即出现)。复核注:home 布局正文实际会渲染(dist/index.html 的 `.vp-doc` 内含「界面预览」与截图 `<img>`),原「不渲染正文、切换器无处放」的判断有误;按代决执行,不影响验收
+- [x] docs/guide/ 6 篇(introduction/features/architecture/getting-started/deployment/miniapp-compliance)配英文版(真实英译,已移至 docs/en/guide/,切换器指向 /en/ 路径)
+- [x] docs/design/ 7 篇(overview/data-model/case-opening/legacy-analysis/ui-system/price-crawler-design/analytics-funnel-design) + prototypes/README.md 配英文版(真实英译,均低于执行单 1000 行门槛;已移至 docs/en/design/);全部中文原文补切换器(首 3 行内)
+- [x] README.md L93-101「本地测试口径」节为中文正文,违反「README 不混中文」红线:README.md 改英文节(Local testing by change type),README.zh.md 补对应中文节;README.md L87 残留中文专名(vapor 联调、小程序提审)改英文并刷新计数
+- [x] 收尾门禁:pnpm docs:build 绿,/en/ 下 15 页与 /en/ 首页全部产出,nav 切换器在内容页渲染并指向镜像路径;顺手修 nav logo 路径
+- [x] 2026-10-24 按舰队约定翻转(e4b0b9a):英文上根、中文移 `docs/zh/`、删 `docs/en/`,仅用 VitePress 官方 `locales`(zh 带 `link: /zh/`),无逐页切换器、无 .zh.md 镜像;根与 /zh/ 各 16 页镜像产出,站内 md 与 nav 链接死链 0
+
 
 ## 审核发现
 
-- [x] 审核发现：中英文项目状态仍写“469 server tests green”，但新增清单的 M12 最新证据已记录“全仓 500 绿”，当前状态数字互相矛盾（docs/guide/introduction.md:27、docs/zh/guide/introduction.md:27、todo.md:288）— 属实，docs 双语更新为 504 全仓测试绿（dotnet test 实测 504=81+103+45+179+96，证据 docs/guide/introduction.md:27、docs/zh/guide/introduction.md:27）
-- [x] 审核发现：提交标题仅称完成小写迁移，实际同时新增 380 行里程碑清单并把 README 计数改为 239/241，提交说明未覆盖这些实质变更（README.md:78、todo.md:3）— 属实，README 计数修正为实际 todo.md 条目（234 完成 + 2 外部依赖 = 236 总，证据 README.md:78、todo.md:390）
-- [x] 审核发现：a285f53..HEAD 未发现问题
-- [x] 审核发现：本范围新增第 3 条审核记录后，todo.md 实际为 235 完成 + 2 未完成 = 237 总，但 README.md:78 仍写「234 of 236 checklist items」，计数过期不一致（README.md:78、todo.md:392）— 属实，README 计数修正为勾选本条后的实际值 236 完成 + 2 外部依赖 = 238 总（todo.md 顶层级实测 236 完成 + 2 未完成），证据 README.md:78、todo.md:393
-- [x] 审核发现：决策文档引用的 todo.md 行号过期——同批在条目上方插入 3 行「已代决」后，vapor/小程序条目已移至 todo.md:376/379，文档仍写 todo.md:375/377（分别指向空白行/复核行）（docs/review/2026-10-30-decisions.md:9、docs/review/2026-10-30-decisions.md:37、docs/review/2026-10-30-decisions.md:97）— 属实，文档 todo.md 引用更新为 376/379，证据 docs/review/2026-10-30-decisions.md:9、docs/review/2026-10-30-decisions.md:37、docs/review/2026-10-30-decisions.md:96（条目 3 的 todo.md:333-336 引用已核验仍有效，未改）
-- [x] 审核发现：决策文档 appsettings 行号错位——BaseUrl 实际在 server/src/Doggo.Worker/appsettings.json:13、ApiKey 在 :14，文档却写 BaseUrl:14/ApiKey:15（docs/review/2026-10-30-decisions.md:11）— 属实，文档改为 BaseUrl:13/ApiKey:14，证据 docs/review/2026-10-30-decisions.md:11
-- [x] 审核发现：决策文档条目 2 与条目 3 之间出现连续两个「---」分隔线（docs/review/2026-10-30-decisions.md:62、docs/review/2026-10-30-decisions.md:64）— 属实，删除多余分隔线，仅留一条（docs/review/2026-10-30-decisions.md:62）
-- [x] 审核发现：提交标题仅称修复决策文档待办引用，实际同时把 README 计数从 236/238 改为 239/241 并在 todo.md 末尾追加 3 条审核发现记录（todo.md:397-399），提交说明未覆盖这些实质变更（README.md:78、todo.md:397）— 属实，历史提交 bf9a532 的 diff 同时修改 README.md 与追加 todo.md:397-399，不能安全改写已推送提交；本条补记并同步 README 计数为勾选后实际值 240/242，证据 bf9a532、README.md:78、todo.md:397-400
-- [x] 审核发现：提交 074d27e 标题仅称「record audit finding verification」，实际同时把 README 计数从 239/241 改为 240/242，提交说明未覆盖 README 计数变更（README.md:78、todo.md:400）— 属实，历史提交 074d27e 的 diff 同时修改 README.md 与 todo.md，不能安全改写已推送提交；本条补记并同步 README 计数为勾选后实际值 241/243，证据 074d27e、README.md:78、todo.md:401
-- [x] 审核发现：本轮 diff 未见问题（074d27e1..HEAD）— 属实，074d27e1 唯一解析为 074d27e，该范围仅含 2f58fe3；git diff 未见实质问题且 README/todo 计数一致（241/243），证据 git diff --check 074d27e..HEAD、git show 2f58fe3 --stat、todo.md:241 checked/242 unchecked、dotnet test --no-build 实测 504 绿（81+103+45+179+96）
-- [x] 审核发现：本轮 diff 未见问题（2f58fe3a..HEAD）— 属实，2f58fe3a..HEAD 仅含 edfeaad；git diff --check 2f58fe3a..HEAD 干净且 README/todo 计数一致（242/244），证据 git log --oneline 2f58fe3a..HEAD、git diff --check 2f58fe3a..HEAD、README.md:78、todo.md:242 checked/2 unchecked、DOTNET_USE_POLLING_FILE_WATCHER=1 dotnet test --no-build 实测 504 绿（81+103+45+179+96）
-- [x] 审核发现：审计报告声称修复后 18 个「路由 × 视口」组合全部 overflow=false，但同目录截图仅 17 张且未给出逐组合的路由×视口清单与实测数值，证据与结论无法一一复核（docs/review/2026-10-31-ui-audit-impeccable.md:21、docs/review/2026-10-31-ui-audit-impeccable.md:36、docs/review/2026-10-31-ui-audit-impeccable.md:92）— 属实，审计报告已补「复核矩阵」节：18 个「路由 × 视口」逐组合清单与实测数值（clientWidth/scrollWidth/overflow 均 false），18/18 全 false，证据 docs/review/2026-10-31-ui-audit-impeccable.md:94-117、docs/review/2026-10-31-ui-audit-impeccable.md:119、Playwright 1.63 实测输出
-- [x] 审核发现：审计报告「健康评分 78/100」未明确是修复前基线还是修复后复评，与正文「核心短板已清、仅剩品牌主色与春主题边缘项」的表述口径不清晰（docs/review/2026-10-31-ui-audit-impeccable.md:6、docs/review/2026-10-31-ui-audit-impeccable.md:96）— 属实，审计报告已补口径：78/100 为审计时（修复前）基线，并新增「修复后复评」92/100 与遗留项说明，证据 docs/review/2026-10-31-ui-audit-impeccable.md:6、docs/review/2026-10-31-ui-audit-impeccable.md:119
-- [x] 审核发现：签到日期 chip 仍用 var(--primary) 小字置 var(--primary-weak)，同 diff 已把 .btn.secondary/.rarity-tag/.theme-opt 换成 --primary-strong，此处漏改致 AA 不达标（春 2.59、夏 2.78、灯笼 2.71、秋 3.60、冬 3.75、国庆 3.89，均 <4.5:1）（web/src/pages/UserCenterPage.tsx:228）— 属实，chip 已改 var(--primary-strong)；修复后对比度 spring 4.53/summer 4.52/lantern 4.51/autumn 4.52/winter 4.55/national 4.56 均 ≥4.5:1，证据 web/src/pages/UserCenterPage.tsx:228、web/src/tokens.css:43 等、WCAG 对比度实测
-- [x] 审核发现：本提交标题「pass wcag aa on primary text and buttons」只修 web，移动端同源问题未修——mobile/src/ui.tsx 按钮填充/文字（:42、:55）与 Price（:122）仍用 t.primary/t.primaryText，春主题 primary #e0688f 对白字 3.21:1 <4.5:1（mobile/src/ui.tsx:42、mobile/src/ui.tsx:55、mobile/src/ui.tsx:122）— 属实，mobile/src/theme.ts 新增 primaryStrong 令牌（各主题取与 web tokens.css 同值的 AA 深色档，spring #c2285a），ui.tsx 按钮填充/文字与 Price 改用 t.primaryStrong；修复后 spring primaryStrong #c2285a 对白字 5.61:1 ≥4.5:1，证据 mobile/src/theme.ts:12、mobile/src/ui.tsx:42、mobile/src/ui.tsx:55、mobile/src/ui.tsx:122、WCAG 对比度实测
-- [x] 审核发现：tokens.css 头注称值与 docs/design/prototypes/tokens.css 一致，但本次只改 web/src/tokens.css 与 mobile/src/theme.ts，未同步设计源——docs/design/prototypes/tokens.css:225 仍为 spring --muted #8a6d7c 且无 --primary-strong，造成源/实现漂移（web/src/tokens.css:1、docs/design/prototypes/tokens.css:225）— 属实，设计源 docs/design/prototypes/tokens.css 已同步：各主题补 --primary-strong（与 web/src/tokens.css 同值），spring --muted 改 #876a79，且 d13150c 未同步的其余 6 主题 muted 一并同步，证据 docs/design/prototypes/tokens.css:7、docs/design/prototypes/tokens.css:233、docs/design/prototypes/tokens.css:236
-- [x] 审核发现：同为价格主色文本，本次把 ProductDetailPage:345/ProductListPage:163/UserCenterPage:187 换成 --primary-strong，却漏改 ProductDetailPage:231 与 OrderPayPage:80/164（仍 var(--primary)），同类语义混用两枚令牌（这些为 20-22px 粗体大字号，≥3:1 大文本 AA 尚达标，但转换不彻底）（web/src/pages/ProductDetailPage.tsx:231、web/src/pages/OrderPayPage.tsx:80、web/src/pages/OrderPayPage.tsx:164）— 属实，三处已改用 var(--primary-strong)，价格主色文本全站统一为 --primary-strong；证据 web/src/pages/ProductDetailPage.tsx:231、web/src/pages/OrderPayPage.tsx:80、web/src/pages/OrderPayPage.tsx:164
+- [x] 审核发现：中英文项目状态仍写“469 server tests green”(（docs/guide/introduction.md:27、docs/zh/guide/introduction.md:27、todo.md:288）)
+- [x] 审核发现：提交标题仅称完成小写迁移(（README.md:78、todo.md:3）)
+- [x] 审核发现：a285f53..HEAD 未发现问题(证据:a285f53)
+- [x] 审核发现：本范围新增第 3 条审核记录后(（README.md:78、todo.md:392）)
+- [x] 审核发现：决策文档引用的 todo.md 行号过期(（条目 3 的 todo.md:333-336 引用已核验仍有效，未改）)
+- [x] 审核发现：决策文档 appsettings 行号错位(（docs/review/2026-10-30-decisions.md:11）)
+- [x] 审核发现：决策文档条目 2 与条目 3 之间出现连续两个「---」分隔线(（docs/review/2026-10-30-decisions.md:62、docs/review/2026-10-30-decisions.md:64）)
+- [x] 审核发现：提交标题仅称修复决策文档待办引用(（todo.md:397-399）;证据:bf9a532)
+- [x] 审核发现：提交 074d27e 标题仅称「record audit finding verification」(（README.md:78、todo.md:400）;证据:074d27e)
+- [x] 审核发现：本轮 diff 未见问题（074d27e1..HEAD）(证据:074d27e1/074d27e/2f58fe3)
+- [x] 审核发现：本轮 diff 未见问题（2f58fe3a..HEAD）(证据:2f58fe3a/edfeaad)
+- [x] 审核发现：审计报告声称修复后 18 个「路由 × 视口」组合全部 overflow=false
+- [x] 审核发现：审计报告「健康评分 78/100」未明确是修复前基线还是修复后复评
+- [x] 审核发现：签到日期 chip 仍用 var(--primary) 小字置 var(--primary-weak)(（春 2.59、夏 2.78、灯笼 2.71、秋 3.60、冬 3.75、国庆 3.89，均 <4.5:1）)
+- [x] 审核发现：本提交标题「pass wcag aa on primary text and buttons」只修 web(（:42、:55）)
+- [x] 审核发现：tokens.css 头注称值与 docs/design/prototypes/tokens.css 一致(（web/src/tokens.css:1、docs/design/prototypes/tokens.css:225）;证据:d13150c)
+- [x] 审核发现：同为价格主色文本(（这些为 20-22px 粗体大字号，≥3:1 大文本 AA 尚达标，但转换不彻底）)
+
 
 ## 审核发现 2026-10-31
 
-- [x] 审核发现：tokens.css 头注「--primary-strong：比 --primary 更深/更稳」与取值不符——dark 主题 --primary-strong #709af1 比 --primary #6a96f0 更亮（暗底需更亮档达 AA，与「更深」相反），brand/cny/midautumn 三主题为 --primary-strong: var(--primary)（同值、未更深），仅 7/11 主题真正更深（docs/design/prototypes/tokens.css:7、docs/design/prototypes/tokens.css:56、docs/design/prototypes/tokens.css:104、docs/design/prototypes/tokens.css:182）— 属实，头注已改为「按主题明暗方向调整 --primary」，覆盖 dark 更亮与三主题同值的情况，证据 docs/design/prototypes/tokens.css:7
-- [x] 审核发现：todo.md:408 新记审核发现称「d13150c 未同步的其余 5 主题 muted 一并同步」，但本 diff 实际同步 6 个非 spring 主题的 --muted（lantern/dragonboat/national/summer/autumn/winter，连同 spring 共 7 个），「其余 5 主题」应为「其余 6 主题」，计数少一（todo.md:408、docs/design/prototypes/tokens.css:127、docs/design/prototypes/tokens.css:153、docs/design/prototypes/tokens.css:207、docs/design/prototypes/tokens.css:233、docs/design/prototypes/tokens.css:261、docs/design/prototypes/tokens.css:287、docs/design/prototypes/tokens.css:313）— 属实，todo.md:408 已改为「其余 6 主题」，证据 todo.md:408、git show c287e55 -- docs/design/prototypes/tokens.css 实测 7 处 --muted 变更（spring+6）
-- [x] 审核发现：审计报告新增「修复后复评 92/100」仍列「品牌主色前景 AA」为遗留项（且结论节称其为唯一拦在达标门前的待拍板项），但本提交即采纳其建议的「加法式 --primary-strong」并把 web 价格/按钮/chip 与 mobile 按钮/Price 前景改用它，8/11 主题（primaryStrong≠primary）的该项 AA 已获解决——复评遗留项清单未随本提交更新，口径前后矛盾/过时（docs/review/2026-10-31-ui-audit-impeccable.md:119、docs/review/2026-10-31-ui-audit-impeccable.md:123）— 属实，审计报告「修复后复评」与「结论」已同步：遗留清单收敛为 11/11 主题 --primary-strong 对文本 ≥4.5:1（AA 已解决）+ 春主题 --muted 4.52:1（达标），不再列待拍板项，证据 docs/review/2026-10-31-ui-audit-impeccable.md:119、docs/review/2026-10-31-ui-audit-impeccable.md:123、WCAG 对比度实测
-- [x] 审核发现：README 计数在中转提交 a73c0c0 写「251 of 253 checklist items」，但该提交 todo.md 实为 251 完成 + 3 未完成 = 254 条（其中第 3 条未完成是本次新加的待验证审核发现，且该提交未在 README 反映 +2 总数增量），计数口径瞬时不一致（README.md:78、todo.md:411-415）— 属实，README 计数已对齐 todo.md 实测口径（253 完成 + 3 未完成 = 256 条，未完成含 2 条外部依赖 BLOCKED 与 1 条待验证审核发现），证据 README.md:78、todo.md:416、git show a73c0c0:todo.md 实测 251+3=254 条
-- [x] 审核发现：docs/review/2026-10-31-ui-audit-impeccable.md 第 62-76 行「遗留问题（记录，未改动）」节仍把品牌主色前景 AA 与春主题 --muted 列为未解决遗留（P1/P3），与同文件第 119/123 行「已随 c287e55/fa5a8aa 解决、达标门前不再有待拍板项」前后矛盾，该遗留节未随本 diff 收敛（docs/review/2026-10-31-ui-audit-impeccable.md:62、docs/review/2026-10-31-ui-audit-impeccable.md:64、docs/review/2026-10-31-ui-audit-impeccable.md:72）— 属实，遗留节已随本 diff 收敛为「记录，已随后续修复解决」：P1 标注随 c287e55 解决（11/11 主题 --primary-strong 对文本 ≥4.5:1），P3 标注随 fa5a8aa 解决（spring --muted 对 --bg 4.52:1），与文末复评/结论口径一致；证据 docs/review/2026-10-31-ui-audit-impeccable.md:62、docs/review/2026-10-31-ui-audit-impeccable.md:68、docs/review/2026-10-31-ui-audit-impeccable.md:74、docs/review/2026-10-31-ui-audit-impeccable.md:119、docs/review/2026-10-31-ui-audit-impeccable.md:123
-- [x] 审核发现：docs/review/2026-10-31-ui-audit-impeccable.md:69 新增 P1「解决」行称「每个主题取比 --primary 深一档」，但实测 dark 主题 --primary-strong #709af1 比 --primary #6a96f0 更亮（暗底需更亮档达 AA，与「深一档」相反），brand/cny/midautumn 三主题 --primary-strong 为 var(--primary)（同值、未更深），仅 7/11 主题真正更深——该描述与事实不符，且设计源 tokens.css 头注已改为「按主题明暗方向调整 --primary」相矛盾（docs/review/2026-10-31-ui-audit-impeccable.md:69、docs/design/prototypes/tokens.css:7、docs/design/prototypes/tokens.css:56、docs/design/prototypes/tokens.css:104、docs/design/prototypes/tokens.css:182）— 属实，P1「解决」行描述「深一档」已改为「按主题明暗方向调整 --primary」（与 docs/design/prototypes/tokens.css:7 头注及 11 组取值一致）；11/11 主题 --primary-strong 对文本对比度均 ≥4.5:1（最低 brand 5.34:1），达标结论不变；证据 docs/review/2026-10-31-ui-audit-impeccable.md:69、docs/design/prototypes/tokens.css:7；该头注实由 7db78ab 在 docs/design/prototypes/tokens.css:7 修改（c0984c8 未触碰 tokens.css）
-- [x] 审核发现：todo.md:419 声称「本轮 diff 未见问题（8e455d09..HEAD）」并称「已删」，但本轮审核范围实为 870a6e6..HEAD（含 c0984c8、f14c4f5 两个提交），8e455d09..HEAD 实际含 b0bfd23/9fbbd07/870a6e6/c0984c8/f14c4f5 共 5 个提交，且该「未见问题（8e455d09..HEAD）」记录从未作为 - [x]/- [ ] checklist 项存在于任何历史提交（仅 c0984c8 首次以删除线形式出现，后随 f14c4f5 保留），范围引用与「已删」历史依据均不符（todo.md:419）— 属实，todo.md:419 该删除线记录已删除（其「未见问题」结论本不成立，因 8e455d09..HEAD 含 b0bfd23 所加 P1「深一档」措辞问题）；本轮 870a6e6..HEAD 实含 c0984c8 与 f14c4f5，证据 git log --oneline 870a6e6..HEAD（c0984c8、f14c4f5）、git log --oneline 8e455d09..HEAD（5 提交）、git log -S"未见问题（8e455d09" --oneline -- todo.md（仅 c0984c8 首次引入）；测试门禁 DOTNET_USE_POLLING_FILE_WATCHER=1 dotnet test server/Doggo.slnx 实测 504 绿（81+103+45+179+96）、pnpm docs:build 绿
-- [x] 审核发现：提交 c0984c8 标题仅称「docs: fix primary-strong wording and verify audit finding」，实际同时把 README.md:78 计数从 254/256 改为 255/257（todo.md 相应由 254+2 变为 255+2），提交说明未覆盖该 README 计数变更（README.md:78）— 属实，提交说明已补充 README 计数变更说明（255/257）；证据 git show c0984c8 -- README.md（254/256→255/257）、git show c0984c8 -- todo.md、git log -1 --format=%B c0984c8；测试门禁 DOTNET_USE_POLLING_FILE_WATCHER=1 dotnet test server/Doggo.slnx 实测 504 绿（81+103+45+179+96）、pnpm docs:build 绿
-- [x] 审核发现：todo.md:418 称「与本 diff 同文件 tokens.css 头注已改为『按主题明暗方向调整 --primary』相矛盾」，但 c0984c8 未修改任何 tokens.css，且该「明暗方向」头注字样仅在 docs/design/prototypes/tokens.css:7，所引行号 web/src/tokens.css:43-295 均为各主题 --primary-strong 值行而非头注，引用对象与表述不符（todo.md:418、docs/design/prototypes/tokens.css:7）— 属实，todo.md:418 引用已改为 docs/design/prototypes/tokens.css:7（真实头注所在），并注明该头注由 7db78ab 修改；证据 docs/design/prototypes/tokens.css:7、git log -S"按主题明暗方向调整" --oneline -- docs/design/prototypes/tokens.css（7db78ab）、git show c0984c8 --name-only；测试门禁 DOTNET_USE_POLLING_FILE_WATCHER=1 dotnet test server/Doggo.slnx 实测 504 绿（81+103+45+179+96）、pnpm docs:build 绿
-- [x] 审核发现：README.md 顶部出现重复 docs 徽章，其一链接为 `https://cuihairu.github.io/doggo//`（双斜杠、无效 URL）——80ba820 把 5b1e3d4 已修正的单个 docs 徽章再次替换为两个（双斜杠+重复），提交标题「docs badge centered one-line, language-correct links」未覆盖该重复与双斜杠（README.md:1）— 属实，并发现 0320db9 后续把徽章拆成空链接与裸图片；已修复中英 README 顶部徽章块为每枚徽章完整链接，仅保留一个 docs 徽章，并去除 `doggo//`/`doggo/zh//`（README.md:6、README.zh.md:6）；证据 80b6859（README.md:6、README.zh.md:6）；测试门禁 DOTNET_USE_POLLING_FILE_WATCHER=1 dotnet test server/Doggo.slnx 实测 504 绿（81+103+45+179+96）、pnpm docs:build 绿
-- [x] 审核发现：5b1e3d4 删除 README 项目标题 `# Doggo`、logo 及 `[English](README.md) | [简体中文](README.zh.md)` 语言互切链接，提交说明仅称「docs badge centered one-line, language-correct links」，未提及标题/logo/语言链接移除，与「language-correct links」表述相悖（README.md:1、README.zh.md:1）— 属实，git show 5b1e3d4 确认该提交删除这些元素且说明未提及；随后 f32804d 已恢复标题/logo/语言链接，当前 README.md:2-5、README.zh.md:2-5 均存在，无需再修；证据 80b6859（README.md:2-5、README.zh.md:2-5）
+- [x] 审核发现：tokens.css 头注「--primary-strong：比 --primary 更深/更稳」与取值不符
+- [x] 审核发现：todo.md:408 新记审核发现称「d13150c 未同步的其余 5 主题 muted 一并同步」(证据:d13150c/c287e55)
+- [x] 审核发现：审计报告新增「修复后复评 92/100」仍列「品牌主色前景 AA」为遗留项（且结论节称其为唯一拦在达标门前的待拍板项）
+- [x] 审核发现：README 计数在中转提交 a73c0c0 写「251 of 253 checklist items」(（README.md:78、todo.md:411-415）;证据:a73c0c0)
+- [x] 审核发现：docs/review/2026-10-31-ui-audit-impeccable.md 第 62-76 行「遗留问题（记录(（11/11 主题 --primary-strong 对文本 ≥4.5:1）;证据:c287e55/fa5a8aa)
+- [x] 审核发现：docs/review/2026-10-31-ui-audit-impeccable.md:69 新增 P1「解决」行称「每个主题取比 --primary 深一档」(（与 docs/design/prototypes/tokens.css:7 头注及 11 组取值一致）;证据:7db78ab/c0984c8)
+- [x] 审核发现：todo.md:419 声称「本轮 diff 未见问题（8e455d09..HEAD）」并称「已删」(（todo.md:419）;证据:8e455d09/870a6e6/c0984c8/f14c4f5)
+- [x] 审核发现：提交 c0984c8 标题仅称「docs: fix primary-strong wording and verify audit finding」(（README.md:78）;证据:c0984c8)
+- [x] 审核发现：todo.md:418 称「与本 diff 同文件 tokens.css 头注已改为『按主题明暗方向调整 --primary』相矛盾」(（todo.md:418、docs/design/prototypes/tokens.css:7）;证据:c0984c8/7db78ab)
+- [x] 审核发现：README.md 顶部出现重复 docs 徽章(（README.md:1）;证据:80ba820/5b1e3d4/0320db9/80b6859)
+- [x] 审核发现：5b1e3d4 删除 README 项目标题 `# Doggo`(（README.md:1、README.zh.md:1）;证据:5b1e3d4/f32804d/80b6859)
+- [x] 审核发现：README 顶部 HTML 块吞掉 Markdown 标题与语言链接（README.md:1-6、README.zh.md:1-6；CommonMark 实测 H1=0）(证据:bc459c7)
+- [x] 审核发现：README.zh.md 的 TODO.md 大写死链（README.zh.md:69）(证据:bc459c7)
