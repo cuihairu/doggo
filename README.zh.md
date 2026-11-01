@@ -1,9 +1,21 @@
 <div align="center">
   <img src="docs/public/logo.svg" width="64" height="64" alt="Doggo" />
+</div>
+
+<div align="center">
+
 # Doggo
+
 **开源游戏资讯平台 —— CS2 / Dota 2 资讯聚合 · 饰品行情 · 开箱**
+
 [English](README.md) | [简体中文](README.zh.md)
+
+</div>
+
+<div align="center">
+
 <p align="center"><a href="https://github.com/cuihairu/doggo/releases"><img alt="Status" src="https://img.shields.io/badge/status-in%20development-orange"></a> <a href="https://github.com/cuihairu/doggo/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/cuihairu/doggo/actions/workflows/ci.yml/badge.svg"></a> <a href="https://codecov.io/gh/cuihairu/doggo"><img alt="codecov" src="https://codecov.io/gh/cuihairu/doggo/branch/main/graph/badge.svg"></a> <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg"></a> <a href="https://dotnet.microsoft.com/"><img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4"></a> <a href="https://learn.microsoft.com/dotnet/csharp/"><img alt="C#" src="https://img.shields.io/badge/C%23-14-239120"></a> <a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6"></a> <a href="https://react.dev/"><img alt="React" src="https://img.shields.io/badge/React-61DAFB"></a> <a href="https://taro-docs.jd.com/"><img alt="Taro" src="https://img.shields.io/badge/Taro-blue"></a> <a href="https://pro.ant.design/"><img alt="AntDesignPro" src="https://img.shields.io/badge/AntDesignPro-0170FE"></a> <a href="https://www.mysql.com/"><img alt="MySQL" src="https://img.shields.io/badge/MySQL-4479A1"></a> <a href="https://redis.io/"><img alt="Redis" src="https://img.shields.io/badge/Redis-DC382D"></a> <a href="https://cuihairu.github.io/doggo/zh/"><img src="https://img.shields.io/badge/%E6%96%87%E6%A1%A3-blue" alt="docs"></a></p>
+
 </div>
 
 Doggo 是一个聚焦 **CS2(反恐精英 2)** 与 **Dota 2** 的开源游戏资讯平台,提供资讯聚合、饰品行情跟踪、开箱玩法与 Steam 自动化能力。全部服务端组件使用 **C# / .NET** 构建,原生支持 Linux,通过 Docker 部署。
@@ -15,6 +27,7 @@ Doggo 是一个聚焦 **CS2(反恐精英 2)** 与 **Dota 2** 的开源游戏资�
 - 🎁 **开箱** —— 基于真实 Steam 掉落的开箱玩法,含库存管理与开箱记录
 - 🤖 **Steam 自动化** —— Steam 侧行情同步、库存与交易,通过 [vapor](https://github.com/cuihairu/vapor) 集成
 - 🛠️ **管理后台** —— 用户、商品、箱子、资讯、订单与统计的运营管理界面
+- 📱 **微信小程序** —— 资讯、行情、开箱、订单与个人中心,基于 Taro
 
 ## 技术栈
 
@@ -66,7 +79,7 @@ doggo/
 
 ## 项目状态
 
-服务端、管理后台、微信小程序与 Android 手机端已实现,任务拆分与进度见 [TODO.md](TODO.md)。欢迎通过 Issue 与 PR 参与讨论与共建。
+服务端、管理后台、微信小程序与 Android 手机端已实现,任务拆分与进度见 [todo.md](todo.md)。欢迎通过 Issue 与 PR 参与讨论与共建。
 
 ## 许可证
 
