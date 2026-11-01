@@ -35,7 +35,7 @@ Doggo is organised as a monorepo, split into service modules by responsibility. 
 | `Doggo.Scraper` | **News scraper**: fetches external CS2 / Dota 2 sources (official announcements, patch notes, esports news), cleans, deduplicates and stores them (scheduling lives here too) | .NET Worker + HttpClient / Playwright |
 | `Doggo.PriceCrawler` | **Third-party site price crawler**: site adapters, scheduling and rate control, cleaning and dedup, trends and price comparison; mounted inside the Scraper process | C# class library + AngleSharp |
 | Analytics (funnel) | Four-step conversion event reporting, T-1 daily aggregation and funnel queries (entities in `Doggo.Domain/Analytics`, aggregation in Worker, queries in Api) | shipped with Api/Worker |
-| `Doggo.Worker` | Background task scheduling: market sync, order timeout cancellation, reconciliation and compensation, roll room draws, points expiry, funnel daily aggregation | .NET Worker Service |
+| `Doggo.Worker` | Background task scheduling: market sync, order timeout cancellation, reconciliation and compensation, roll room draws, points expiry, funnel daily aggregation, analytics event retention | .NET Worker Service |
 | `Doggo.Domain` | Domain model and shared contracts: skins, cases, news, users, opening records | C# class library |
 | `web/` | Consumer web site (news, market, case opening, orders) | React + TypeScript |
 | `admin/` | Admin console frontend | Ant Design Pro (React + TypeScript) |

@@ -35,7 +35,7 @@ Doggo 采用 monorepo 组织,按职责拆分为多个服务模块,全部基于 C
 | `Doggo.Scraper` | **资讯爬虫**:抓取 CS2 / Dota 2 官方公告、更新日志、赛事资讯等外部资讯源,清洗、去重、入库(调度亦在本项目) | .NET Worker + HttpClient / Playwright |
 | `Doggo.PriceCrawler` | **第三方站点价格爬虫**:站点适配器、调度频控、清洗去重、趋势与比价,由 Scraper 进程挂载 | C# 类库 + AngleSharp |
 | Analytics(漏斗) | 四步转化事件上报、T-1 日聚合与漏斗查询(实体在 `Doggo.Domain/Analytics`,聚合在 Worker,查询在 Api) | 随 Api/Worker 交付 |
-| `Doggo.Worker` | 后台任务调度:行情同步、订单超时取消、对账补偿、roll 房开奖、积分过期、漏斗每日聚合 | .NET Worker Service |
+| `Doggo.Worker` | 后台任务调度:行情同步、订单超时取消、对账补偿、roll 房开奖、积分过期、漏斗每日聚合、漏斗事件保留 | .NET Worker Service |
 | `Doggo.Domain` | 领域模型与共享契约:饰品、箱子、资讯、用户、开箱记录 | C# 类库 |
 | `web/` | C 端 Web 用户站(资讯、行情、开箱、订单) | React + TypeScript |
 | `admin/` | 管理后台前端 | Ant Design Pro(React + TypeScript) |

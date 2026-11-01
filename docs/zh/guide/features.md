@@ -79,7 +79,7 @@
 | 订单管理 | 查询、退款、奖品查看 | 已完成 |
 | 用户管理 | 账号禁用、金币流水、登录日志 | 已完成 |
 | 数据统计 | 概览面板、14 日走势、商品排行 | 已完成 |
-| 站点参数 | 设置页行内编辑 `SiteSetting` 键值对(`GET/PUT /api/admin/settings`),支持新增/覆盖 | 已完成 |
+| 站点参数 | 设置页行内编辑 `SiteSetting` 键值对(`GET /api/admin/settings`、`PUT /api/admin/settings/{key}`),支持新增/覆盖 | 已完成 |
 | 爬虫站点总览 | 设置页聚合 `price-crawl/maps` 的站点映射数与待确认数 | 已完成 |
 | 价格爬虫审阅 | 「数据分析 → 价格爬虫」页:映射按状态筛选 + 确认/拒绝,比价表按 7/30 天切换,只读对照不回写站内行情 | 已完成 |
 | 支付渠道与投放窗口 | 设置页渠道卡管理 PaymentChannel 配置(商户号/AppId/费率基点/密钥引用,`PUT /api/admin/payment-channels/{provider}`,密钥值只在服务端环境变量);内容中心 Banner 页管理投放起止窗口(同位置重叠 409 校验) | 已完成 |
