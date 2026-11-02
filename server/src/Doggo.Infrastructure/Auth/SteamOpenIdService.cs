@@ -13,18 +13,11 @@ public sealed record SteamBindResult(Guid UserId, string SteamId);
 /// carries an HMAC of (userId, expiry) so a callback can only complete for the user that
 /// started the bind.
 /// </summary>
-public sealed partial class SteamOpenIdService(IOptions<AuthOptions> optionsFactory, HttpClient http, ILogger<SteamOpenIdService> logger)
+public sealed partial class SteamOpenIdService(TokenService tokens, HttpClient http, ILogger<SteamOpenIdService> logger)
 {
     public const string Endpoint = "https://steamcommunity.com/openid/login";
 
-    private readonly AuthOptions _options = optionsFactory.Value;
-
-    // Ephemeral per-boot fallback, mirroring TokenService: without a configured Auth:SecretKey
-    // the state HMAC uses a random key, so the committed constant below can never be used to
-    // forge a bind state for another user.
-    private readonly string _signingKey = optionsFactory.Value.HasSigningKey
-        ? optionsFactory.Value.SecretKey
-        : Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+    private readonly string _signingKey = tokens.SigningKey;
 
     /// <summary>Starts the bind: the redirect target for the user's browser.</summary>
     public string BuildLoginUrl(Guid userId, string publicBaseUrl)

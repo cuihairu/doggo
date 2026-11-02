@@ -10,18 +10,21 @@ public class SteamOpenIdServiceTests
     private const string SteamId = "76561198000000001";
     private const string ClaimedId = "https://steamcommunity.com/openid/id/76561198000000001";
 
-    private static SteamOpenIdService CreateService(Func<HttpRequestMessage, HttpResponseMessage>? responder = null)
+    private static (SteamOpenIdService Service, TokenService Tokens) CreateService(
+        Func<HttpRequestMessage, HttpResponseMessage>? responder = null,
+        string secretKey = "unit-test-signing-secret-that-is-long-enough")
     {
         var options = Options.Create(new AuthOptions
         {
-            SecretKey = "unit-test-signing-secret-that-is-long-enough",
+            SecretKey = secretKey,
             PublicBaseUrl = "https://doggo.test"
         });
         var handler = new StubHandler
         {
             Responder = responder ?? (_ => throw new InvalidOperationException("no http expected"))
         };
-        return new SteamOpenIdService(options, new HttpClient(handler), NullLogger<SteamOpenIdService>.Instance);
+        var tokens = new TokenService(options);
+        return (new SteamOpenIdService(tokens, new HttpClient(handler), NullLogger<SteamOpenIdService>.Instance), tokens);
     }
 
     private sealed class StubHandler : HttpMessageHandler
@@ -43,7 +46,7 @@ public class SteamOpenIdServiceTests
     [Fact]
     public void BuildLoginUrl_PointsAtSteamWithState()
     {
-        var url = CreateService().BuildLoginUrl(UserId, "https://doggo.test");
+        var url = CreateService().Service.BuildLoginUrl(UserId, "https://doggo.test");
 
         Assert.Contains("steamcommunity.com/openid/login", url);
         Assert.Contains("openid.mode=checkid_setup", url);
@@ -54,7 +57,7 @@ public class SteamOpenIdServiceTests
     [Fact]
     public async Task Callback_WithValidAssertion_BindsAndReturnsIdentity()
     {
-        var service = CreateService(_ => Text("ns:http://specs.openid.net/auth/2.0\nis_valid:true\n"));
+        var service = CreateService(_ => Text("ns:http://specs.openid.net/auth/2.0\nis_valid:true\n")).Service;
         var url = service.BuildLoginUrl(UserId, "https://doggo.test");
         var state = url[(url.IndexOf("openid.state=", StringComparison.Ordinal) + "openid.state=".Length)..];
 
@@ -79,9 +82,35 @@ public class SteamOpenIdServiceTests
     }
 
     [Fact]
+    public async Task Callback_OnADifferentInstance_StillVerifiesTheState()
+    {
+        // SteamOpenIdService is registered transient, so login and callback are two separate
+        // instances. DI resolves the singleton TokenService for both; with no configured
+        // Auth:SecretKey the fallback key must still be shared or the state HMAC never matches.
+        var options = Options.Create(new AuthOptions { PublicBaseUrl = "https://doggo.test" });
+        var tokens = new TokenService(options);
+        SteamOpenIdService Instance() => new(tokens,
+            new HttpClient(new StubHandler { Responder = _ => Text("is_valid:true\n") }),
+            NullLogger<SteamOpenIdService>.Instance);
+        var login = Instance();
+        var callback = Instance();
+
+        var url = login.BuildLoginUrl(UserId, "https://doggo.test");
+        var state = Uri.UnescapeDataString(url[(url.IndexOf("openid.state=", StringComparison.Ordinal) + "openid.state=".Length)..]);
+
+        var query = new List<KeyValuePair<string, string?>>
+        {
+            new("openid.claimed_id", ClaimedId),
+            new("openid.state", state)
+        };
+
+        Assert.NotNull(await callback.VerifyCallbackAsync(query));
+    }
+
+    [Fact]
     public async Task Callback_WithRejectedAssertion_ReturnsNull()
     {
-        var service = CreateService(_ => Text("is_valid:false\n"));
+        var service = CreateService(_ => Text("is_valid:false\n")).Service;
         var url = service.BuildLoginUrl(UserId, "https://doggo.test");
         var state = Uri.UnescapeDataString(url[(url.IndexOf("openid.state=", StringComparison.Ordinal) + "openid.state=".Length)..]);
 
@@ -97,7 +126,7 @@ public class SteamOpenIdServiceTests
     [Fact]
     public async Task Callback_WithTamperedState_ReturnsNull()
     {
-        var service = CreateService(_ => Text("is_valid:true\n"));
+        var service = CreateService(_ => Text("is_valid:true\n")).Service;
 
         var query = new List<KeyValuePair<string, string?>>
         {
@@ -111,7 +140,7 @@ public class SteamOpenIdServiceTests
     [Fact]
     public async Task Callback_WithoutState_ReturnsNull()
     {
-        var service = CreateService(_ => Text("is_valid:true\n"));
+        var service = CreateService(_ => Text("is_valid:true\n")).Service;
 
         var query = new List<KeyValuePair<string, string?>> { new("openid.claimed_id", ClaimedId) };
 
