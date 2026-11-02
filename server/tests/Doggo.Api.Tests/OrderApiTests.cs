@@ -56,14 +56,37 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         return product;
     }
 
-    private async Task<Guid> SeedPlanAsync(Guid productId, string title)
+    private async Task<Guid> SeedPlanAsync(Guid productId, string title, bool canUseCoin = false, bool canUseCoupon = false)
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
-        var plan = new CasePlan { Id = Guid.CreateVersion7(), ProductId = productId, Title = title };
+        var plan = new CasePlan
+        {
+            Id = Guid.CreateVersion7(),
+            ProductId = productId,
+            Title = title,
+            CanUseCoin = canUseCoin,
+            CanUseCoupon = canUseCoupon
+        };
         db.CasePlans.Add(plan);
         await db.SaveChangesAsync();
         return plan.Id;
+    }
+
+    private async Task SeedCoinsAsync(Guid userId, long balance)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        db.UserCoins.Add(new Doggo.Domain.Users.UserCoin { Id = Guid.CreateVersion7(), UserId = userId, Balance = balance });
+        db.UserCoinBatches.Add(new Doggo.Domain.Users.UserCoinBatch
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = userId,
+            OriginalAmount = balance,
+            RemainingAmount = balance,
+            SourceType = "test"
+        });
+        await db.SaveChangesAsync();
     }
 
     private async Task<Guid> SeedPromotionAsync(Guid productId, int stock, long discountPriceCents)
@@ -84,7 +107,7 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         return promotion.Id;
     }
 
-    private static async Task<JsonElement> CreateOrderAsync(HttpClient client, Guid userId, Guid productId, Guid? planId = null)
+    private static async Task<JsonElement> CreateOrderAsync(HttpClient client, Guid userId, Guid productId, Guid? planId = null, long coinDeduction = 0, Guid? userCouponId = null)
     {
         var response = await client.PostAsJsonAsync("/api/orders", new
         {
@@ -93,7 +116,9 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
             entry = (int)OrderEntry.Case,
             serviceMode = (int)ServiceMode.CloudOpen,
             fulfillmentType = (int)FulfillmentType.Spot,
-            payType = (int)PaymentProvider.Alipay
+            payType = (int)PaymentProvider.Alipay,
+            coinDeduction,
+            userCouponId
         });
         response.EnsureSuccessStatusCode();
         // Cloned: the JsonDocument is not kept alive by the test.
@@ -327,5 +352,81 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.Equal(System.Net.HttpStatusCode.NotFound, (await client.GetAsync($"/api/orders/{id}")).StatusCode);
         Assert.Equal(System.Net.HttpStatusCode.NotFound, (await client.PostAsync($"/api/orders/{id}/pay", content: null)).StatusCode);
         Assert.Equal(System.Net.HttpStatusCode.NotFound, (await client.PostAsync($"/api/orders/{id}/cancel", content: null)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Coin_deduction_is_rejected_when_the_plan_disallows_coins()
+    {
+        var product = await SeedCrateAsync(finalPriceCents: 10000);
+        var planId = await SeedPlanAsync(product.Id, "no-coin", canUseCoin: false);
+        var (client, userId) = await AuthorizedAsync();
+
+        var response = await client.PostAsJsonAsync("/api/orders", new
+        {
+            productId = product.Id,
+            planId,
+            entry = (int)OrderEntry.Case,
+            serviceMode = (int)ServiceMode.CloudOpen,
+            fulfillmentType = (int)FulfillmentType.Spot,
+            payType = (int)PaymentProvider.Alipay,
+            coinDeduction = 1000
+        });
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Coupon_is_rejected_when_the_plan_disallows_coupons()
+    {
+        var product = await SeedCrateAsync(finalPriceCents: 10000);
+        var planId = await SeedPlanAsync(product.Id, "no-coupon", canUseCoupon: false);
+        var (client, userId) = await AuthorizedAsync();
+
+        var response = await client.PostAsJsonAsync("/api/orders", new
+        {
+            productId = product.Id,
+            planId,
+            entry = (int)OrderEntry.Case,
+            serviceMode = (int)ServiceMode.CloudOpen,
+            fulfillmentType = (int)FulfillmentType.Spot,
+            payType = (int)PaymentProvider.Alipay,
+            userCouponId = Guid.NewGuid()
+        });
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Coin_deduction_above_the_order_total_is_rejected()
+    {
+        var product = await SeedCrateAsync(finalPriceCents: 10000);
+        var (client, userId) = await AuthorizedAsync();
+
+        var response = await client.PostAsJsonAsync("/api/orders", new
+        {
+            productId = product.Id,
+            entry = (int)OrderEntry.Case,
+            serviceMode = (int)ServiceMode.CloudOpen,
+            fulfillmentType = (int)FulfillmentType.Spot,
+            payType = (int)PaymentProvider.Alipay,
+            coinDeduction = 20000 // above the 10000 total
+        });
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Coin_deduction_within_the_total_is_applied()
+    {
+        var product = await SeedCrateAsync(finalPriceCents: 10000);
+        var planId = await SeedPlanAsync(product.Id, "coin-ok", canUseCoin: true);
+        var (client, userId) = await AuthorizedAsync();
+        await SeedCoinsAsync(userId, balance: 100000);
+
+        var created = await CreateOrderAsync(client, userId, product.Id, planId, coinDeduction: 2000);
+        var order = await GetOrderAsync(client, created.GetProperty("orderId").GetGuid());
+
+        Assert.Equal(2000, order.GetProperty("coinDeduction").GetInt64());
+        Assert.Equal(8000, order.GetProperty("totalCostCents").GetInt64());
     }
 }

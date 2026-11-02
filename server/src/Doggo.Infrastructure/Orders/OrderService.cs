@@ -83,6 +83,18 @@ public sealed partial class OrderService(
         var plan = command.PlanId is null
             ? null
             : await db.CasePlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == command.PlanId.Value, cancellationToken);
+
+        // A plan can opt out of coupon or coin payment; enforce that before any deduction is
+        // consumed so a rejection leaves the coupon instance and coin ledger untouched.
+        if (command.UserCouponId is not null && plan is { CanUseCoupon: false })
+        {
+            throw new OrderValidationException($"Plan {plan.Title} does not allow coupons.");
+        }
+        if (command.CoinDeduction > 0 && plan is { CanUseCoin: false })
+        {
+            throw new OrderValidationException($"Plan {plan.Title} does not allow coin deduction.");
+        }
+
         var tiers = await db.QuantityOptions.AsNoTracking()
             .Where(tier => tier.ProductId == command.ProductId)
             .ToListAsync(cancellationToken);
@@ -137,6 +149,13 @@ public sealed partial class OrderService(
         {
             try
             {
+                // A deduction can never exceed what the coupon leaves owed; the catch below
+                // gives a consumed coupon back when the order is rejected here.
+                if (command.CoinDeduction > total - order.CouponDeductionCents)
+                {
+                    throw new OrderValidationException("Coin deduction exceeds the remaining order total.");
+                }
+
                 // SpendAsync returns the remaining balance; the deduction is the requested amount.
                 await coins.SpendAsync(
                     command.UserId, command.CoinDeduction, "order", order.Id.ToString(), cancellationToken);
