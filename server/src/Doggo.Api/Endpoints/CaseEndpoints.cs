@@ -24,6 +24,11 @@ public static class CaseEndpoints
         return owner == userId;
     }
 
+    /// <summary>True when the order belongs to the caller (no claiming a seat with someone else's order).</summary>
+    private static async Task<bool> OrderOwnedByAsync(
+        DoggoDbContext db, Guid orderId, Guid userId, CancellationToken cancellationToken) =>
+        await db.UserOrders.AsNoTracking().AnyAsync(o => o.Id == orderId && o.UserId == userId, cancellationToken);
+
     public static void MapCaseEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/group-buyings");
@@ -89,15 +94,22 @@ public static class CaseEndpoints
             [FromBody] ClaimSeatRequest request,
             ClaimsPrincipal principal,
             [FromServices] GroupBuyingService batches,
+            [FromServices] DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
-            if (principal.CurrentUserId() is null)
+            var userId = principal.CurrentUserId();
+            if (userId is null)
             {
                 return Results.Unauthorized();
             }
 
             try
             {
+                if (!await OrderOwnedByAsync(db, request.OrderId, userId.Value, cancellationToken))
+                {
+                    return Results.NotFound();
+                }
+
                 var result = await batches.ClaimSeatAsync(new ClaimSeatCommand(id, request.OrderId), cancellationToken);
                 return Results.Ok(result);
             }
@@ -123,15 +135,22 @@ public static class CaseEndpoints
             int seatNo,
             ClaimsPrincipal principal,
             [FromServices] GroupBuyingService batches,
+            [FromServices] DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
-            if (principal.CurrentUserId() is null)
+            var userId = principal.CurrentUserId();
+            if (userId is null)
             {
                 return Results.Unauthorized();
             }
 
             try
             {
+                if (!await SeatOwnedByAsync(db, id, seatNo, userId.Value, cancellationToken))
+                {
+                    return Results.NotFound();
+                }
+
                 var jobId = await batches.SubmitOpeningAsync(new SubmitOpeningCommand(id, seatNo), cancellationToken);
                 return Results.Ok(new { jobId });
             }
@@ -207,15 +226,22 @@ public static class CaseEndpoints
             [FromBody] AdvanceSeatRequest request,
             ClaimsPrincipal principal,
             [FromServices] GroupBuyingService batches,
+            [FromServices] DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
-            if (principal.CurrentUserId() is null)
+            var userId = principal.CurrentUserId();
+            if (userId is null)
             {
                 return Results.Unauthorized();
             }
 
             try
             {
+                if (!await SeatOwnedByAsync(db, id, seatNo, userId.Value, cancellationToken))
+                {
+                    return Results.NotFound();
+                }
+
                 await batches.AdvanceSeatAsync(id, seatNo, request.Target, cancellationToken);
                 return Results.Ok(new { seatNo, status = (int)request.Target });
             }
@@ -241,15 +267,22 @@ public static class CaseEndpoints
         HttpRequest request,
         ClaimsPrincipal principal,
         [FromServices] GroupBuyingService batches,
+        [FromServices] DoggoDbContext db,
         CancellationToken cancellationToken)
     {
-        if (principal.CurrentUserId() is null)
+        var userId = principal.CurrentUserId();
+        if (userId is null)
         {
             return Results.Unauthorized();
         }
 
         try
         {
+            if (!await SeatOwnedByAsync(db, id, seatNo, userId.Value, cancellationToken))
+            {
+                return Results.NotFound();
+            }
+
             if (request.Path.Value!.EndsWith("/paid", StringComparison.Ordinal))
             {
                 await batches.MarkSeatPaidAsync(id, seatNo, cancellationToken);

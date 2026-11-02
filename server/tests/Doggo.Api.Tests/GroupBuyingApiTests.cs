@@ -106,22 +106,25 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
     public async Task Claim_sells_seats_until_the_batch_is_sold_out()
     {
         var productId = await SeedCrateAsync();
-        var (client, _) = await AuthorizedAsync();
+        var (client, userId) = await AuthorizedAsync();
 
         var (batchId, seatCount) = await CreateBatchAsync(client, productId, seats: 2);
         Assert.Equal(2, seatCount);
 
-        var first = await ClaimAsync(client, batchId);
+        var firstOrder = await SeedPaidOrderAsync(userId);
+        var first = await ClaimAsync(client, batchId, firstOrder);
         first.EnsureSuccessStatusCode();
         using (var firstView = JsonDocument.Parse(await first.Content.ReadAsStringAsync()))
         {
             Assert.Equal(1, firstView.RootElement.GetProperty("seatNo").GetInt32());
         }
 
-        var second = await ClaimAsync(client, batchId);
+        var secondOrder = await SeedPaidOrderAsync(userId);
+        var second = await ClaimAsync(client, batchId, secondOrder);
         second.EnsureSuccessStatusCode();
 
-        var third = await ClaimAsync(client, batchId);
+        var thirdOrder = await SeedPaidOrderAsync(userId);
+        var third = await ClaimAsync(client, batchId, thirdOrder);
         Assert.Equal(HttpStatusCode.Conflict, third.StatusCode);
 
         var detail = await client.GetStringAsync($"/api/group-buyings/{batchId}");
@@ -199,5 +202,40 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
 
         var missing = await ClaimAsync(client, Guid.CreateVersion7());
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
+    [Fact]
+    public async Task Mutations_reject_other_users_orders_and_seats()
+    {
+        var productId = await SeedCrateAsync();
+        var (owner, ownerId) = await AuthorizedAsync();
+        var (other, otherId) = await AuthorizedAsync();
+
+        var (batchId, _) = await CreateBatchAsync(owner, productId, seats: 2);
+        var ownerOrderId = await SeedPaidOrderAsync(ownerId);
+        var otherOrderId = await SeedPaidOrderAsync(otherId);
+
+        // An attacker cannot claim a seat with someone else's order.
+        var foreignClaim = await ClaimAsync(other, batchId, ownerOrderId);
+        Assert.Equal(HttpStatusCode.NotFound, foreignClaim.StatusCode);
+
+        // The owner claims with their own order, then the seat belongs to the owner.
+        var ownClaim = await ClaimAsync(owner, batchId, ownerOrderId);
+        ownClaim.EnsureSuccessStatusCode();
+
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        var seat = db.GroupBuyingSeats.First(s => s.GroupBuyingId == batchId && s.SeatNo == 1);
+        seat.Status = SeatStatus.Locked;
+        seat.OrderId = ownerOrderId;
+        await db.SaveChangesAsync();
+
+        // paid/release/open/advance on another user's seat are rejected.
+        var foreignPaid = await other.PostAsync($"/api/group-buyings/{batchId}/seats/1/paid", content: null);
+        Assert.Equal(HttpStatusCode.NotFound, foreignPaid.StatusCode);
+        var foreignRelease = await other.PostAsync($"/api/group-buyings/{batchId}/seats/1/release", content: null);
+        Assert.Equal(HttpStatusCode.NotFound, foreignRelease.StatusCode);
+        var foreignAdvance = await other.PostAsJsonAsync($"/api/group-buyings/{batchId}/seats/1/advance", new { target = (int)SeatStatus.Opening });
+        Assert.Equal(HttpStatusCode.NotFound, foreignAdvance.StatusCode);
     }
 }
