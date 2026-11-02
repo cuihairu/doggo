@@ -449,12 +449,12 @@
 - [ ] 深审 P1 一致性:下单部分失败不回滚库存/券/币(OrderService.cs:98-157) — BLOCKED 缺真实 MySQL 验证事务(InMemory 不支持事务),需事务包裹多步写入
 - [ ] 深审 P1 校验:CoinDeduction 不封顶且 plan 的 CanUseCoin/CanUseCoupon 未强制(OrderService.cs:136-152)
 - [ ] 深审 P1 并发:退款先打款后复查致双退(OrderService.cs:287-328) — BLOCKED 缺真实 MySQL 验证原子退款声明(InMemory 不强制),需先声明后打款的事务/条件更新
-- [ ] 深审 P1 并发:手机/邮箱无唯一约束致重复注册(AuthService.cs:85-90)
-- [ ] 深审 P1 并发:refresh token 轮换竞态,双 token 有效(AuthService.cs:223-262)
-- [ ] 深审 P1 并发:签到双发,MakeupOrderNo 无唯一约束(SignService.cs:53-99)
-- [ ] 深审 P1 并发:邀请一次性竞态(InviteService.cs:38-53)
-- [ ] 深审 P1 并发:roll 重复加入无唯一约束(RollService.cs:83-115)
-- [ ] 深审 P1 可靠性:webhook 幂等先声明,处理失败丢事件(VaporEndpoints.cs:71-93)
+- [ ] 深审 P1 并发:手机/邮箱无唯一约束致重复注册(AuthService.cs:85-90) — BLOCKED 缺真实 MySQL 验证唯一索引对既有数据无冲突(InMemory 不强制),需 EF migration 唯一约束
+- [ ] 深审 P1 并发:refresh token 轮换竞态,双 token 有效(AuthService.cs:223-262) — BLOCKED 缺真实 MySQL 验证原子撤销(WHERE RevokedAtUtc IS NULL)(InMemory 不强制),需条件更新
+- [ ] 深审 P1 并发:签到双发,MakeupOrderNo 无唯一约束(SignService.cs:53-99) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束
+- [ ] 深审 P1 并发:邀请一次性竞态(InviteService.cs:38-53) — BLOCKED 缺真实 MySQL 验证原子认领(InMemory 不强制),需条件更新/唯一约束
+- [ ] 深审 P1 并发:roll 重复加入无唯一约束(RollService.cs:83-115) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束
+- [ ] 深审 P1 可靠性:webhook 幂等先声明,处理失败丢事件(VaporEndpoints.cs:71-93) — BLOCKED 缺真实 MySQL 验证幂等声明与处理事务一致性(InMemory 不强制),需 outbox/事务
 - [ ] 深审 P2 安全:NewsDetailPage/ArticlePage 未消毒 HTML 渲染(NewsDetailPage.tsx:44、ArticlePage.tsx:37;新闻已在服务端消毒 NewsStore.cs:62,文章为运营所写,降为纵深防御)
 - [ ] 深审 P2 安全:token 存 localStorage(client.ts:14-17)
 - [ ] 深审 P2 部署:nginx admin IP 白名单默认注释(doggo.conf.template:82-91)
@@ -464,10 +464,10 @@
 - [ ] 深审 P2 安全:roll 开奖用 Random.Shared 非加密(RollService.cs:162)
 - [ ] 深审 P2 正确性:漏斗聚合写出 to 之后的行(FunnelAggregator.cs:26-77)
 - [ ] 深审 P2 正确性:行情日线混币种无换算(MarketStore.cs:161-230)
-- [ ] 深审 P2 并发:重复提交取回双发 trade offer(OrderService.cs:406-463)
+- [ ] 深审 P2 并发:重复提交取回双发 trade offer(OrderService.cs:406-463) — BLOCKED 缺真实 MySQL 验证原子状态迁移(InMemory 不强制),需条件更新进入 Retrieving
 - [ ] 深审 P2 正确性:SteamOpenId 状态过期时间按本地时区解析(SteamOpenIdService.cs:129-130)
 - [ ] 深审 P2 正确性:GroupBuyingView 对重复 OrderId 的 ToDictionary 抛异常(CaseEndpoints.cs:61、331)
-- [ ] 深审 P2 并发:同模板双开房(RollService.cs:273-309)
+- [ ] 深审 P2 并发:同模板双开房(RollService.cs:273-309) — BLOCKED 缺真实 MySQL 验证唯一约束(InMemory 不强制),需 EF migration 唯一索引
 - [ ] 深审 P3 卫生:axios 0.27.2 传递依赖(admin/pnpm-lock.yaml:2142)
 - [ ] 深审 P3 卫生:mysqladmin 密码作 CLI 参数(docker-compose.yml:17、docker-compose.prod.yml:19)
 - [ ] 深审 P3 卫生:CI 硬编码凭据(仅 fixtures,无需改,mobile.yml:86-88、104-106)
@@ -486,7 +486,7 @@
 - [x] 审核发现：支付回调金额不符拒绝分支无对应测试（OrderService.cs:197），现有用例仅覆盖 success:false 与等额成功（OrderApiTests.cs:192、142）(证据:438e7f7, OrderApiTests.cs:204)
 - [x] 审核发现：代码深审报告「当场修复 9 条」分解自相矛盾，P1×6 列 S4/S5/S6/S8/S9/S10/S11 共 7 个 id，且「归属面」与 P1 项重复计数（docs/review/2026-11-01-code-review.md:150）(证据:c7a46ab, 2026-11-01-code-review.md:150)
 
-- [ ] 审核发现：CaseEndpoints 新增归属校验（SeatOwnedByAsync/OrderOwnedByAsync）为 check-then-act，与 GroupBuyingService 变更非原子：paid/release/open/advance 中 seat 在「校验通过」与「变更执行」之间被 release 并由他人 re-claim，过期请求可变更新 owner 的 seat（如免支付 MarkPaid、把他人已付 seat 置回 OnSale）——归属强制应并入变更事务/行锁（CaseEndpoints.cs:149、240、281；GroupBuyingService.cs:196、217、233、359）
+- [ ] 审核发现：CaseEndpoints 新增归属校验（SeatOwnedByAsync/OrderOwnedByAsync）为 check-then-act，与 GroupBuyingService 变更非原子：paid/release/open/advance 中 seat 在「校验通过」与「变更执行」之间被 release 并由他人 re-claim，过期请求可变更新 owner 的 seat（如免支付 MarkPaid、把他人已付 seat 置回 OnSale）——归属强制应并入变更事务/行锁（CaseEndpoints.cs:149、240、281；GroupBuyingService.cs:196、217、233、359） — BLOCKED 缺真实 MySQL 验证行锁/事务(InMemory 不支持事务),需行锁+变更并入同一事务
 - [ ] 审核发现：claim 新归属门仅校验 order 归属，ClaimSeatAsync 从不校验 order 状态（PendingPayment）或 order 产品与 batch 匹配，可用已取消/未支付或他人产品的 order 锁定 seat；新测试仅 seed PendingSettlement order（GroupBuyingApiTests.cs:78）掩盖该缺口（CaseEndpoints.cs:108；GroupBuyingService.cs:153-193）
 - [ ] 审核发现：/open（SubmitOpening）归属校验（CaseEndpoints.cs:149）无对应测试——Mutations_reject_other_users_orders_and_seats 仅断言 paid/release/advance 外来拒绝，未覆盖 /open；该外来 404 无需 vapor 即可断言（归属校验先于 vapor 检查 GroupBuyingService.cs:235），应补（GroupBuyingApiTests.cs:233-239）
 - [ ] 审核发现：code-review 报告「当场修复 9 条」修正后仍不收敛：P0 6−2=4≠3、P1 19−7=12≠13（待处理 P0 3/P1 13 与发现 P0 6/P1 19 对不上），归属面重新分类后「发现」计数行未同步（docs/review/2026-11-01-code-review.md:149-151）
