@@ -1,6 +1,10 @@
+using System.Security.Claims;
 using Doggo.Domain.Cases;
 using Doggo.Domain.Products;
 using Doggo.Infrastructure.Cases;
+using Doggo.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,15 +13,32 @@ namespace Doggo.Api.Endpoints;
 
 public static class CaseEndpoints
 {
+    /// <summary>True when the seat's paid order belongs to the caller (no result injection into others' seats).</summary>
+    private static async Task<bool> SeatOwnedByAsync(
+        DoggoDbContext db, Guid batchId, int seatNo, Guid userId, CancellationToken cancellationToken)
+    {
+        var owner = await (from seat in db.GroupBuyingSeats.AsNoTracking()
+                           join order in db.UserOrders.AsNoTracking() on seat.OrderId equals order.Id
+                           where seat.GroupBuyingId == batchId && seat.SeatNo == seatNo
+                           select (Guid?)order.UserId).FirstOrDefaultAsync(cancellationToken);
+        return owner == userId;
+    }
+
     public static void MapCaseEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/group-buyings");
 
         group.MapPost("/", async (
             [FromBody] CreateBatchRequest request,
+            ClaimsPrincipal principal,
             [FromServices] GroupBuyingService batches,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() is null)
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
                 var result = await batches.CreateBatchAsync(new CreateBatchCommand(
@@ -66,9 +87,15 @@ public static class CaseEndpoints
         group.MapPost("/{id:guid}/claim", async (
             Guid id,
             [FromBody] ClaimSeatRequest request,
+            ClaimsPrincipal principal,
             [FromServices] GroupBuyingService batches,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() is null)
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
                 var result = await batches.ClaimSeatAsync(new ClaimSeatCommand(id, request.OrderId), cancellationToken);
@@ -94,9 +121,15 @@ public static class CaseEndpoints
         group.MapPost("/{id:guid}/seats/{seatNo:int}/open", async (
             Guid id,
             int seatNo,
+            ClaimsPrincipal principal,
             [FromServices] GroupBuyingService batches,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() is null)
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
                 var jobId = await batches.SubmitOpeningAsync(new SubmitOpeningCommand(id, seatNo), cancellationToken);
@@ -124,9 +157,22 @@ public static class CaseEndpoints
             Guid id,
             int seatNo,
             [FromBody] OpeningResultRequest request,
+            ClaimsPrincipal principal,
             [FromServices] GroupBuyingService batches,
+            [FromServices] DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
+            var userId = principal.CurrentUserId();
+            if (userId is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!await SeatOwnedByAsync(db, id, seatNo, userId.Value, cancellationToken))
+            {
+                return Results.NotFound();
+            }
+
             try
             {
                 var applied = await batches.ApplyOpeningResultAsync(new ApplyOpeningResultCommand(
@@ -159,9 +205,15 @@ public static class CaseEndpoints
             Guid id,
             int seatNo,
             [FromBody] AdvanceSeatRequest request,
+            ClaimsPrincipal principal,
             [FromServices] GroupBuyingService batches,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() is null)
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
                 await batches.AdvanceSeatAsync(id, seatNo, request.Target, cancellationToken);
@@ -187,9 +239,15 @@ public static class CaseEndpoints
         Guid id,
         int seatNo,
         HttpRequest request,
+        ClaimsPrincipal principal,
         [FromServices] GroupBuyingService batches,
         CancellationToken cancellationToken)
     {
+        if (principal.CurrentUserId() is null)
+        {
+            return Results.Unauthorized();
+        }
+
         try
         {
             if (request.Path.Value!.EndsWith("/paid", StringComparison.Ordinal))

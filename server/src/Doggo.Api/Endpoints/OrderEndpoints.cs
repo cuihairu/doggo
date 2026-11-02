@@ -1,6 +1,10 @@
+using System.Security.Claims;
 using Doggo.Domain.Orders;
 using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Orders;
+using Doggo.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,19 +13,44 @@ namespace Doggo.Api.Endpoints;
 
 public static class OrderEndpoints
 {
+    /// <summary>Rejects a request whose authenticated user is not the order owner (404 hides the order).</summary>
+    private static async Task<IResult?> GuardOwnerAsync(
+        DoggoDbContext db, Guid orderId, ClaimsPrincipal principal, CancellationToken cancellationToken)
+    {
+        var userId = principal.CurrentUserId();
+        if (userId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var owner = await db.UserOrders.AsNoTracking()
+            .Where(o => o.Id == orderId)
+            .Select(o => (Guid?)o.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
+        return owner == userId.Value ? null : Results.NotFound();
+    }
+
     public static void MapOrderEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/orders");
+        var group = app.MapGroup("/api/orders")
+            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme });
 
         group.MapPost("/", async (
             [FromBody] CreateOrderRequest request,
+            ClaimsPrincipal principal,
             [FromServices] OrderService orders,
             CancellationToken cancellationToken) =>
         {
+            var userId = principal.CurrentUserId();
+            if (userId is null)
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
                 var result = await orders.CreateOrderAsync(new CreateOrderCommand(
-                    request.UserId,
+                    userId.Value,
                     request.ProductId,
                     request.PlanId,
                     request.OptionId,
@@ -55,6 +84,7 @@ public static class OrderEndpoints
 
         group.MapGet("/{id:guid}", async (
             Guid id,
+            ClaimsPrincipal principal,
             [FromServices] OrderService orders,
             [FromServices] Doggo.Infrastructure.Persistence.DoggoDbContext db,
             CancellationToken cancellationToken) =>
@@ -62,6 +92,11 @@ public static class OrderEndpoints
             try
             {
                 var order = await orders.FindOrderAsync(id, cancellationToken);
+                if (order.UserId != principal.CurrentUserId())
+                {
+                    return Results.NotFound();
+                }
+
                 var product = await db.Products.AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == order.ProductId, cancellationToken);
                 var plan = order.PlanId is { } planId
@@ -82,9 +117,17 @@ public static class OrderEndpoints
 
         group.MapPost("/{id:guid}/pay", async (
             Guid id,
+            ClaimsPrincipal principal,
             [FromServices] OrderService orders,
+            [FromServices] Doggo.Infrastructure.Persistence.DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
+            var denied = await GuardOwnerAsync(db, id, principal, cancellationToken);
+            if (denied is not null)
+            {
+                return denied;
+            }
+
             try
             {
                 var creation = await orders.CreatePaymentAsync(id, cancellationToken);
@@ -110,9 +153,17 @@ public static class OrderEndpoints
 
         group.MapPost("/{id:guid}/cancel", async (
             Guid id,
+            ClaimsPrincipal principal,
             [FromServices] OrderService orders,
+            [FromServices] Doggo.Infrastructure.Persistence.DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
+            var denied = await GuardOwnerAsync(db, id, principal, cancellationToken);
+            if (denied is not null)
+            {
+                return denied;
+            }
+
             try
             {
                 var cancelled = await orders.CancelUnpaidAsync(id, "cancelled by user", cancellationToken);
@@ -127,9 +178,17 @@ public static class OrderEndpoints
         group.MapPost("/{id:guid}/refund", async (
             Guid id,
             [FromBody] RefundRequest request,
+            ClaimsPrincipal principal,
             [FromServices] OrderService orders,
+            [FromServices] Doggo.Infrastructure.Persistence.DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
+            var denied = await GuardOwnerAsync(db, id, principal, cancellationToken);
+            if (denied is not null)
+            {
+                return denied;
+            }
+
             try
             {
                 var refunded = await orders.RefundOrderAsync(id, request.Reason, cancellationToken);
@@ -144,9 +203,17 @@ public static class OrderEndpoints
         group.MapPost("/{id:guid}/retrieval", async (
             Guid id,
             [FromBody] RetrievalRequest request,
+            ClaimsPrincipal principal,
             [FromServices] OrderService orders,
+            [FromServices] Doggo.Infrastructure.Persistence.DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
+            var denied = await GuardOwnerAsync(db, id, principal, cancellationToken);
+            if (denied is not null)
+            {
+                return denied;
+            }
+
             try
             {
                 var (accepted, offerId, error) = await orders.SubmitRetrievalAsync(
@@ -168,9 +235,17 @@ public static class OrderEndpoints
         group.MapPost("/{id:guid}/retrieval/complete", async (
             Guid id,
             [FromBody] RetrievalCompleteRequest request,
+            ClaimsPrincipal principal,
             [FromServices] OrderService orders,
+            [FromServices] Doggo.Infrastructure.Persistence.DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
+            var denied = await GuardOwnerAsync(db, id, principal, cancellationToken);
+            if (denied is not null)
+            {
+                return denied;
+            }
+
             var completed = await orders.CompleteRetrievalAsync(id, request.OfferId, cancellationToken);
             return Results.Ok(new { completed });
         });
@@ -178,9 +253,17 @@ public static class OrderEndpoints
         group.MapPost("/{id:guid}/retrieval/fail", async (
             Guid id,
             [FromBody] RetrievalFailRequest request,
+            ClaimsPrincipal principal,
             [FromServices] OrderService orders,
+            [FromServices] Doggo.Infrastructure.Persistence.DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
+            var denied = await GuardOwnerAsync(db, id, principal, cancellationToken);
+            if (denied is not null)
+            {
+                return denied;
+            }
+
             var rolledBack = await orders.FailRetrievalAsync(id, request.Reason, cancellationToken);
             return Results.Ok(new { rolledBack });
         });

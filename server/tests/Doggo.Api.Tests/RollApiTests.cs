@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Doggo.Infrastructure.Persistence;
@@ -12,6 +14,23 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
 
     private static StringContent Json(object payload) =>
         new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+    /// <summary>Registers a user and attaches its bearer token; the roll mutations require it.</summary>
+    private async Task<(HttpClient Client, Guid UserId)> AuthorizedAsync()
+    {
+        var client = Factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            account = $"139{Random.Shared.Next(100000, 999999):D6}",
+            password = "super-secret-1"
+        });
+        response.EnsureSuccessStatusCode();
+        var registered = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.Clone();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", registered.GetProperty("accessToken").GetString());
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me");
+        return (client, me.GetProperty("id").GetGuid());
+    }
 
     private async Task<Guid> CreateRoomAsync(HttpClient client)
     {
@@ -33,9 +52,9 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
         return roomDoc.RootElement.GetProperty("roomId").GetGuid();
     }
 
-    private async Task SeedPrizeAsync(Guid roomId)
+    private async Task SeedPrizeAsync(HttpClient client, Guid roomId)
     {
-        var response = await Factory.CreateClient().PostAsync($"/api/roll/rooms/{roomId}/prizes", Json(new object[]
+        var response = await client.PostAsync($"/api/roll/rooms/{roomId}/prizes", Json(new object[]
         {
             new { type = 1, coinAmount = 100, weight = 1, title = "Coins", imageUrl = "https://img.example/coins.png" },
             new { type = 0, coinAmount = 0, weight = 1, title = "Knife", imageUrl = "https://img.example/knife.png" }
@@ -46,9 +65,9 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
     [Fact]
     public async Task Room_lifecycle_create_join_draw_claim_runs_through_the_api()
     {
-        var client = Factory.CreateClient();
+        var (client, userId) = await AuthorizedAsync();
         var roomId = await CreateRoomAsync(client);
-        await SeedPrizeAsync(roomId);
+        await SeedPrizeAsync(client, roomId);
 
         var running = await client.GetStringAsync("/api/roll/rooms");
         using (var runningDoc = JsonDocument.Parse(running))
@@ -59,7 +78,7 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
             Assert.Equal(2, view.GetProperty("prizes").GetArrayLength());
         }
 
-        var join = await client.PostAsync($"/api/roll/rooms/{roomId}/join", Json(new { userId = UserId, entryRef = (string?)null }));
+        var join = await client.PostAsync($"/api/roll/rooms/{roomId}/join", Json(new { userId = userId, entryRef = (string?)null }));
         Assert.Equal(HttpStatusCode.OK, join.StatusCode);
 
         var draw = await client.PostAsync($"/api/roll/rooms/{roomId}/draw", content: null);
@@ -67,10 +86,10 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
         using (var drawDoc = JsonDocument.Parse(await draw.Content.ReadAsStringAsync()))
         {
             Assert.Equal(3, drawDoc.RootElement.GetProperty("status").GetInt32()); // Drawn
-            Assert.Equal(UserId, drawDoc.RootElement.GetProperty("winnerUserId").GetGuid());
+            Assert.Equal(userId, drawDoc.RootElement.GetProperty("winnerUserId").GetGuid());
         }
 
-        var claim = await client.PostAsync($"/api/roll/rooms/{roomId}/claim", Json(new { userId = UserId }));
+        var claim = await client.PostAsync($"/api/roll/rooms/{roomId}/claim", Json(new { userId = userId }));
         Assert.Equal(HttpStatusCode.OK, claim.StatusCode);
         using (var claimDoc = JsonDocument.Parse(await claim.Content.ReadAsStringAsync()))
         {
@@ -95,31 +114,33 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
     [Fact]
     public async Task Join_unknown_room_returns_404_and_duplicate_join_returns_400()
     {
-        var client = Factory.CreateClient();
+        var (client, userId) = await AuthorizedAsync();
 
-        var missing = await client.PostAsync($"/api/roll/rooms/{Guid.CreateVersion7()}/join", Json(new { userId = UserId }));
+        var missing = await client.PostAsync($"/api/roll/rooms/{Guid.CreateVersion7()}/join", Json(new { userId = userId }));
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
 
         var roomId = await CreateRoomAsync(client);
-        await SeedPrizeAsync(roomId);
+        await SeedPrizeAsync(client, roomId);
 
-        var first = await client.PostAsync($"/api/roll/rooms/{roomId}/join", Json(new { userId = UserId }));
+        var first = await client.PostAsync($"/api/roll/rooms/{roomId}/join", Json(new { userId = userId }));
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
 
-        var duplicate = await client.PostAsync($"/api/roll/rooms/{roomId}/join", Json(new { userId = UserId }));
+        var duplicate = await client.PostAsync($"/api/roll/rooms/{roomId}/join", Json(new { userId = userId }));
         Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
     }
 
     [Fact]
     public async Task Claim_by_non_winner_returns_400()
     {
-        var client = Factory.CreateClient();
-        var roomId = await CreateRoomAsync(client);
-        await SeedPrizeAsync(roomId);
-        await client.PostAsync($"/api/roll/rooms/{roomId}/join", Json(new { userId = UserId }));
-        await client.PostAsync($"/api/roll/rooms/{roomId}/draw", content: null);
+        // The winner (client A) joins and wins; a different user (client B) cannot claim.
+        var (winner, winnerId) = await AuthorizedAsync();
+        var roomId = await CreateRoomAsync(winner);
+        await SeedPrizeAsync(winner, roomId);
+        await winner.PostAsync($"/api/roll/rooms/{roomId}/join", Json(new { userId = winnerId }));
+        await winner.PostAsync($"/api/roll/rooms/{roomId}/draw", content: null);
 
-        var response = await client.PostAsync($"/api/roll/rooms/{roomId}/claim", Json(new { userId = Guid.CreateVersion7() }));
+        var (claimant, _) = await AuthorizedAsync();
+        var response = await claimant.PostAsync($"/api/roll/rooms/{roomId}/claim", Json(new { userId = Guid.CreateVersion7() }));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -127,7 +148,7 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
     [Fact]
     public async Task Create_room_from_unknown_template_returns_400()
     {
-        var client = Factory.CreateClient();
+        var (client, _) = await AuthorizedAsync();
 
         var response = await client.PostAsync("/api/roll/rooms", Json(new { templateId = Guid.CreateVersion7() }));
 

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Doggo.Domain.Cases;
@@ -11,6 +12,23 @@ namespace Doggo.Api.Tests;
 
 public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
 {
+    /// <summary>Registers a user and attaches its bearer token; the group-buying mutations require it.</summary>
+    private async Task<(HttpClient Client, Guid UserId)> AuthorizedAsync()
+    {
+        var client = Factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            account = $"139{Random.Shared.Next(100000, 999999):D6}",
+            password = "super-secret-1"
+        });
+        response.EnsureSuccessStatusCode();
+        var registered = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.Clone();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", registered.GetProperty("accessToken").GetString());
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me");
+        return (client, me.GetProperty("id").GetGuid());
+    }
+
     private async Task<Guid> SeedCrateAsync()
     {
         using var scope = Factory.Services.CreateScope();
@@ -46,14 +64,14 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         return (view.RootElement.GetProperty("batchId").GetGuid(), view.RootElement.GetProperty("seatCount").GetInt32());
     }
 
-    private async Task<Guid> SeedPaidOrderAsync()
+    private async Task<Guid> SeedPaidOrderAsync(Guid userId)
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
         var order = new UserOrder
         {
             Id = Guid.CreateVersion7(),
-            UserId = Guid.CreateVersion7(),
+            UserId = userId,
             OrderNo = $"DO{DateTime.UtcNow:yyyyMMddHHmmss}0001",
             TotalPriceCents = 10000,
             TotalCostCents = 10000,
@@ -88,7 +106,7 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
     public async Task Claim_sells_seats_until_the_batch_is_sold_out()
     {
         var productId = await SeedCrateAsync();
-        var client = Factory.CreateClient();
+        var (client, _) = await AuthorizedAsync();
 
         var (batchId, seatCount) = await CreateBatchAsync(client, productId, seats: 2);
         Assert.Equal(2, seatCount);
@@ -116,8 +134,8 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
     public async Task Seat_view_exposes_prize_details_once_opened()
     {
         var productId = await SeedCrateAsync();
-        var orderId = await SeedPaidOrderAsync();
-        var client = Factory.CreateClient();
+        var (client, userId) = await AuthorizedAsync();
+        var orderId = await SeedPaidOrderAsync(userId);
 
         var (batchId, _) = await CreateBatchAsync(client, productId, seats: 2);
         await SeedSeatOpeningAsync(batchId, seatNo: 1, orderId);
@@ -168,7 +186,7 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
     [Fact]
     public async Task Create_rejects_unknown_products_and_unknown_batches_404()
     {
-        var client = Factory.CreateClient();
+        var (client, _) = await AuthorizedAsync();
 
         var bad = await client.PostAsJsonAsync("/api/group-buyings", new
         {

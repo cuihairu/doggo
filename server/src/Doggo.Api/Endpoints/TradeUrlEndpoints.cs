@@ -1,5 +1,8 @@
+using System.Security.Claims;
 using Doggo.Domain.Users;
 using Doggo.Infrastructure.Users;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,13 +12,20 @@ public static class TradeUrlEndpoints
 {
     public static void MapTradeUrlEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/users/{userId:guid}/trade-urls");
+        var group = app.MapGroup("/api/users/{userId:guid}/trade-urls")
+            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme });
 
         group.MapGet("/", async (
             Guid userId,
+            ClaimsPrincipal principal,
             [FromServices] TradeUrlService tradeUrls,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() != userId)
+            {
+                return Results.NotFound();
+            }
+
             var links = await tradeUrls.ListAsync(userId, cancellationToken);
             return Results.Ok(links.Select(TradeUrlView.From));
         });
@@ -23,9 +33,15 @@ public static class TradeUrlEndpoints
         group.MapPost("/", async (
             Guid userId,
             [FromBody] AddTradeUrlRequest request,
+            ClaimsPrincipal principal,
             [FromServices] TradeUrlService tradeUrls,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() != userId)
+            {
+                return Results.NotFound();
+            }
+
             try
             {
                 var link = await tradeUrls.AddAsync(new AddTradeUrlCommand(userId, request.Url, request.Nickname), cancellationToken);
@@ -45,9 +61,15 @@ public static class TradeUrlEndpoints
             Guid userId,
             Guid id,
             [FromBody] UpdateTradeUrlRequest request,
+            ClaimsPrincipal principal,
             [FromServices] TradeUrlService tradeUrls,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() != userId)
+            {
+                return Results.NotFound();
+            }
+
             try
             {
                 var link = await tradeUrls.UpdateAsync(userId, id, new UpdateTradeUrlCommand(request.Url, request.Nickname, request.IsPreferred), cancellationToken);
@@ -70,9 +92,15 @@ public static class TradeUrlEndpoints
         group.MapDelete("/{id:guid}", async (
             Guid userId,
             Guid id,
+            ClaimsPrincipal principal,
             [FromServices] TradeUrlService tradeUrls,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() != userId)
+            {
+                return Results.NotFound();
+            }
+
             var deleted = await tradeUrls.DeleteAsync(userId, id, cancellationToken);
             return deleted ? Results.NoContent() : Results.NotFound();
         });
@@ -80,9 +108,15 @@ public static class TradeUrlEndpoints
         group.MapPost("/{id:guid}/check", async (
             Guid userId,
             Guid id,
+            ClaimsPrincipal principal,
             [FromServices] TradeUrlService tradeUrls,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() != userId)
+            {
+                return Results.NotFound();
+            }
+
             try
             {
                 var (_, result) = await tradeUrls.CheckAsync(userId, id, cancellationToken);

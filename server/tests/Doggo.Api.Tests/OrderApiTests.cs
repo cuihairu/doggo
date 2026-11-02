@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Doggo.Domain.Orders;
@@ -10,6 +11,23 @@ namespace Doggo.Api.Tests;
 public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
 {
     private static readonly Guid UserId = Guid.CreateVersion7();
+
+    /// <summary>Registers a user and attaches its bearer token; the order endpoints require it.</summary>
+    private async Task<(HttpClient Client, Guid UserId)> AuthorizedAsync()
+    {
+        var client = Factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            account = $"139{Random.Shared.Next(100000, 999999):D6}",
+            password = "super-secret-1"
+        });
+        response.EnsureSuccessStatusCode();
+        var registered = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.Clone();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", registered.GetProperty("accessToken").GetString());
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me");
+        return (client, me.GetProperty("id").GetGuid());
+    }
 
     private async Task<Product> SeedCrateAsync(
         long finalPriceCents = 10000,
@@ -66,11 +84,11 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         return promotion.Id;
     }
 
-    private static async Task<JsonElement> CreateOrderAsync(HttpClient client, Guid productId, Guid? planId = null)
+    private static async Task<JsonElement> CreateOrderAsync(HttpClient client, Guid userId, Guid productId, Guid? planId = null)
     {
         var response = await client.PostAsJsonAsync("/api/orders", new
         {
-            userId = UserId,
+            userId,
             productId,
             planId,
             entry = (int)OrderEntry.Case,
@@ -103,9 +121,9 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
     public async Task Full_flow_create_pay_callback_refund()
     {
         var product = await SeedCrateAsync(finalPriceCents: 10000);
-        var client = Factory.CreateClient();
+        var (client, userId) = await AuthorizedAsync();
 
-        var created = await CreateOrderAsync(client, product.Id);
+        var created = await CreateOrderAsync(client, userId, product.Id);
         var orderId = created.GetProperty("orderId").GetGuid();
         Assert.Equal(10000, created.GetProperty("totalPriceCents").GetInt64());
         Assert.Equal(10000, created.GetProperty("totalCostCents").GetInt64());
@@ -154,9 +172,9 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
     {
         var product = await SeedCrateAsync(finalPriceCents: 10000);
         await SeedPromotionAsync(product.Id, stock: 1, discountPriceCents: 7000);
-        var client = Factory.CreateClient();
+        var (client, userId) = await AuthorizedAsync();
 
-        var created = await CreateOrderAsync(client, product.Id);
+        var created = await CreateOrderAsync(client, userId, product.Id);
         Assert.Equal(7000, created.GetProperty("totalPriceCents").GetInt64());
         Assert.True(created.GetProperty("promotionApplied").GetBoolean());
 
@@ -174,8 +192,8 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
     public async Task Failed_callback_keeps_order_pending()
     {
         var product = await SeedCrateAsync();
-        var client = Factory.CreateClient();
-        var created = await CreateOrderAsync(client, product.Id);
+        var (client, userId) = await AuthorizedAsync();
+        var created = await CreateOrderAsync(client, userId, product.Id);
 
         var callback = await PayCallbackAsync(client, created.GetProperty("orderId").GetGuid(), 10000, success: false);
         callback.EnsureSuccessStatusCode();
@@ -190,8 +208,8 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
     public async Task Retrieval_is_rejected_without_vapor_and_order_stays_settled()
     {
         var product = await SeedCrateAsync();
-        var client = Factory.CreateClient();
-        var created = await CreateOrderAsync(client, product.Id);
+        var (client, userId) = await AuthorizedAsync();
+        var created = await CreateOrderAsync(client, userId, product.Id);
         var orderId = created.GetProperty("orderId").GetGuid();
         await PayCallbackAsync(client, orderId, 10000);
 
@@ -201,7 +219,7 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         db.UserTradeUrls.Add(new Doggo.Domain.Users.UserTradeUrl
         {
             Id = tradeUrlId,
-            UserId = UserId,
+            UserId = userId,
             SteamId = "76561198960265729",
             Partner = "1000000001",
             Token = "tokentoken1",
@@ -224,7 +242,7 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
     [Fact]
     public async Task Trade_url_crud_and_validate()
     {
-        var client = Factory.CreateClient();
+        var (client, userId) = await AuthorizedAsync();
 
         var validate = await client.PostAsJsonAsync("/api/trade-urls/validate", new { url = "https://steamcommunity.com/tradeoffer/new/?partner=1000000001&token=tokentoken1" });
         validate.EnsureSuccessStatusCode();
@@ -232,33 +250,33 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.True(validateView.RootElement.GetProperty("valid").GetBoolean());
         Assert.Equal("76561198960265729", validateView.RootElement.GetProperty("steamId").GetString());
 
-        var add = await client.PostAsJsonAsync($"/api/users/{UserId}/trade-urls", new { url = "https://steamcommunity.com/tradeoffer/new/?partner=1000000001&token=tokentoken1", nickname = "primary" });
+        var add = await client.PostAsJsonAsync($"/api/users/{userId}/trade-urls", new { url = "https://steamcommunity.com/tradeoffer/new/?partner=1000000001&token=tokentoken1", nickname = "primary" });
         add.EnsureSuccessStatusCode();
         using var addView = JsonDocument.Parse(await add.Content.ReadAsStringAsync());
         var tradeUrlId = addView.RootElement.GetProperty("id").GetGuid();
         Assert.True(addView.RootElement.GetProperty("isPreferred").GetBoolean());
 
-        var duplicate = await client.PostAsJsonAsync($"/api/users/{UserId}/trade-urls", new { url = "https://steamcommunity.com/tradeoffer/new/?partner=1000000001&token=tokentoken1" });
+        var duplicate = await client.PostAsJsonAsync($"/api/users/{userId}/trade-urls", new { url = "https://steamcommunity.com/tradeoffer/new/?partner=1000000001&token=tokentoken1" });
         Assert.Equal(System.Net.HttpStatusCode.Conflict, duplicate.StatusCode);
 
-        var list = await client.GetStringAsync($"/api/users/{UserId}/trade-urls");
+        var list = await client.GetStringAsync($"/api/users/{userId}/trade-urls");
         using var listView = JsonDocument.Parse(list);
         Assert.Equal(1, listView.RootElement.EnumerateArray().Count());
 
-        var check = await client.PostAsync($"/api/users/{UserId}/trade-urls/{tradeUrlId}/check", content: null);
+        var check = await client.PostAsync($"/api/users/{userId}/trade-urls/{tradeUrlId}/check", content: null);
         check.EnsureSuccessStatusCode();
         using var checkView = JsonDocument.Parse(await check.Content.ReadAsStringAsync());
         Assert.True(checkView.RootElement.GetProperty("valid").GetBoolean());
 
-        var update = await client.PutAsJsonAsync($"/api/users/{UserId}/trade-urls/{tradeUrlId}", new { nickname = "renamed" });
+        var update = await client.PutAsJsonAsync($"/api/users/{userId}/trade-urls/{tradeUrlId}", new { nickname = "renamed" });
         update.EnsureSuccessStatusCode();
         using var updateView = JsonDocument.Parse(await update.Content.ReadAsStringAsync());
         Assert.Equal("renamed", updateView.RootElement.GetProperty("nickname").GetString());
 
-        var delete = await client.DeleteAsync($"/api/users/{UserId}/trade-urls/{tradeUrlId}");
+        var delete = await client.DeleteAsync($"/api/users/{userId}/trade-urls/{tradeUrlId}");
         Assert.Equal(System.Net.HttpStatusCode.NoContent, delete.StatusCode);
 
-        var listAfterDelete = await client.GetStringAsync($"/api/users/{UserId}/trade-urls");
+        var listAfterDelete = await client.GetStringAsync($"/api/users/{userId}/trade-urls");
         using var listAfterView = JsonDocument.Parse(listAfterDelete);
         Assert.Empty(listAfterView.RootElement.EnumerateArray());
     }
@@ -268,9 +286,9 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
     {
         var product = await SeedCrateAsync(finalPriceCents: 10000, iconUrl: "https://img.example/sna.png");
         var planId = await SeedPlanAsync(product.Id, "双开");
-        var client = Factory.CreateClient();
+        var (client, userId) = await AuthorizedAsync();
 
-        var created = await CreateOrderAsync(client, product.Id, planId);
+        var created = await CreateOrderAsync(client, userId, product.Id, planId);
         var order = await GetOrderAsync(client, created.GetProperty("orderId").GetGuid());
 
         Assert.Equal("Snakebite Case", order.GetProperty("productName").GetString());
@@ -281,7 +299,7 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
     [Fact]
     public async Task Order_endpoints_return_404_for_unknown_orders()
     {
-        var client = Factory.CreateClient();
+        var (client, _) = await AuthorizedAsync();
         var id = Guid.NewGuid();
 
         Assert.Equal(System.Net.HttpStatusCode.NotFound, (await client.GetAsync($"/api/orders/{id}")).StatusCode);

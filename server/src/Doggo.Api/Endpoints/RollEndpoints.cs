@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Doggo.Domain.Cases;
 using Doggo.Infrastructure.Cases;
 using Doggo.Infrastructure.Persistence;
@@ -22,9 +23,15 @@ public static class RollEndpoints
 
         templates.MapPost("/", async (
             [FromBody] CreateTemplateRequest request,
+            ClaimsPrincipal principal,
             DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() is null)
+            {
+                return Results.Unauthorized();
+            }
+
             var template = new RollRoomTemplate
             {
                 Title = request.Title,
@@ -54,9 +61,15 @@ public static class RollEndpoints
         rooms.MapPost("/{id:guid}/prizes", async (
             Guid id,
             [FromBody] IReadOnlyList<RollPrizeRequest> request,
+            ClaimsPrincipal principal,
             DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() is null)
+            {
+                return Results.Unauthorized();
+            }
+
             await AddPrizesAsync(db, id, request, cancellationToken);
             return Results.Ok(new { roomId = id, prizes = request.Count });
         });
@@ -74,9 +87,15 @@ public static class RollEndpoints
 
         rooms.MapPost("/", async (
             [FromBody] CreateRoomRequest request,
+            ClaimsPrincipal principal,
             [FromServices] RollService rolls,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() is null)
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
                 var result = await rolls.CreateRoomFromTemplateAsync(request.TemplateId, cancellationToken);
@@ -91,12 +110,19 @@ public static class RollEndpoints
         rooms.MapPost("/{id:guid}/join", async (
             Guid id,
             [FromBody] JoinRoomRequest request,
+            ClaimsPrincipal principal,
             [FromServices] RollService rolls,
             CancellationToken cancellationToken) =>
         {
+            var userId = principal.CurrentUserId();
+            if (userId is null)
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
-                return Results.Ok(await rolls.JoinRoomAsync(id, request.UserId, request.EntryRef, cancellationToken));
+                return Results.Ok(await rolls.JoinRoomAsync(id, userId.Value, request.EntryRef, cancellationToken));
             }
             catch (RollRoomNotFoundException ex)
             {
@@ -110,9 +136,15 @@ public static class RollEndpoints
 
         rooms.MapPost("/{id:guid}/draw", async (
             Guid id,
+            ClaimsPrincipal principal,
             [FromServices] RollService rolls,
             CancellationToken cancellationToken) =>
         {
+            if (principal.CurrentUserId() is null)
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
                 return Results.Ok(await rolls.DrawAsync(id, cancellationToken));
@@ -130,12 +162,19 @@ public static class RollEndpoints
         rooms.MapPost("/{id:guid}/claim", async (
             Guid id,
             [FromBody] ClaimRoomRequest request,
+            ClaimsPrincipal principal,
             [FromServices] RollService rolls,
             CancellationToken cancellationToken) =>
         {
+            var userId = principal.CurrentUserId();
+            if (userId is null)
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
-                return Results.Ok(await rolls.ClaimAsync(id, request.UserId, cancellationToken));
+                return Results.Ok(await rolls.ClaimAsync(id, userId.Value, cancellationToken));
             }
             catch (RollRoomNotFoundException ex)
             {
