@@ -6,7 +6,7 @@
 
 # Doggo
 
-**开源游戏资讯平台 —— CS2 / Dota 2 资讯聚合 · 饰品行情 · 开箱**
+面向 CS2 / Dota 2 的开源游戏资讯平台：资讯聚合 · 饰品行情 · 开箱
 
 [English](README.md) | [简体中文](README.zh.md)
 
@@ -18,34 +18,34 @@
 
 </div>
 
-Doggo 是一个聚焦 **CS2(反恐精英 2)** 与 **Dota 2** 的开源游戏资讯平台,提供资讯聚合、饰品行情跟踪、开箱玩法与 Steam 自动化能力。全部服务端组件使用 **C# / .NET** 构建,原生支持 Linux,通过 Docker 部署。
+Doggo 是一个面向 CS2（反恐精英 2）与 Dota 2 的开源游戏资讯平台，做资讯聚合、饰品行情、开箱与 Steam 自动化。服务端组件全部用 C# / .NET 编写，运行在 Linux 上，通过 Docker 部署。
 
 ## 功能
 
-- 📰 **资讯聚合** —— 抓取 CS2 / Dota 2 官方公告、更新日志与赛事资讯,清洗去重后统一展示
-- 📈 **饰品行情** —— 武器箱与饰品资料库,Steam 市场价格跟踪与趋势展示
-- 🎁 **开箱** —— 基于真实 Steam 掉落的开箱玩法,含库存管理与开箱记录
-- 🤖 **Steam 自动化** —— Steam 侧行情同步、库存与交易,通过 [vapor](https://github.com/cuihairu/vapor) 集成
-- 🛠️ **管理后台** —— 用户、商品、箱子、资讯、订单与统计的运营管理界面
-- 📱 **微信小程序** —— 资讯、行情、开箱、订单与个人中心,基于 Taro
+- 资讯聚合：抓取 CS2 / Dota 2 官方公告、更新日志与赛事资讯，清洗去重后统一展示
+- 饰品行情：武器箱与饰品资料库，跟踪 Steam 市场价格与趋势
+- 开箱：基于真实 Steam 掉落的开箱玩法，含库存管理与开箱记录
+- Steam 自动化：Steam 侧行情同步、库存与交易，通过 [vapor](https://github.com/cuihairu/vapor) 集成
+- 管理后台：用户、商品、箱子、资讯、订单与统计的运营管理界面
+- 微信小程序：资讯、行情、开箱、订单与个人中心，基于 Taro
 
 ## 技术栈
 
 | 层 | 选型 |
 | --- | --- |
-| 服务端 / API | ASP.NET Core(.NET 10) |
+| 服务端 / API | ASP.NET Core（.NET 10） |
 | 爬虫 / 后台任务 | .NET Worker Service + Playwright |
-| Steam 自动化 | [vapor](https://github.com/cuihairu/vapor)(SteamKit2) |
+| Steam 自动化 | [vapor](https://github.com/cuihairu/vapor)（SteamKit2） |
 | 存储 | MySQL + Redis |
 | Web / 后台 | React + TypeScript / Ant Design Pro |
 | 小程序 / 手机端 | Taro + React + TypeScript |
 | 文档 | VitePress |
 
-分工边界:vapor 负责与 Steam 网络交互的全部能力;CS2 / Dota 2 资讯爬虫在本仓库内自建。
+分工边界：与 Steam 网络的交互全部由 vapor 负责；CS2 / Dota 2 资讯爬虫在本仓库内实现。
 
 ## 文档
 
-文档基于 VitePress,位于 [`docs/`](docs/) 目录:
+文档基于 VitePress，位于 [`docs/`](docs/) 目录：
 
 ```bash
 pnpm install
@@ -53,7 +53,7 @@ pnpm docs:dev        # 本地预览 http://localhost:5173
 pnpm docs:build      # 构建静态页面
 ```
 
-建议从下面几篇开始:
+主要页面：
 
 - [项目简介](docs/guide/introduction.md)
 - [功能总览](docs/guide/features.md)
@@ -62,16 +62,16 @@ pnpm docs:build      # 构建静态页面
 
 ## 仓库结构
 
-根目录按"应用"分层,源码放在各应用目录内:
+根目录按"应用"分层，源码放在各应用目录内：
 
 ```
 doggo/
 ├── docs/          # VitePress 文档站点
-├── server/        # .NET 后端解决方案(Doggo.slnx,项目位于 src/)
-├── web/           # C 端 Web 用户站(React + TypeScript)
-├── admin/         # 管理后台前端(Ant Design Pro)
-├── miniapp/       # 小程序(Taro + React)
-├── mobile/        # 手机端 App(Taro + React)
+├── server/        # .NET 后端解决方案（Doggo.slnx，项目位于 src/）
+├── web/           # C 端 Web 用户站（React + TypeScript）
+├── admin/         # 管理后台前端（Ant Design Pro）
+├── miniapp/       # 小程序（Taro + React）
+├── mobile/        # 手机端 App（Taro + React）
 ├── deploy/        # Docker Compose、nginx 配置
 ├── LICENSE        # Apache License 2.0
 └── README.md
@@ -79,7 +79,7 @@ doggo/
 
 ## 项目状态
 
-服务端、管理后台、微信小程序与 Android 手机端已实现,任务拆分与进度见 [todo.md](todo.md)。欢迎通过 Issue 与 PR 参与讨论与共建。
+已实现的部分：服务端（资讯、行情、订单、开箱、Steam 与微信登录）、管理后台、微信小程序、Android 手机端，以及 Docker 部署栈。剩余工作见 [todo.md](todo.md)：323 项清单已完成 277 项，未完成的是两项外部依赖（vapor 集成与小程序审核）和 2026-11-01 的代码评审发现，明细列在该文件中。每次 push 都会跑测试（见 `.github/workflows/ci.yml`），nightly 镜像发布到 GHCR。欢迎提 Issue 和 PR。
 
 ## 许可证
 
@@ -87,11 +87,11 @@ doggo/
 
 ## 本地测试口径
 
-CI 与本地开发按改动面三路分流——改一行文档不该全量编译。
+CI 与本地测试按改动面分成三种情况：改一行文档不该触发全量编译。
 
 1. **文档改动**（`*.md`、`docs/**`、图片）：不编译。主 CI workflow 的
    `paths-ignore` 已跳过这些路径。
 2. **代码改动**：只跑改动子集，不全量。
    - `dotnet test server/<改动 csproj>`
-3. **全量**（`dotnet test server/Doggo.slnx`）：仅以下情形触发——*.csproj / Doggo.slnx、
-   `.github/**`、Docker/Compose 配置、发布前。
+3. **全量**（`dotnet test server/Doggo.slnx`）：仅 *.csproj / Doggo.slnx、
+   `.github/**`、Docker/Compose 配置变更，以及发布前触发。
