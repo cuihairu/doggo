@@ -479,3 +479,9 @@
 - [ ] 深审 P3 卫生:appsettings 默认 DB 密码占位(appsettings.json:10)
 - [ ] 深审 P3 卫生:订单号用 Random.Shared(OrderService.cs:677)
 - [ ] 深审 P3 卫生:VaporClient HttpResponseMessage 未释放(VaporClient.cs:80-101)
+
+- [x] 审核发现：SteamOpenIdService 经 AddHttpClient 注册为 transient（Program.cs:34），无 Auth:SecretKey 时 _signingKey 按实例随机生成（SteamOpenIdService.cs:25-28），登录与回调为两次请求故密钥不同，state 校验必败；注释「镜像单例 TokenService」不成立（Program.cs:32、SteamOpenIdService.cs:22-26）(证据:9c54dd4, SteamOpenIdService.cs:20)
+- [x] 审核发现：Case 座位 claim/open/advance/paid/release 仅校验「已登录」未校验 seat/order 归属，任意登录用户可对他人的 seat 执行 paid/release/open/advance 或用他人 orderId claim（CaseEndpoints.cs:87、118-121、204；仅 result 于 :171 用 SeatOwnedByAsync 校验）(证据:75abde8, CaseEndpoints.cs:87、CaseEndpoints.cs:121、CaseEndpoints.cs:210、CaseEndpoints.cs:254)
+- [x] 审核发现：CreateOrderRequest.UserId、JoinRoomRequest.UserId、ClaimRoomRequest.UserId 已改由 token 提供但仍留在请求契约，易误导客户端传他人 id（OrderEndpoints.cs:293、RollEndpoints.cs:269、271）(证据:896cfa2, OrderEndpoints.cs:292、RollEndpoints.cs:269、RollEndpoints.cs:271)
+- [x] 审核发现：支付回调金额不符拒绝分支无对应测试（OrderService.cs:197），现有用例仅覆盖 success:false 与等额成功（OrderApiTests.cs:192、142）(证据:438e7f7, OrderApiTests.cs:204)
+- [x] 审核发现：代码深审报告「当场修复 9 条」分解自相矛盾，P1×6 列 S4/S5/S6/S8/S9/S10/S11 共 7 个 id，且「归属面」与 P1 项重复计数（docs/review/2026-11-01-code-review.md:150）(证据:c7a46ab, 2026-11-01-code-review.md:150)
