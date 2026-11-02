@@ -266,6 +266,6 @@ public sealed record RollPrizeRequest(RollPrizeType Type, long CoinAmount, int W
 
 public sealed record CreateRoomRequest(Guid TemplateId);
 
-public sealed record JoinRoomRequest(Guid UserId, string? EntryRef);
+public sealed record JoinRoomRequest(string? EntryRef);
 
-public sealed record ClaimRoomRequest(Guid UserId);
+public sealed record ClaimRoomRequest;

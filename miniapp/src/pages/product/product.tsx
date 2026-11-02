@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { View, Text, ScrollView, Image, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import {
-  createOrder, fetchCoinBalance, fetchMyCoupons, fetchProduct, fetchProfile, payOrder,
+  createOrder, fetchCoinBalance, fetchMyCoupons, fetchProduct, payOrder,
   MyCoupon, ProductDetail
 } from '../../api/endpoints'
 import { ApiError, getAccessToken, trackEvent, yuan } from '../../api/client'
@@ -108,8 +108,7 @@ export default function ProductPage() {
     trackEvent('checkout_intent', { productId: detail!.id, planId: target.planId ?? null, optionId: target.optionId ?? null, quantity: 1 })
     setBusy(true)
     try {
-      const profile = await fetchProfile()
-      const order = await createOrder(profile.id, detail!.id, target.planId, target.optionId, useCoupon, 1, coinChoice)
+      const order = await createOrder(detail!.id, target.planId, target.optionId, useCoupon, 1, coinChoice)
       await payOrder(order.id)
       if (useCoupon || coinChoice > 0) {
         setCouponId('')

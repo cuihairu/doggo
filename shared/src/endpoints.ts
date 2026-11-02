@@ -178,13 +178,12 @@ export interface OrderView {
  * the product's quantity-tier ladder. coinDeductionCents spends the same amount
  * from the coin balance (1 coin = 1 cent off) and is refused if the balance is
  * short — the client only caps the chip at what it read from the balance. */
-export function createOrder(userId: string, productId: string, planId?: string, optionId?: string, userCouponId?: string, quantity = 1, coinDeductionCents = 0) {
+export function createOrder(productId: string, planId?: string, optionId?: string, userCouponId?: string, quantity = 1, coinDeductionCents = 0) {
   // The create endpoint returns { orderId, ... } while the detail endpoint
   // returns { id, ... }; normalize so callers can use order.id either way.
   return api<OrderView & { orderId?: string }>('/api/orders', {
     method: 'POST',
     data: {
-      userId,
       productId,
       planId: planId ?? null,
       optionId: optionId ?? null,

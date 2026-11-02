@@ -188,7 +188,6 @@ export default function ProductDetailPage() {
     try {
       const result = await api<CreateOrderResult>('/api/orders', {
         body: {
-          userId: (await api<{ id: string }>('/api/auth/me')).id,
           productId: id,
           planId: sku?.planId ?? null,
           optionId: sku?.optionId ?? null,

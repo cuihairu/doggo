@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import {
-  createOrder, fetchCoinBalance, fetchMyCoupons, fetchProduct, fetchProfile, payOrder,
+  createOrder, fetchCoinBalance, fetchMyCoupons, fetchProduct, payOrder,
   ApiError, getAccessToken, kvGet, kvSet, MyCoupon, ProductDetail, trackEvent, yuan
 } from '@doggo/shared'
 import { SafeTop, Btn, Card, Msg, Muted, Price, Skeleton } from '../../ui'
@@ -81,14 +81,13 @@ export default function ProductPage() {
     trackEvent('checkout_intent', { productId: detail?.id ?? '', planId: planId ?? null, optionId: optionId ?? null, quantity })
     setBusy(true)
     try {
-      const profile = await fetchProfile()
       // The server validates the coupon (threshold, plan eligibility) and
       // rejects the order with a message if it does not apply. An empty
       // selection must be undefined, not '' — the API binds Guid? and an
       // empty string fails deserialization.
       const useCoupon = allowCoupon && couponId ? couponId : undefined
       // Coin spend is 1 coin = 1 cent off and the server rejects a short balance.
-      const order = await createOrder(profile.id, detail!.id, planId, optionId, useCoupon, quantity, coinChoice)
+      const order = await createOrder(detail!.id, planId, optionId, useCoupon, quantity, coinChoice)
       await payOrder(order.id)
       rememberOrder(order.id)
       if (useCoupon || coinChoice > 0) {

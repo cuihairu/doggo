@@ -290,7 +290,6 @@ public static class OrderEndpoints
 }
 
 public sealed record CreateOrderRequest(
-    Guid UserId,
     Guid ProductId,
     Guid? PlanId,
     Guid? OptionId,

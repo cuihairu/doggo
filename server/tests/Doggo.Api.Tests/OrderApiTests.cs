@@ -88,7 +88,6 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
     {
         var response = await client.PostAsJsonAsync("/api/orders", new
         {
-            userId,
             productId,
             planId,
             entry = (int)OrderEntry.Case,
