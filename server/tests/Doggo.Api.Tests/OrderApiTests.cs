@@ -204,6 +204,29 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
+    public async Task Amount_mismatch_callback_is_rejected_and_kept_pending()
+    {
+        var product = await SeedCrateAsync(finalPriceCents: 10000);
+        var (client, userId) = await AuthorizedAsync();
+        var created = await CreateOrderAsync(client, userId, product.Id);
+        var orderId = created.GetProperty("orderId").GetGuid();
+
+        var callback = await PayCallbackAsync(client, orderId, 9999);
+        callback.EnsureSuccessStatusCode();
+        using var callbackView = JsonDocument.Parse(await callback.Content.ReadAsStringAsync());
+        Assert.False(callbackView.RootElement.GetProperty("applied").GetBoolean());
+
+        var order = await GetOrderAsync(client, orderId);
+        Assert.Equal((int)OrderStatus.PendingPayment, order.GetProperty("status").GetInt32());
+
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        var record = Assert.Single(db.PaymentRecords, record => record.OrderId == orderId);
+        Assert.Equal(9999, record.AmountCents);
+        Assert.Equal(PaymentStatus.Failed, record.Status);
+    }
+
+    [Fact]
     public async Task Retrieval_is_rejected_without_vapor_and_order_stays_settled()
     {
         var product = await SeedCrateAsync();
