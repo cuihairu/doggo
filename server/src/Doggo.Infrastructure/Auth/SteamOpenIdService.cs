@@ -19,6 +19,13 @@ public sealed partial class SteamOpenIdService(IOptions<AuthOptions> optionsFact
 
     private readonly AuthOptions _options = optionsFactory.Value;
 
+    // Ephemeral per-boot fallback, mirroring TokenService: without a configured Auth:SecretKey
+    // the state HMAC uses a random key, so the committed constant below can never be used to
+    // forge a bind state for another user.
+    private readonly string _signingKey = optionsFactory.Value.HasSigningKey
+        ? optionsFactory.Value.SecretKey
+        : Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+
     /// <summary>Starts the bind: the redirect target for the user's browser.</summary>
     public string BuildLoginUrl(Guid userId, string publicBaseUrl)
     {
@@ -121,7 +128,7 @@ public sealed partial class SteamOpenIdService(IOptions<AuthOptions> optionsFact
             var data = Convert.FromBase64String(parts[0]);
             var expected = Convert.FromBase64String(parts[1]);
             var actual = HMACSHA256.HashData(Encoding.UTF8.GetBytes(SigningKey), data);
-            if (!actual.AsSpan().SequenceEqual(expected))
+            if (!CryptographicOperations.FixedTimeEquals(actual, expected))
             {
                 return null;
             }
@@ -144,9 +151,7 @@ public sealed partial class SteamOpenIdService(IOptions<AuthOptions> optionsFact
         }
     }
 
-    private string SigningKey => _options.HasSigningKey
-        ? _options.SecretKey
-        : "doggo-steam-bind-fallback-key";
+    private string SigningKey => _signingKey;
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "steam bind callback came with a missing or invalid state")]
     private partial void LogBadState();
