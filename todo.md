@@ -439,7 +439,7 @@
 
 ### 待处理
 
-- [ ] 深审 P0 部署:MockPaymentProvider 在生产被注册为唯一支付渠道(Program.cs:83;需 fail-closed 或接入真实渠道,本轮仅修金额校验)
+- [ ] 深审 P0 部署:MockPaymentProvider 在生产被注册为唯一支付渠道(Program.cs:83;需 fail-closed 或接入真实渠道,本轮仅修金额校验) — BLOCKED 缺真实支付渠道接入决策与凭据(Alipay/WeChat 密钥),Program.cs:83 注释明示属部署里程碑
 - [ ] 深审 P0 并发:取消与支付回调竞态,UserOrder 无乐观锁(OrderService.cs:241-256;需条件更新或 rowversion)
 - [ ] 深审 P0 并发:roll 开奖无双实例锁,两 worker 同开双中奖(RollService.cs:121-173)
 - [ ] 深审 P0 并发:roll 金币奖励双发,ClaimedAtUtc 竞态(RollService.cs:204-266)
