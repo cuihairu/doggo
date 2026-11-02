@@ -190,7 +190,11 @@ public sealed partial class OrderService(
 
         var order = await LoadOrderAsync(orderId, cancellationToken);
 
-        if (!callback.Success || order.Status != OrderStatus.PendingPayment)
+        // A callback that is not for the exact amount owed must not settle the order:
+        // an under- or over-payment (price race, channel quirk, or a forged mock body)
+        // is rejected rather than fulfilled.
+        if (!callback.Success || order.Status != OrderStatus.PendingPayment
+            || callback.AmountCents != order.TotalCostCents)
         {
             db.PaymentRecords.Add(new PaymentRecord
             {
