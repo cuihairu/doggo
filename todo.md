@@ -440,15 +440,15 @@
 ### 待处理
 
 - [ ] 深审 P0 部署:MockPaymentProvider 在生产被注册为唯一支付渠道(Program.cs:83;需 fail-closed 或接入真实渠道,本轮仅修金额校验) — BLOCKED 缺真实支付渠道接入决策与凭据(Alipay/WeChat 密钥),Program.cs:83 注释明示属部署里程碑
-- [ ] 深审 P0 并发:取消与支付回调竞态,UserOrder 无乐观锁(OrderService.cs:241-256;需条件更新或 rowversion)
-- [ ] 深审 P0 并发:roll 开奖无双实例锁,两 worker 同开双中奖(RollService.cs:121-173)
-- [ ] 深审 P0 并发:roll 金币奖励双发,ClaimedAtUtc 竞态(RollService.cs:204-266)
-- [ ] 深审 P1 并发:金币余额非原子读改写,无并发令牌(CoinService.cs:38-176)
-- [ ] 深审 P1 并发:优惠券双用,UsedOrderId 无唯一索引(CouponService.cs:169-208)
-- [ ] 深审 P1 并发:兑换码超兑+先发币后记账失败(CouponService.cs:62-106)
-- [ ] 深审 P1 一致性:下单部分失败不回滚库存/券/币(OrderService.cs:98-157)
+- [ ] 深审 P0 并发:取消与支付回调竞态,UserOrder 无乐观锁(OrderService.cs:241-256;需条件更新或 rowversion) — BLOCKED 缺真实 MySQL 验证行级并发/乐观锁(InMemory 不强制),需 EF migration+条件更新
+- [ ] 深审 P0 并发:roll 开奖无双实例锁,两 worker 同开双中奖(RollService.cs:121-173) — BLOCKED 缺真实 MySQL 验证原子状态迁移(InMemory 不强制),需条件更新或分布式锁
+- [ ] 深审 P0 并发:roll 金币奖励双发,ClaimedAtUtc 竞态(RollService.cs:204-266) — BLOCKED 缺真实 MySQL 验证条件更新(InMemory 不强制),需并发令牌+幂等约束
+- [ ] 深审 P1 并发:金币余额非原子读改写,无并发令牌(CoinService.cs:38-176) — BLOCKED 缺真实 MySQL 验证余额 RMW(InMemory 不强制),需 rowversion/原子 SQL
+- [ ] 深审 P1 并发:优惠券双用,UsedOrderId 无唯一索引(CouponService.cs:169-208) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束
+- [ ] 深审 P1 并发:兑换码超兑+先发币后记账失败(CouponService.cs:62-106) — BLOCKED 缺真实 MySQL 验证事务+原子自增(InMemory 不支持事务),需事务重构
+- [ ] 深审 P1 一致性:下单部分失败不回滚库存/券/币(OrderService.cs:98-157) — BLOCKED 缺真实 MySQL 验证事务(InMemory 不支持事务),需事务包裹多步写入
 - [ ] 深审 P1 校验:CoinDeduction 不封顶且 plan 的 CanUseCoin/CanUseCoupon 未强制(OrderService.cs:136-152)
-- [ ] 深审 P1 并发:退款先打款后复查致双退(OrderService.cs:287-328)
+- [ ] 深审 P1 并发:退款先打款后复查致双退(OrderService.cs:287-328) — BLOCKED 缺真实 MySQL 验证原子退款声明(InMemory 不强制),需先声明后打款的事务/条件更新
 - [ ] 深审 P1 并发:手机/邮箱无唯一约束致重复注册(AuthService.cs:85-90)
 - [ ] 深审 P1 并发:refresh token 轮换竞态,双 token 有效(AuthService.cs:223-262)
 - [ ] 深审 P1 并发:签到双发,MakeupOrderNo 无唯一约束(SignService.cs:53-99)
