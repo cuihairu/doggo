@@ -477,7 +477,7 @@
 - [x] 深审 P3 卫生:nginx 缺安全头(证据:doggo.conf.template:48-50、doggo.conf.template:82-84 add_header nosniff/referrer-policy/frame-deny;nginx -t 语法 ok,curl 实测三头均返回)
 - [x] 深审 P3 卫生:inspectLink 无 scheme 白名单(CaseOpeningPage.tsx:108)(证据:a69c6a7,CaseOpeningPage.tsx:108、web/src/lib/url.ts:3)
 - [x] 深审 P3 卫生:appsettings 默认 DB 密码占位(证据:DoggoInfrastructureExtensions.cs:22-38 生产 fail-closed(空或 change-me 拒绝),Development/Testing 豁免;新增 DoggoInfrastructureExtensionsTests.cs 5 例,dotnet test 189+107 全绿)
-- [ ] 深审 P3 卫生:订单号用 Random.Shared(OrderService.cs:677)
+- [x] 深审 P3 卫生:订单号用 Random.Shared(证据:OrderService.cs:733-734 改 RandomNumberGenerator.GetInt32;dotnet test 45+189+107 全绿)
 - [ ] 深审 P3 卫生:VaporClient HttpResponseMessage 未释放(VaporClient.cs:80-101)
 
 - [x] 审核发现：SteamOpenIdService 经 AddHttpClient 注册为 transient（Program.cs:34），无 Auth:SecretKey 时 _signingKey 按实例随机生成（SteamOpenIdService.cs:25-28），登录与回调为两次请求故密钥不同，state 校验必败；注释「镜像单例 TokenService」不成立（Program.cs:32、SteamOpenIdService.cs:22-26）(证据:9c54dd4, SteamOpenIdService.cs:20)

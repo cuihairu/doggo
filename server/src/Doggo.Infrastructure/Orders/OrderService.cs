@@ -6,6 +6,7 @@ using Doggo.Domain.Users;
 using Doggo.Infrastructure.Persistence;
 using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Vapor;
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -731,7 +732,7 @@ public sealed partial class OrderService(
     }
 
     private static string NewOrderNo(DateTime at) =>
-        $"DO{at:yyyyMMddHHmmss}{Random.Shared.Next(100000, 999999)}";
+        $"DO{at:yyyyMMddHHmmss}{RandomNumberGenerator.GetInt32(100000, 999999)}";
 
     [LoggerMessage(Level = LogLevel.Information, Message = "order {OrderNo} created for user {UserId} (promotion claimed: {PromotionClaimed})")]
     private static partial void LogOrderCreated(ILogger logger, string orderNo, Guid userId, bool promotionClaimed);
