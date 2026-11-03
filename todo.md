@@ -447,7 +447,7 @@
 - [ ] 深审 P1 并发:优惠券双用,UsedOrderId 无唯一索引(CouponService.cs:169-208) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束
 - [ ] 深审 P1 并发:兑换码超兑+先发币后记账失败(CouponService.cs:62-106) — BLOCKED 缺真实 MySQL 验证事务+原子自增(InMemory 不支持事务),需事务重构
 - [ ] 深审 P1 一致性:下单部分失败不回滚库存/券/币(OrderService.cs:98-157) — BLOCKED 缺真实 MySQL 验证事务(InMemory 不支持事务),需事务包裹多步写入
-- [ ] 深审 P1 校验:CoinDeduction 不封顶且 plan 的 CanUseCoin/CanUseCoupon 未强制(OrderService.cs:136-152)
+- [x] 深审 P1 校验:CoinDeduction 不封顶且 plan 的 CanUseCoin/CanUseCoupon 未强制(OrderService.cs:136-152)(证据:d24107c/见本提交,OrderService.cs:87、OrderService.cs:154)
 - [ ] 深审 P1 并发:退款先打款后复查致双退(OrderService.cs:287-328) — BLOCKED 缺真实 MySQL 验证原子退款声明(InMemory 不强制),需先声明后打款的事务/条件更新
 - [ ] 深审 P1 并发:手机/邮箱无唯一约束致重复注册(AuthService.cs:85-90) — BLOCKED 缺真实 MySQL 验证唯一索引对既有数据无冲突(InMemory 不强制),需 EF migration 唯一约束
 - [ ] 深审 P1 并发:refresh token 轮换竞态,双 token 有效(AuthService.cs:223-262) — BLOCKED 缺真实 MySQL 验证原子撤销(WHERE RevokedAtUtc IS NULL)(InMemory 不强制),需条件更新
@@ -487,17 +487,17 @@
 - [x] 审核发现：代码深审报告「当场修复 9 条」分解自相矛盾，P1×6 列 S4/S5/S6/S8/S9/S10/S11 共 7 个 id，且「归属面」与 P1 项重复计数（docs/review/2026-11-01-code-review.md:150）(证据:c7a46ab, 2026-11-01-code-review.md:150)
 
 - [ ] 审核发现：CaseEndpoints 新增归属校验（SeatOwnedByAsync/OrderOwnedByAsync）为 check-then-act，与 GroupBuyingService 变更非原子：paid/release/open/advance 中 seat 在「校验通过」与「变更执行」之间被 release 并由他人 re-claim，过期请求可变更新 owner 的 seat（如免支付 MarkPaid、把他人已付 seat 置回 OnSale）——归属强制应并入变更事务/行锁（CaseEndpoints.cs:149、240、281；GroupBuyingService.cs:196、217、233、359） — BLOCKED 缺真实 MySQL 验证行锁/事务(InMemory 不支持事务),需行锁+变更并入同一事务
-- [ ] 审核发现：claim 新归属门仅校验 order 归属，ClaimSeatAsync 从不校验 order 状态（PendingPayment）或 order 产品与 batch 匹配，可用已取消/未支付或他人产品的 order 锁定 seat；新测试仅 seed PendingSettlement order（GroupBuyingApiTests.cs:78）掩盖该缺口（CaseEndpoints.cs:108；GroupBuyingService.cs:153-193）
-- [ ] 审核发现：/open（SubmitOpening）归属校验（CaseEndpoints.cs:149）无对应测试——Mutations_reject_other_users_orders_and_seats 仅断言 paid/release/advance 外来拒绝，未覆盖 /open；该外来 404 无需 vapor 即可断言（归属校验先于 vapor 检查 GroupBuyingService.cs:235），应补（GroupBuyingApiTests.cs:233-239）
-- [ ] 审核发现：code-review 报告「当场修复 9 条」修正后仍不收敛：P0 6−2=4≠3、P1 19−7=12≠13（待处理 P0 3/P1 13 与发现 P0 6/P1 19 对不上），归属面重新分类后「发现」计数行未同步（docs/review/2026-11-01-code-review.md:149-151）
+- [x] 审核发现：claim 新归属门仅校验 order 归属，ClaimSeatAsync 从不校验 order 状态（PendingPayment）或 order 产品与 batch 匹配，可用已取消/未支付或他人产品的 order 锁定 seat；新测试仅 seed PendingSettlement order（GroupBuyingApiTests.cs:78）掩盖该缺口（CaseEndpoints.cs:108；GroupBuyingService.cs:153-193）(证据:见本提交,GroupBuyingService.cs:164、GroupBuyingService.cs:170;GroupBuyingApiTests.cs:243)
+- [x] 审核发现：/open（SubmitOpening）归属校验（CaseEndpoints.cs:149）无对应测试——Mutations_reject_other_users_orders_and_seats 仅断言 paid/release/advance 外来拒绝，未覆盖 /open；该外来 404 无需 vapor 即可断言（归属校验先于 vapor 检查 GroupBuyingService.cs:235），应补（GroupBuyingApiTests.cs:233-239）(证据:见本提交,GroupBuyingApiTests.cs:240)
+- [x] 审核发现：code-review 报告「当场修复 9 条」修正后仍不收敛：P0 6−2=4≠3、P1 19−7=12≠13（待处理 P0 3/P1 13 与发现 P0 6/P1 19 对不上），归属面重新分类后「发现」计数行未同步（docs/review/2026-11-01-code-review.md:149-151）(证据:见本提交,docs/review/2026-11-01-code-review.md:151)
 
 ## 审核记录：d9d679f6..HEAD（7 commits：a5688da/e932608/0fa62f8/6d58d2b/b722e22/1e24a92/d24107c）
 
-- [ ] 审核发现：新旗标门未校验 plan 归属——CanUseCoupon/CanUseCoin 只在 `plan is { CanUseCoupon:false }` 时生效，而 plan 仅按 PlanId 加载（OrderService.cs:83-85），未校验 Enabled 或 ProductId==ProductId（仅 OptionId 非空时 LoadPlanOptionAsync 才校验）。客户端传一个他产品/禁用/不存在的 PlanId 且不带 OptionId，即可绕过新旗标门，同时仍按该 plan.CashbackBps 计返现（OrderService.cs:116）——旗标强制对「无 OptionId 的下单」形同虚设（OrderService.cs:89-96）
-- [ ] 审核发现：新 cap 校验触发路径会持久化半成品订单行——OrderService.cs:156 抛异常后 catch（164-168）调 RestoreCouponAsync，其内部 SaveChangesAsync 会顺带 flush 掉 line 138 `db.UserOrders.Add(order)` 尚未保存的 order 实体，残留一条 PendingPayment/TotalCostCents=0 的幽灵订单（券已归还但订单落库）。该副作用对「余额不足」旧路径同样存在，本 diff 新增 line 154/156 触发点并明确依赖该 catch（OrderService.cs:154-168）
-- [ ] 审核发现：Coin_deduction_above_the_order_total_is_rejected 未 seed 币余额——若移除 cap 校验，SpendAsync 仍抛 CoinValidationException（余额不足）且同样映射 400（OrderEndpoints.cs:75-77），该用例无法区分「超出总额」与「余额不足」两种拒绝，守护不了新逻辑（OrderApiTests.cs:400）
-- [ ] 审核发现：未覆盖「券已消耗后币扣超剩余」的拒付分支，且未断言拒付后券被归还（RestoreCouponAsync catch 路径）；Coin_deduction_within_the_total_is_applied 仅断言订单字段，未断言币账余额实际减少（OrderApiTests.cs:419）
-- [ ] 审核发现：负值 CoinDeduction 被静默忽略（OrderService.cs:148 `>0` 门），请求携带负数既不拒付也不扣减，客户端期望与结果不符（OrderService.cs:148）
-- [ ] 审核发现：d24107c 已实现 cap+旗标强制，但对应待办「深审 P1 校验:CoinDeduction 不封顶且 plan 的 CanUseCoin/CanUseCoupon 未强制(OrderService.cs:136-152)」仍保持未勾选且未标注已修，且行号引用已过期（实际 cap 校验在 OrderService.cs:154）（todo.md:450）
-- [ ] 审核发现：docs/审计-文档一致性.md:76-78 注记「（未 commit）」「todo.md 未触碰」与本区间提交状态矛盾——a5688da 已 commit 该文档并修改 todo.md，注记过时（docs/审计-文档一致性.md:76-78）
-- [ ] 审核发现：本轮 diff 未见问题（d9d679f6..HEAD）——README.md / README.zh.md 为措辞去味与状态计数更新（277/323 与当前 todo.md 计数一致，无误）；其余发现已逐条列于上方。
+- [x] 审核发现：新旗标门未校验 plan 归属——CanUseCoupon/CanUseCoin 只在 `plan is { CanUseCoupon:false }` 时生效，而 plan 仅按 PlanId 加载（OrderService.cs:83-85），未校验 Enabled 或 ProductId==ProductId（仅 OptionId 非空时 LoadPlanOptionAsync 才校验）。客户端传一个他产品/禁用/不存在的 PlanId 且不带 OptionId，即可绕过新旗标门，同时仍按该 plan.CashbackBps 计返现（OrderService.cs:116）——旗标强制对「无 OptionId 的下单」形同虚设（OrderService.cs:89-96）(证据:见本提交,OrderService.cs:87、OrderService.cs:672;OrderServiceTests.cs:251)
+- [x] 审核发现：新 cap 校验触发路径会持久化半成品订单行——OrderService.cs:156 抛异常后 catch（164-168）调 RestoreCouponAsync，其内部 SaveChangesAsync 会顺带 flush 掉 line 138 `db.UserOrders.Add(order)` 尚未保存的 order 实体，残留一条 PendingPayment/TotalCostCents=0 的幽灵订单（券已归还但订单落库）。该副作用对「余额不足」旧路径同样存在，本 diff 新增 line 154/156 触发点并明确依赖该 catch（OrderService.cs:154-168）(证据:见本提交,OrderService.cs:171;OrderServiceTests.cs:301)
+- [x] 审核发现：Coin_deduction_above_the_order_total_is_rejected 未 seed 币余额——若移除 cap 校验，SpendAsync 仍抛 CoinValidationException（余额不足）且同样映射 400（OrderEndpoints.cs:75-77），该用例无法区分「超出总额」与「余额不足」两种拒绝，守护不了新逻辑（OrderApiTests.cs:400）(证据:见本提交,OrderApiTests.cs:400)
+- [x] 审核发现：未覆盖「券已消耗后币扣超剩余」的拒付分支，且未断言拒付后券被归还（RestoreCouponAsync catch 路径）；Coin_deduction_within_the_total_is_applied 仅断言订单字段，未断言币账余额实际减少（OrderApiTests.cs:419）(证据:见本提交,OrderApiTests.cs:433、OrderApiTests.cs:446)
+- [x] 审核发现：负值 CoinDeduction 被静默忽略（OrderService.cs:148 `>0` 门），请求携带负数既不拒付也不扣减，客户端期望与结果不符（OrderService.cs:148）(证据:见本提交,OrderService.cs:87;OrderServiceTests.cs:286)
+- [x] 审核发现：d24107c 已实现 cap+旗标强制，但对应待办「深审 P1 校验:CoinDeduction 不封顶且 plan 的 CanUseCoin/CanUseCoupon 未强制(OrderService.cs:136-152)」仍保持未勾选且未标注已修，且行号引用已过期（实际 cap 校验在 OrderService.cs:154）（todo.md:450）(证据:见本提交,todo.md:450)
+- [x] 审核发现：docs/审计-文档一致性.md:76-78 注记「（未 commit）」「todo.md 未触碰」与本区间提交状态矛盾——a5688da 已 commit 该文档并修改 todo.md，注记过时（docs/审计-文档一致性.md:76-78）(证据:见本提交,docs/审计-文档一致性.md:76)
+- [x] 审核发现：本轮 diff 未见问题（d9d679f6..HEAD）——README.md / README.zh.md 为措辞去味与状态计数更新（277/323 与当前 todo.md 计数一致，无误）；其余发现已逐条列于上方。(证据:见本提交,d9d679f6..HEAD)
