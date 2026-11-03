@@ -20,7 +20,7 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                 type: "varchar(255)",
                 maxLength: 255,
                 nullable: false,
-                defaultValue: "");
+                defaultValue: "CNY");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MarketPriceDailies_MarketItemId_Date_Currency",
