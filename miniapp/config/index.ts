@@ -14,7 +14,12 @@ export default defineConfig({
   sourceRoot: 'src',
   outputRoot: 'dist',
   plugins: [],
-  defineConstants: {},
+  // Baked into the bundle as process.env.TARO_APP_* so the shared API layer can
+  // resolve the origin at runtime. Local devtools use 不校验合法域名 and point at
+  // the host loopback; CI / production must override TARO_APP_API_BASE.
+  env: {
+    TARO_APP_API_BASE: JSON.stringify(process.env.TARO_APP_API_BASE ?? 'http://127.0.0.1:8082')
+  },
   framework: 'react',
   compiler: 'webpack5',
   cache: { enable: false },

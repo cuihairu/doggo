@@ -5,7 +5,7 @@ import Taro from '@tarojs/taro'
  * production overrides at build time via TARO_APP_API_BASE. RN calls setApiBase at
  * startup because metro has no define-plugin equivalent for TARO_APP_*.
  */
-const API_BASE_ENV = process.env.TARO_APP_API_BASE ?? 'https://api.doggo.example'
+const API_BASE_ENV = process.env.TARO_APP_API_BASE ?? ''
 
 let apiBase = API_BASE_ENV
 
@@ -110,6 +110,9 @@ export function setClient(value: string) {
 }
 
 async function rawRequest<T>(path: string, options: RequestOptions): Promise<T> {
+  if (!apiBase) {
+    throw new ApiError(0, 'API base is not configured')
+  }
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     // Server-authoritative funnel events (order_created) read the client session from here.
