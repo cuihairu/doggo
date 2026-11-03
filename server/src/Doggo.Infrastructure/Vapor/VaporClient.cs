@@ -77,16 +77,9 @@ public sealed class VaporClient
             ["payload"] = payload
         };
 
-        HttpResponseMessage response;
-        try
-        {
-            response = await _http.PostAsJsonAsync("v1/jobs", body, VaporJson.Options, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            throw new VaporClientException($"vapor dispatch failed: {ex.Message}", ex);
-        }
+        using var response = await SendAsync(
+            () => _http.PostAsJsonAsync("v1/jobs", body, VaporJson.Options, cancellationToken),
+            "dispatch").ConfigureAwait(false);
 
         await EnsureSuccessAsync(response, "dispatch", cancellationToken).ConfigureAwait(false);
 
@@ -106,15 +99,9 @@ public sealed class VaporClient
     {
         EnsureConfigured();
 
-        HttpResponseMessage response;
-        try
-        {
-            response = await _http.GetAsync($"v1/jobs/{jobId}", cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            throw new VaporClientException($"vapor get job failed: {ex.Message}", ex);
-        }
+        using var response = await SendAsync(
+            () => _http.GetAsync($"v1/jobs/{jobId}", cancellationToken),
+            $"get job {jobId}").ConfigureAwait(false);
 
         await EnsureSuccessAsync(response, $"get job {jobId}", cancellationToken).ConfigureAwait(false);
 
@@ -211,6 +198,20 @@ public sealed class VaporClient
         if (!IsConfigured)
         {
             throw new VaporClientException("vapor is not configured: set Vapor:BaseUrl and Vapor:ApiKey");
+        }
+    }
+
+    private static async Task<HttpResponseMessage> SendAsync(
+        Func<Task<HttpResponseMessage>> send,
+        string what)
+    {
+        try
+        {
+            return await send().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            throw new VaporClientException($"vapor {what} failed: {ex.Message}", ex);
         }
     }
 

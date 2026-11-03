@@ -478,7 +478,7 @@
 - [x] 深审 P3 卫生:inspectLink 无 scheme 白名单(CaseOpeningPage.tsx:108)(证据:a69c6a7,CaseOpeningPage.tsx:108、web/src/lib/url.ts:3)
 - [x] 深审 P3 卫生:appsettings 默认 DB 密码占位(证据:DoggoInfrastructureExtensions.cs:22-38 生产 fail-closed(空或 change-me 拒绝),Development/Testing 豁免;新增 DoggoInfrastructureExtensionsTests.cs 5 例,dotnet test 189+107 全绿)
 - [x] 深审 P3 卫生:订单号用 Random.Shared(证据:OrderService.cs:733-734 改 RandomNumberGenerator.GetInt32;dotnet test 45+189+107 全绿)
-- [ ] 深审 P3 卫生:VaporClient HttpResponseMessage 未释放(VaporClient.cs:80-101)
+- [x] 深审 P3 卫生:VaporClient HttpResponseMessage 未释放(证据:VaporClient.cs:80、VaporClient.cs:109 改 using var + SendAsync 统一异常翻译;dotnet test 45+189+107 全绿)
 
 - [x] 审核发现：SteamOpenIdService 经 AddHttpClient 注册为 transient（Program.cs:34），无 Auth:SecretKey 时 _signingKey 按实例随机生成（SteamOpenIdService.cs:25-28），登录与回调为两次请求故密钥不同，state 校验必败；注释「镜像单例 TokenService」不成立（Program.cs:32、SteamOpenIdService.cs:22-26）(证据:9c54dd4, SteamOpenIdService.cs:20)
 - [x] 审核发现：Case 座位 claim/open/advance/paid/release 仅校验「已登录」未校验 seat/order 归属，任意登录用户可对他人的 seat 执行 paid/release/open/advance 或用他人 orderId claim（CaseEndpoints.cs:87、118-121、204；仅 result 于 :171 用 SeatOwnedByAsync 校验）(证据:75abde8, CaseEndpoints.cs:108、CaseEndpoints.cs:149、CaseEndpoints.cs:190、CaseEndpoints.cs:240、CaseEndpoints.cs:281)
