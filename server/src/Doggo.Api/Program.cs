@@ -22,7 +22,7 @@ using StackExchange.Redis;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-builder.Services.AddDoggoInfrastructure(builder.Configuration);
+builder.Services.AddDoggoInfrastructure(builder.Configuration, builder.Environment);
 // Price crawl stores back the admin review routes; the crawler worker itself runs in Doggo.Scraper.
 builder.Services.AddPriceCrawlStores();
 

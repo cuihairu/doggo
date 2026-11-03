@@ -476,7 +476,7 @@
 - [x] 深审 P3 卫生:http 默认 API base(证据:shared/src/client.ts:8 默认空+rawRequest fail-closed、miniapp/config/index.ts:20 env 注入 TARO_APP_API_BASE;miniapp build 注入 http://127.0.0.1:8082,typecheck+build 绿;mobile 保留模拟器默认经 setApiBase)
 - [x] 深审 P3 卫生:nginx 缺安全头(证据:doggo.conf.template:48-50、doggo.conf.template:82-84 add_header nosniff/referrer-policy/frame-deny;nginx -t 语法 ok,curl 实测三头均返回)
 - [x] 深审 P3 卫生:inspectLink 无 scheme 白名单(CaseOpeningPage.tsx:108)(证据:a69c6a7,CaseOpeningPage.tsx:108、web/src/lib/url.ts:3)
-- [ ] 深审 P3 卫生:appsettings 默认 DB 密码占位(appsettings.json:10)
+- [x] 深审 P3 卫生:appsettings 默认 DB 密码占位(证据:DoggoInfrastructureExtensions.cs:22-38 生产 fail-closed(空或 change-me 拒绝),Development/Testing 豁免;新增 DoggoInfrastructureExtensionsTests.cs 5 例,dotnet test 189+107 全绿)
 - [ ] 深审 P3 卫生:订单号用 Random.Shared(OrderService.cs:677)
 - [ ] 深审 P3 卫生:VaporClient HttpResponseMessage 未释放(VaporClient.cs:80-101)
 

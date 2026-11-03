@@ -8,7 +8,7 @@ using Microsoft.Extensions.Http;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddDoggoInfrastructure(builder.Configuration);
+builder.Services.AddDoggoInfrastructure(builder.Configuration, builder.Environment);
 
 builder.Services.AddHttpClient("scraper", http =>
 {

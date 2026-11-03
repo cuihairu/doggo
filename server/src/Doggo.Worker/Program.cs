@@ -15,7 +15,7 @@ using Doggo.Worker.Orders;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddDoggoInfrastructure(builder.Configuration);
+builder.Services.AddDoggoInfrastructure(builder.Configuration, builder.Environment);
 builder.Services.AddHostedService<Worker>();
 
 builder.Services.AddOptions<VaporOptions>().Bind(builder.Configuration.GetSection(VaporOptions.SectionName));
