@@ -84,7 +84,11 @@ public static class CaseEndpoints
                     .Where(p => orderIds.Contains(p.OrderId))
                     .ToListAsync(cancellationToken)
                 : [];
-            var prizesByOrder = prizes.ToDictionary(p => p.OrderId);
+            // UserPrize idempotency is per (order, asset); a legitimate replay can therefore
+            // seed two rows on one order. Grouping by latest id keeps the API read safe.
+            var prizesByOrder = prizes
+                .GroupBy(p => p.OrderId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.CreatedAtUtc).First());
 
             return Results.Ok(GroupBuyingView.From(batch, seats, prizesByOrder));
         });

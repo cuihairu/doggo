@@ -215,7 +215,7 @@ public class MarketPriceDailyConfiguration : IEntityTypeConfiguration<MarketPric
 {
     public void Configure(EntityTypeBuilder<MarketPriceDaily> builder)
     {
-        builder.HasIndex(x => new { x.MarketItemId, x.Date }).IsUnique();
+        builder.HasIndex(x => new { x.MarketItemId, x.Date, x.Currency }).IsUnique();
 
         // MySql.EntityFrameworkCore materializes DATE columns as DateTime and chokes on
         // DateOnly, so convert explicitly and keep the date column type.

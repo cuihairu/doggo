@@ -145,4 +145,27 @@ public class MarketStoreTests
         var caseADaily = db.MarketPriceDailies.Single(d => d.CloseCents == 1100);
         Assert.Equal(1000, caseADaily.OpenCents);
     }
+
+    [Fact]
+    public async Task Apply_folds_each_currency_into_its_own_daily_row()
+    {
+        using var db = CreateDb();
+        var store = CreateStore(db);
+
+        await store.ApplyListingsAsync("730",
+        [
+            Listing("Case A", "101", 10.00m, fetchedAt: FixedMorning, currencyId: 23), // CNY
+            Listing("Case A", "101", 2.00m, fetchedAt: FixedMorning.AddMinutes(5), currencyId: 1), // USD
+            Listing("Case A", "101", 10.50m, fetchedAt: FixedMorning.AddMinutes(10), currencyId: 23) // CNY
+        ]);
+
+        var cny = db.MarketPriceDailies.Single(d => d.Currency == "CNY");
+        Assert.Equal(1000, cny.OpenCents);
+        Assert.Equal(1050, cny.CloseCents);
+        Assert.Equal(1000, cny.LowCents);
+
+        var usd = db.MarketPriceDailies.Single(d => d.Currency == "USD");
+        Assert.Equal(200, usd.OpenCents);
+        Assert.Equal(200, usd.CloseCents);
+    }
 }

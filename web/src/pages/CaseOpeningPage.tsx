@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { ErrorBox, Skeleton } from '../components/States'
+import { safeExternalUrl } from '../lib/url'
 
 interface PrizeView {
   assetId: string
@@ -104,8 +105,8 @@ function OpeningResultCard({ seat }: { seat: SeatView }) {
       )}
       <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>奖品已自动存入「我的奖品」</div>
       <div style={{ marginTop: 8 }}>
-        {prize.inspectLink && (
-          <a className="btn secondary sm" href={prize.inspectLink} target="_blank" rel="noreferrer">
+        {safeExternalUrl(prize.inspectLink) && (
+          <a className="btn secondary sm" href={safeExternalUrl(prize.inspectLink)!} target="_blank" rel="noreferrer">
             检视链接
           </a>
         )}

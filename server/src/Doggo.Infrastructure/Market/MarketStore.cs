@@ -187,18 +187,20 @@ public sealed partial class MarketStore(DoggoDbContext db, ILogger<MarketStore> 
             CapturedAtUtc = capturedAt
         });
 
-        await FoldDailyAsync(item.Id, priceCents, capturedAt, cancellationToken).ConfigureAwait(false);
+        await FoldDailyAsync(item.Id, currency, priceCents, capturedAt, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
     /// <summary>Folds a new price point into today's OHLC row, creating the row on the first price of the day.</summary>
-    private async Task FoldDailyAsync(Guid itemId, long priceCents, DateTime capturedAtUtc, CancellationToken cancellationToken)
+    private async Task FoldDailyAsync(Guid itemId, string currency, long priceCents, DateTime capturedAtUtc, CancellationToken cancellationToken)
     {
         var date = DateOnly.FromDateTime(capturedAtUtc);
 
-        var daily = db.MarketPriceDailies.Local.FirstOrDefault(d => d.MarketItemId == itemId && d.Date == date);
+        // Daily OHLC rows are keyed per (item, date, currency) so USD and CNY snapshots
+        // never fold into one mixed row (design §7).
+        var daily = db.MarketPriceDailies.Local.FirstOrDefault(d => d.MarketItemId == itemId && d.Date == date && d.Currency == currency);
         daily ??= await db.MarketPriceDailies
-            .FirstOrDefaultAsync(d => d.MarketItemId == itemId && d.Date == date, cancellationToken)
+            .FirstOrDefaultAsync(d => d.MarketItemId == itemId && d.Date == date && d.Currency == currency, cancellationToken)
             .ConfigureAwait(false);
 
         if (daily is null)
@@ -208,6 +210,7 @@ public sealed partial class MarketStore(DoggoDbContext db, ILogger<MarketStore> 
                 Id = Guid.CreateVersion7(),
                 MarketItemId = itemId,
                 Date = date,
+                Currency = currency,
                 OpenCents = priceCents,
                 HighCents = priceCents,
                 LowCents = priceCents,

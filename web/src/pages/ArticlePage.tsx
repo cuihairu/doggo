@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
+import DOMPurify from 'dompurify'
 
 interface ArticleView {
   id: string
@@ -34,7 +35,7 @@ export default function ArticlePage() {
         {article.createdAtUtc.slice(0, 10)} · {article.viewCount} 次浏览
       </p>
       {article.summary && <p className="muted">{article.summary}</p>}
-      <div className="card" dangerouslySetInnerHTML={{ __html: article.contentHtml }} />
+      <div className="card" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.contentHtml) }} />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import NewsCard, { type NewsItem } from '../components/NewsCard'
 import { EmptyState, ErrorBox, Skeleton } from '../components/States'
+import { safeExternalUrl } from '../lib/url'
 
 interface NewsListResult {
   total: number
@@ -47,8 +48,11 @@ export default function NewsListPage() {
   function openBanner(link: string) {
     if (link.startsWith('/')) {
       navigate(link)
-    } else if (link) {
-      window.open(link, '_blank', 'noopener')
+    } else {
+      const safeLink = safeExternalUrl(link)
+      if (safeLink) {
+        window.open(safeLink, '_blank', 'noopener')
+      }
     }
   }
 

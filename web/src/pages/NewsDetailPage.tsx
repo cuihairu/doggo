@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { ErrorBox, Skeleton } from '../components/States'
+import DOMPurify from 'dompurify'
 
 interface NewsDetail {
   meta: {
@@ -41,7 +42,7 @@ export default function NewsDetailPage() {
         {detail.meta.publishedAtUtc}
       </p>
       {detail.contentHtml ? (
-        <div dangerouslySetInnerHTML={{ __html: detail.contentHtml }} />
+        <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(detail.contentHtml) }} />
       ) : (
         <p>{detail.meta.summary}</p>
       )}

@@ -101,6 +101,14 @@ public sealed partial class FunnelAggregator(DoggoDbContext db, ILogger<FunnelAg
         var uvs = new Dictionary<(DateOnly Date, AnalyticsClient Client, string Channel), FunnelAccumulator>();
         foreach (var instance in instances)
         {
+            // Instances opening after the requested window are late-arrival context only;
+            // their first-step day belongs to a later aggregate run.
+            var start = DateOnly.FromDateTime(instance.StartUtc);
+            if (start > to)
+            {
+                continue;
+            }
+
             var key = (DateOnly.FromDateTime(instance.StartUtc), instance.Client, instance.Channel);
             if (!uvs.TryGetValue(key, out var acc))
             {

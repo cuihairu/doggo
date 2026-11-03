@@ -101,7 +101,7 @@ public static class MarketEndpoints
             // than reporting a change against zero.
             var closes = await db.MarketPriceDailies
                 .AsNoTracking()
-                .Where(d => d.MarketItemId == item.Id)
+                .Where(d => d.MarketItemId == item.Id && d.Currency == "CNY")
                 .OrderByDescending(d => d.Date)
                 .Select(d => d.CloseCents)
                 .Take(2)
@@ -146,7 +146,7 @@ public static class MarketEndpoints
         var limit = Math.Clamp(days, 1, 365);
         var points = await db.MarketPriceDailies
             .AsNoTracking()
-            .Where(d => d.MarketItemId == id)
+            .Where(d => d.MarketItemId == id && d.Currency == "CNY")
             .OrderByDescending(d => d.Date)
             .Take(limit)
             .Select(d => new MarketPricePoint(d.Date, d.OpenCents, d.HighCents, d.LowCents, d.CloseCents))
@@ -197,7 +197,7 @@ public static class MarketEndpoints
         // In-site baseline is the latest daily close (price crawler design §7.1).
         long? inSiteCloseCents = await db.MarketPriceDailies
             .AsNoTracking()
-            .Where(d => d.MarketItemId == id)
+            .Where(d => d.MarketItemId == id && d.Currency == "CNY")
             .OrderByDescending(d => d.Date)
             .Select(d => (long?)d.CloseCents)
             .FirstOrDefaultAsync(cancellationToken);

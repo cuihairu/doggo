@@ -562,6 +562,11 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("date");
 
@@ -582,7 +587,7 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MarketItemId", "Date")
+                    b.HasIndex("MarketItemId", "Date", "Currency")
                         .IsUnique();
 
                     b.ToTable("MarketPriceDailies");

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -127,7 +128,11 @@ public sealed partial class SteamOpenIdService(TokenService tokens, HttpClient h
             }
 
             var payload = Encoding.UTF8.GetString(data).Split(':', 2);
-            if (payload.Length != 2 || DateTime.Parse(payload[1]) < DateTime.UtcNow)
+            // "O" round-trips with the offset; parse preserving the UTC kind so the expiry
+            // comparison never depends on the host timezone.
+            if (payload.Length != 2
+                || !DateTime.TryParse(payload[1], null, DateTimeStyles.RoundtripKind, out var expires)
+                || expires.ToUniversalTime() < DateTime.UtcNow)
             {
                 return null;
             }

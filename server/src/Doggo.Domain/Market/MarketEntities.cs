@@ -34,6 +34,7 @@ public class MarketPriceDaily : Entity
 {
     public Guid MarketItemId { get; set; }
     public DateOnly Date { get; set; }
+    public string Currency { get; set; } = "CNY";
     public long OpenCents { get; set; }
     public long HighCents { get; set; }
     public long LowCents { get; set; }

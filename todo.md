@@ -455,18 +455,18 @@
 - [ ] 深审 P1 并发:邀请一次性竞态(InviteService.cs:38-53) — BLOCKED 缺真实 MySQL 验证原子认领(InMemory 不强制),需条件更新/唯一约束
 - [ ] 深审 P1 并发:roll 重复加入无唯一约束(RollService.cs:83-115) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束
 - [ ] 深审 P1 可靠性:webhook 幂等先声明,处理失败丢事件(VaporEndpoints.cs:71-93) — BLOCKED 缺真实 MySQL 验证幂等声明与处理事务一致性(InMemory 不强制),需 outbox/事务
-- [ ] 深审 P2 安全:NewsDetailPage/ArticlePage 未消毒 HTML 渲染(NewsDetailPage.tsx:44、ArticlePage.tsx:37;新闻已在服务端消毒 NewsStore.cs:62,文章为运营所写,降为纵深防御)
+- [x] 深审 P2 安全:NewsDetailPage/ArticlePage 未消毒 HTML 渲染(NewsDetailPage.tsx:44、ArticlePage.tsx:37;新闻已在服务端消毒 NewsStore.cs:62,文章为运营所写,降为纵深防御)(证据:见本提交,web/src/pages/NewsDetailPage.tsx:44、ArticlePage.tsx:37)
 - [ ] 深审 P2 安全:token 存 localStorage(client.ts:14-17)
 - [ ] 深审 P2 部署:nginx admin IP 白名单默认注释(doggo.conf.template:82-91)
 - [ ] 深审 P2 部署:dev compose 发布 MySQL/无密 Redis(docker-compose.yml:12-13、26-27)
-- [ ] 深审 P2 安全:banner linkUrl 无 scheme 白名单(NewsListPage.tsx:47-52)
+- [x] 深审 P2 安全:banner linkUrl 无 scheme 白名单(NewsListPage.tsx:47-52)(证据:见本提交,web/src/pages/NewsListPage.tsx:47、web/src/lib/url.ts:3)
 - [ ] 深审 P2 安全:admin token 存 localStorage(app.tsx:16-18)
 - [x] 深审 P2 安全:roll 开奖用 Random.Shared 非加密(RollService.cs:162)(证据:见本提交,AliasMethod.cs:103、RollService.cs:163)
-- [ ] 深审 P2 正确性:漏斗聚合写出 to 之后的行(FunnelAggregator.cs:26-77)
-- [ ] 深审 P2 正确性:行情日线混币种无换算(MarketStore.cs:161-230)
+- [x] 深审 P2 正确性:漏斗聚合写出 to 之后的行(FunnelAggregator.cs:26-77)(证据:见本提交,FunnelAggregator.cs:104)
+- [x] 深审 P2 正确性:行情日线混币种无换算(MarketStore.cs:161-230)(证据:见本提交,MarketStore.cs:199、MarketEntities.cs:36;MarketStoreTests.cs:149)
 - [ ] 深审 P2 并发:重复提交取回双发 trade offer(OrderService.cs:406-463) — BLOCKED 缺真实 MySQL 验证原子状态迁移(InMemory 不强制),需条件更新进入 Retrieving
-- [ ] 深审 P2 正确性:SteamOpenId 状态过期时间按本地时区解析(SteamOpenIdService.cs:129-130)
-- [ ] 深审 P2 正确性:GroupBuyingView 对重复 OrderId 的 ToDictionary 抛异常(CaseEndpoints.cs:61、331)
+- [x] 深审 P2 正确性:SteamOpenId 状态过期时间按本地时区解析(SteamOpenIdService.cs:129-130)(证据:见本提交,SteamOpenIdService.cs:130)
+- [x] 深审 P2 正确性:GroupBuyingView 对重复 OrderId 的 ToDictionary 抛异常(CaseEndpoints.cs:61、331)(证据:见本提交,CaseEndpoints.cs:87)
 - [ ] 深审 P2 并发:同模板双开房(RollService.cs:273-309) — BLOCKED 缺真实 MySQL 验证唯一约束(InMemory 不强制),需 EF migration 唯一索引
 - [ ] 深审 P3 卫生:axios 0.27.2 传递依赖(admin/pnpm-lock.yaml:2142)
 - [ ] 深审 P3 卫生:mysqladmin 密码作 CLI 参数(docker-compose.yml:17、docker-compose.prod.yml:19)
@@ -475,7 +475,7 @@
 - [ ] 深审 P3 卫生:小程序 urlCheck false(project.config.json:8)
 - [ ] 深审 P3 卫生:http 默认 API base(mobile/src/app.ts:17、shared/src/client.ts:8)
 - [ ] 深审 P3 卫生:nginx 缺安全头(doggo.conf.template:44-50)
-- [ ] 深审 P3 卫生:inspectLink 无 scheme 白名单(CaseOpeningPage.tsx:108)
+- [x] 深审 P3 卫生:inspectLink 无 scheme 白名单(CaseOpeningPage.tsx:108)(证据:见本提交,CaseOpeningPage.tsx:108、web/src/lib/url.ts:3)
 - [ ] 深审 P3 卫生:appsettings 默认 DB 密码占位(appsettings.json:10)
 - [ ] 深审 P3 卫生:订单号用 Random.Shared(OrderService.cs:677)
 - [ ] 深审 P3 卫生:VaporClient HttpResponseMessage 未释放(VaporClient.cs:80-101)
