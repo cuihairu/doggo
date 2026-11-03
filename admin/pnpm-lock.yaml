@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  axios: 1.20.0
   vite@<7.3.7: 7.3.7
 
 importers:
@@ -1983,6 +1984,10 @@ packages:
     resolution: {integrity: sha512-OXwN5b9pCUXNQHJpwwD2qP40byEmSgzj8B4ydSN0uMNYWiFmJ6x6KwUllMmfk8Rwu/HJDFR7U8ubsWBoN0Xp0A==}
     engines: {node: '>=8.9'}
 
+  agent-base@6.0.2:
+    resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
+    engines: {node: '>= 6.0.0'}
+
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
     peerDependencies:
@@ -2139,8 +2144,8 @@ packages:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
 
-  axios@0.27.2:
-    resolution: {integrity: sha512-t+yRIyySRTp/wua5xEr+z1q60QmLq8ABsS5O9Me1AsE5dfKqgnCFzwiCZZ/cGNd1lq4/7akDWMxdhVlucjmnOQ==}
+  axios@1.20.0:
+    resolution: {integrity: sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==}
 
   babel-jest@29.7.0:
     resolution: {integrity: sha512-BrvGY3xZSwEcCzKvKsCi2GgHqDqsYkOP4/by5xCgIwGXQxIEh+8ew3gmrE1y7XRR6LHZIj6yLYnUi/mm2KXKBg==}
@@ -3497,6 +3502,10 @@ packages:
 
   https-browserify@1.0.0:
     resolution: {integrity: sha512-J+FkSdyD+0mA0N+81tMotaRMfSL9SGi+xpD3T6YApKsc3bGSXJlfXri3VyFOeYkfLRQisDk1W+jIFFKBeUBbBg==}
+
+  https-proxy-agent@5.0.1:
+    resolution: {integrity: sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==}
+    engines: {node: '>= 6'}
 
   human-signals@2.1.0:
     resolution: {integrity: sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==}
@@ -4980,6 +4989,10 @@ packages:
 
   proxy-compare@2.5.1:
     resolution: {integrity: sha512-oyfc0Tx87Cpwva5ZXezSp5V9vht1c7dZBhvuV/y3ctkgMVUmiAGDVeeB0dKhGSyT0v1ZTEQYpe/RXlBVBNuCLA==}
+
+  proxy-from-env@2.1.0:
+    resolution: {integrity: sha512-cJ+oHTW1VAEa8cJslgmUZrc+sjRKgAKl3Zyse6+PV38hZe/V6Z14TbCuXcan9F9ghlz4QrFr2c92TNF82UkYHA==}
+    engines: {node: '>=10'}
 
   prr@1.0.1:
     resolution: {integrity: sha512-yPw4Sng1gWghHQWj0B3ZggWUm4qVbPwPFcRG8KyxiU7J2OHFSoEHKS+EZ3fv5l1t9CyCiop6l/ZYeWbrgoQejw==}
@@ -8840,7 +8853,7 @@ snapshots:
       '@umijs/bundler-utils': 4.7.23
       '@umijs/valtio': 1.0.4(@types/react@18.3.31)(react@18.3.1)
       antd-dayjs-webpack-plugin: 1.0.6(dayjs@1.11.23)
-      axios: 0.27.2
+      axios: 1.20.0
       babel-plugin-import: 1.13.8
       babel-plugin-styled-components: 2.1.4(@babel/core@7.29.7)(styled-components@6.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
       dayjs: 1.11.23
@@ -9191,6 +9204,12 @@ snapshots:
       loader-utils: 2.0.4
       regex-parser: 2.3.1
 
+  agent-base@6.0.2:
+    dependencies:
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
+
   ajv-formats@3.0.1(ajv@8.20.0):
     optionalDependencies:
       ajv: 8.20.0
@@ -9454,12 +9473,15 @@ snapshots:
     dependencies:
       possible-typed-array-names: 1.1.0
 
-  axios@0.27.2:
+  axios@1.20.0:
     dependencies:
       follow-redirects: 1.16.1
       form-data: 4.0.6
+      https-proxy-agent: 5.0.1
+      proxy-from-env: 2.1.0
     transitivePeerDependencies:
       - debug
+      - supports-color
 
   babel-jest@29.7.0(@babel/core@7.29.7):
     dependencies:
@@ -11174,6 +11196,13 @@ snapshots:
 
   https-browserify@1.0.0: {}
 
+  https-proxy-agent@5.0.1:
+    dependencies:
+      agent-base: 6.0.2
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
+
   human-signals@2.1.0: {}
 
   human-signals@4.3.1: {}
@@ -12613,6 +12642,8 @@ snapshots:
       ipaddr.js: 1.9.1
 
   proxy-compare@2.5.1: {}
+
+  proxy-from-env@2.1.0: {}
 
   prr@1.0.1:
     optional: true

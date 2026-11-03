@@ -468,7 +468,7 @@
 - [x] 深审 P2 正确性:SteamOpenId 状态过期时间按本地时区解析(SteamOpenIdService.cs:129-130)(证据:a69c6a7,SteamOpenIdService.cs:130)
 - [x] 深审 P2 正确性:GroupBuyingView 对重复 OrderId 的 ToDictionary 抛异常(CaseEndpoints.cs:61、331)(证据:a69c6a7,CaseEndpoints.cs:87)
 - [ ] 深审 P2 并发:同模板双开房(RollService.cs:273-309) — BLOCKED 缺真实 MySQL 验证唯一约束(InMemory 不强制),需 EF migration 唯一索引
-- [ ] 深审 P3 卫生:axios 0.27.2 传递依赖(admin/pnpm-lock.yaml:2142)
+- [x] 深审 P3 卫生:axios 0.27.2 传递依赖(证据:admin/pnpm-workspace.yaml:6 override axios=1.20.0、admin/package.json:23 pnpm.overrides 同步、admin/pnpm-lock.yaml:2147 锁定 axios@1.20.0;pnpm build 编译成功,Umi v4.7.23 webpack 无冲突)
 - [ ] 深审 P3 卫生:mysqladmin 密码作 CLI 参数(docker-compose.yml:17、docker-compose.prod.yml:19)
 - [ ] 深审 P3 卫生:CI 硬编码凭据(仅 fixtures,无需改,mobile.yml:86-88、104-106)
 - [ ] 深审 P3 卫生:小程序 RichText 注入(miniapp/src/pages/newsdetail/newsdetail.tsx:57)
