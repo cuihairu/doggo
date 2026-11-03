@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { View, Text, RichText, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import filterXSS, { IFilterXSSOptions } from 'xss'
 import ThemeRoot from '../../ThemeRoot'
 import { ErrorBox, Skeleton } from '../../states'
 
@@ -8,6 +9,13 @@ interface NewsDetail {
   meta: { title: string; source: string; category: string; publishedAtUtc: string; summary?: string | null }
   author?: string | null
   contentHtml: string
+}
+
+/** Client-side whitelist hardening for the scraped body. The server already
+ * sanitizes at ingest (NewsStore), this second pass mirrors the web client's
+ * DOMPurify as depth-in-depth for the miniapp RichText node. */
+const RICH_TEXT_XSS_OPTIONS: IFilterXSSOptions = {
+  stripIgnoreTagBody: ['script', 'style', 'iframe', 'svg', 'math', 'object', 'embed', 'video', 'audio', 'form', 'input', 'button']
 }
 
 /** News article: meta plus the scraped body rendered as rich text. */
@@ -54,7 +62,7 @@ export default function NewsDetailPage() {
         </View>
         {author && <Text className="muted">作者:{author}</Text>}
       </View>
-      <RichText className="card" nodes={contentHtml} />
+      <RichText className="card" nodes={filterXSS(contentHtml, RICH_TEXT_XSS_OPTIONS)} />
       </ScrollView>
     </ThemeRoot>
   )
