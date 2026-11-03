@@ -456,11 +456,11 @@
 - [ ] 深审 P1 并发:roll 重复加入无唯一约束(RollService.cs:83-115) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束
 - [ ] 深审 P1 可靠性:webhook 幂等先声明,处理失败丢事件(VaporEndpoints.cs:71-93) — BLOCKED 缺真实 MySQL 验证幂等声明与处理事务一致性(InMemory 不强制),需 outbox/事务
 - [x] 深审 P2 安全:NewsDetailPage/ArticlePage 未消毒 HTML 渲染(NewsDetailPage.tsx:44、ArticlePage.tsx:37;新闻已在服务端消毒 NewsStore.cs:62,文章为运营所写,降为纵深防御)(证据:a69c6a7,web/src/pages/NewsDetailPage.tsx:44、ArticlePage.tsx:37)
-- [x] 深审 P2 安全:token 存 localStorage(client.ts:14-17)(证据:见本提交,web/src/api/client.ts:5、server/src/Doggo.Api/Endpoints/AuthCookies.cs:20;AuthApiTests.cs:96)
+- [x] 深审 P2 安全:token 存 localStorage(client.ts:14-17)(证据:87dba79,web/src/api/client.ts:5、server/src/Doggo.Api/Endpoints/AuthCookies.cs:20;AuthApiTests.cs:96)
 - [ ] 深审 P2 部署:nginx admin IP 白名单默认注释(doggo.conf.template:82-91)
 - [ ] 深审 P2 部署:dev compose 发布 MySQL/无密 Redis(docker-compose.yml:12-13、26-27)
 - [x] 深审 P2 安全:banner linkUrl 无 scheme 白名单(NewsListPage.tsx:47-52)(证据:a69c6a7,web/src/pages/NewsListPage.tsx:47、web/src/lib/url.ts:3)
-- [x] 深审 P2 安全:admin token 存 localStorage(app.tsx:16-18)(证据:见本提交,admin/src/app.tsx:11、admin/src/pages/Login/index.tsx:26)
+- [x] 深审 P2 安全:admin token 存 localStorage(app.tsx:16-18)(证据:87dba79,admin/src/app.tsx:11、admin/src/pages/Login/index.tsx:26)
 - [x] 深审 P2 安全:roll 开奖用 Random.Shared 非加密(RollService.cs:162)(证据:bfb6fe4,AliasMethod.cs:103、RollService.cs:163)
 - [x] 深审 P2 正确性:漏斗聚合写出 to 之后的行(FunnelAggregator.cs:26-77)(证据:a69c6a7,FunnelAggregator.cs:104)
 - [x] 深审 P2 正确性:行情日线混币种无换算(MarketStore.cs:161-230)(证据:a69c6a7,MarketStore.cs:199、MarketEntities.cs:36;MarketStoreTests.cs:149)
