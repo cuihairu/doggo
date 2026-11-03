@@ -92,7 +92,7 @@ public static class MarketEndpoints
         {
             var latest = await db.MarketPriceSnapshots
                 .AsNoTracking()
-                .Where(s => s.MarketItemId == item.Id)
+                .Where(s => s.MarketItemId == item.Id && s.Currency == "CNY")
                 .OrderByDescending(s => s.CapturedAtUtc)
                 .FirstOrDefaultAsync(cancellationToken);
 

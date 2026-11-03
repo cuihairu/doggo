@@ -51,7 +51,7 @@ When building from local source (not from GHCR), compose simply `build`s and nee
 
 ## nginx gateway (domain + HTTPS)
 
-`deploy/nginx/doggo.conf.template` is the host nginx template: HTTP redirects to HTTPS, the main domain (web + `/api`), a separate admin domain, and the IP allowlist for `/api/admin/` is a commented placeholder (uncomment the allow/deny lines and fill in real addresses yourself). After replacing `DOGGO_DOMAIN`, `ADMIN_DOMAIN` and `CERT_PATH`:
+`deploy/nginx/doggo.conf.template` is the host nginx template: HTTP redirects to HTTPS, the main domain (web + `/api`), and a separate admin domain. Admin access is denied until you add real `allow` lines above each `deny all`; the default is intentionally fail-closed. After replacing `DOGGO_DOMAIN`, `ADMIN_DOMAIN` and `CERT_PATH`:
 
 ```bash
 cp deploy/nginx/doggo.conf.template /etc/nginx/sites-available/doggo.conf
@@ -65,7 +65,7 @@ certbot issuance (example):
 certbot --nginx -d DOGGO_DOMAIN -d ADMIN_DOMAIN
 ```
 
-For the admin domain, fill in the `allow` list before opening up `deny all` — both the admin entry point and `/api/admin/` should stay allowlist-only.
+Add office/VPN `allow` lines above each `deny all`; both the admin entry point and `/api/admin/` stay allowlist-only.
 
 ## Backups
 

@@ -84,8 +84,7 @@ public sealed partial class OrderService(
             throw new OrderValidationException("Coin deduction must not be negative.");
         }
 
-        var planOption = await LoadPlanOptionAsync(command, cancellationToken);
-        var plan = await LoadPlanAsync(command, cancellationToken);
+        var (planOption, plan) = await LoadPlanAndOptionAsync(command, cancellationToken);
 
         // A plan can opt out of coupon or coin payment; enforce that before any deduction is
         // consumed so a rejection leaves the coupon instance and coin ledger untouched.
@@ -648,11 +647,18 @@ public sealed partial class OrderService(
         return null;
     }
 
-    private async Task<CasePlanOption?> LoadPlanOptionAsync(CreateOrderCommand command, CancellationToken cancellationToken)
+    /// <summary>
+    /// Loads the plan (and its option when one is given) in a single pass. A plan must be
+    /// enabled and belong to the ordered product; an option must belong to that same plan.
+    /// Without this an attacker could pass a disabled plan or a plan of another product just
+    /// to unlock cashback or to bypass the CanUseCoupon/CanUseCoin gate.
+    /// </summary>
+    private async Task<(CasePlanOption? Option, CasePlan? Plan)> LoadPlanAndOptionAsync(CreateOrderCommand command, CancellationToken cancellationToken)
     {
         if (command.OptionId is null)
         {
-            return null;
+            var barePlan = await LoadPlanAsync(command, cancellationToken);
+            return (null, barePlan);
         }
 
         if (command.PlanId is null)
@@ -684,7 +690,7 @@ public sealed partial class OrderService(
             throw new OrderValidationException($"Plan {command.PlanId} is not available for this product.");
         }
 
-        return option;
+        return (option, plan);
     }
 
     /// <summary>

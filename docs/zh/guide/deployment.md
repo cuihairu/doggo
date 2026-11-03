@@ -51,7 +51,7 @@ docker compose -f deploy/docker-compose.prod.yml ps
 
 ## nginx 网关(域名 + HTTPS)
 
-`deploy/nginx/doggo.conf.template` 是宿主 nginx 的模板:HTTP 跳 HTTPS、主域名(web + `/api`)、admin 独立域名,`/api/admin/` 的 IP 白名单是注释占位(allow/deny 行需自行取消注释并填真实地址)。替换 `DOGGO_DOMAIN`、`ADMIN_DOMAIN`、`CERT_PATH` 后:
+`deploy/nginx/doggo.conf.template` 是宿主 nginx 的模板:HTTP 跳 HTTPS、主域名(web + `/api`)、admin 独立域名。后台默认 `deny all`,必须在两处 `deny all` 前加入真实 `allow` 才可访问。替换 `DOGGO_DOMAIN`、`ADMIN_DOMAIN`、`CERT_PATH` 后:
 
 ```bash
 cp deploy/nginx/doggo.conf.template /etc/nginx/sites-available/doggo.conf
@@ -65,7 +65,7 @@ certbot 签发(示例):
 certbot --nginx -d DOGGO_DOMAIN -d ADMIN_DOMAIN
 ```
 
-admin 域名建议先填好 `allow` 列表再放开 `deny all`,后台入口与 `/api/admin/` 都只对白名单开放。
+在两处 `deny all` 前加入办公室/VPN 的 `allow` 行;后台入口与 `/api/admin/` 都只对白名单开放。
 
 ## 备份
 

@@ -85,12 +85,13 @@ public static class CaseEndpoints
                     .ToListAsync(cancellationToken)
                 : [];
             // UserPrize idempotency is per (order, asset); a legitimate replay can therefore
-            // seed two rows on one order. Grouping by latest id keeps the API read safe.
-            var prizesByOrder = prizes
-                .GroupBy(p => p.OrderId)
+            // seed two rows on one order. Grouping by (order, asset) and matching each seat on
+            // its own PrizeAssetId keeps a multi-seat order from folding distinct prizes into one.
+            var prizesByOrderAndAsset = prizes
+                .GroupBy(p => (p.OrderId, p.AssetId))
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.CreatedAtUtc).First());
 
-            return Results.Ok(GroupBuyingView.From(batch, seats, prizesByOrder));
+            return Results.Ok(GroupBuyingView.From(batch, seats, prizesByOrderAndAsset));
         });
 
         group.MapPost("/{id:guid}/claim", async (
@@ -413,7 +414,7 @@ public sealed record GroupBuyingView(
     public static GroupBuyingView From(
         GroupBuying batch,
         IReadOnlyList<GroupBuyingSeat> seats,
-        IReadOnlyDictionary<Guid, UserPrize> prizesByOrder) => new(
+        IReadOnlyDictionary<(Guid OrderId, string AssetId), UserPrize> prizesByOrderAndAsset) => new(
         batch.Id,
         batch.ProductId,
         batch.Lot,
@@ -423,7 +424,8 @@ public sealed record GroupBuyingView(
         batch.Version,
         seats.Select(s => SeatView.From(
             s,
-            s.OrderId is { } orderId && prizesByOrder.TryGetValue(orderId, out var prize)
+            s.OrderId is { } orderId && s.PrizeAssetId is { } assetId
+                && prizesByOrderAndAsset.TryGetValue((orderId, assetId), out var prize)
                 ? PrizeView.From(prize)
                 : null)).ToList());
 }

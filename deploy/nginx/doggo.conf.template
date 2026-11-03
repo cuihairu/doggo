@@ -2,7 +2,7 @@
 # Copy to /etc/nginx/sites-available/doggo.conf, replace the placeholders:
 #   DOGGO_DOMAIN      main site domain, e.g. doggo.example.com
 #   ADMIN_DOMAIN      admin console domain, e.g. admin.example.com
-#   ADMIN_ALLOW_IP    admin office/VPN addresses, one allow line each
+#   ADMIN_ALLOW_IP    admin office/VPN addresses; add one allow line each
 #   CERT_PATH         TLS certificate directory (certbot: /etc/letsencrypt)
 # and reload nginx: nginx -t && systemctl reload nginx
 #
@@ -79,16 +79,13 @@ server {
     ssl_certificate_key CERT_PATH/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
-    # IP whitelist — fill in real addresses before exposing the console.
-    # allow 203.0.113.10;
-    # allow 198.51.100.0/24;
-    # deny all;
+    # Fail closed by default. Add real office/VPN allow lines above this deny.
+    deny all;
 
     location /api/admin/ {
-        # Second gate: the management API itself stays allowlist-only even if
-        # a future page is added outside ADMIN_DOMAIN.
-        # allow 203.0.113.10;
-        # deny all;
+        # Second gate: management stays allowlist-only even if a page is later
+        # mounted outside ADMIN_DOMAIN. Add allow lines above this deny.
+        deny all;
         proxy_pass http://doggo_api;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

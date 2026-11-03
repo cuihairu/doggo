@@ -72,7 +72,7 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         {
             Id = Guid.CreateVersion7(),
             UserId = userId,
-            OrderNo = $"DO{DateTime.UtcNow:yyyyMMddHHmmss}0001",
+            OrderNo = $"DO{DateTime.UtcNow:yyyyMMddHHmmss}{Guid.NewGuid():N}",
             ProductId = productId,
             TotalPriceCents = 10000,
             TotalCostCents = 10000,
@@ -93,7 +93,7 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         {
             Id = Guid.CreateVersion7(),
             UserId = userId,
-            OrderNo = $"DO{DateTime.UtcNow:yyyyMMddHHmmss}0001",
+            OrderNo = $"DO{DateTime.UtcNow:yyyyMMddHHmmss}{Guid.NewGuid():N}",
             ProductId = productId,
             TotalPriceCents = 10000,
             TotalCostCents = 10000,
@@ -122,6 +122,65 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         seat.Status = SeatStatus.Opening;
         seat.OrderId = orderId;
         await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Seat_view_matches_each_prize_to_its_own_seat_for_a_multi_seat_order()
+    {
+        var productId = await SeedCrateAsync();
+        var (client, userId) = await AuthorizedAsync();
+        var orderId = await SeedPaidOrderAsync(userId, productId);
+
+        var (batchId, _) = await CreateBatchAsync(client, productId, seats: 2);
+        await SeedSeatOpeningAsync(batchId, seatNo: 1, orderId);
+        await SeedSeatOpeningAsync(batchId, seatNo: 2, orderId);
+
+        var firstResult = await client.PostAsJsonAsync($"/api/group-buyings/{batchId}/seats/1/result", new
+        {
+            assetId = "730-drop-1",
+            classId = "493",
+            instanceId = "0",
+            marketHashName = "AK-47 | Redline",
+            quality = (int)CaseQuality.Classified,
+            exterior = "Field-Tested",
+            floatValue = 0.2312,
+            rarity = "classified",
+            iconUrl = "https://img.example/ak.png",
+            inspectLink = "https://steam.com/inspect/1",
+            priceCents = 8800,
+            historyId = 4242,
+            rawJson = """{"drop":"raw1"}"""
+        });
+        firstResult.EnsureSuccessStatusCode();
+
+        var secondResult = await client.PostAsJsonAsync($"/api/group-buyings/{batchId}/seats/2/result", new
+        {
+            assetId = "730-drop-2",
+            classId = "493",
+            instanceId = "0",
+            marketHashName = "AWP | Asiimov",
+            quality = (int)CaseQuality.Covert,
+            exterior = "Field-Tested",
+            floatValue = 0.2312,
+            rarity = "covert",
+            iconUrl = "https://img.example/awp.png",
+            inspectLink = "https://steam.com/inspect/2",
+            priceCents = 56000,
+            historyId = 4243,
+            rawJson = """{"drop":"raw2"}"""
+        });
+        secondResult.EnsureSuccessStatusCode();
+
+        var detail = await client.GetStringAsync($"/api/group-buyings/{batchId}");
+        using var view = JsonDocument.Parse(detail);
+        var seats = view.RootElement.GetProperty("seats");
+
+        var seat1 = seats.EnumerateArray().First(s => s.GetProperty("seatNo").GetInt32() == 1);
+        var seat2 = seats.EnumerateArray().First(s => s.GetProperty("seatNo").GetInt32() == 2);
+        Assert.Equal("730-drop-1", seat1.GetProperty("prize")!.GetProperty("assetId").GetString());
+        Assert.Equal("730-drop-2", seat2.GetProperty("prize")!.GetProperty("assetId").GetString());
+        Assert.Equal("AK-47 | Redline", seat1.GetProperty("prize")!.GetProperty("marketHashName").GetString());
+        Assert.Equal("AWP | Asiimov", seat2.GetProperty("prize")!.GetProperty("marketHashName").GetString());
     }
 
     [Fact]

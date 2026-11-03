@@ -77,6 +77,31 @@ public class MarketApiTests(ApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
+    public async Task List_uses_the_latest_cny_snapshot_even_when_a_usd_snapshot_is_newer()
+    {
+        var seeded = await SeedAsync(priceCents: 1500);
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            db.MarketPriceSnapshots.Add(new MarketPriceSnapshot
+            {
+                MarketItemId = seeded.Id,
+                PriceCents = 200,
+                Currency = "USD",
+                CapturedAtUtc = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = Factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/api/market/items"));
+        var item = document.RootElement.GetProperty("items").EnumerateArray().Single();
+
+        Assert.Equal(1500, item.GetProperty("latestPriceCents").GetInt64());
+        Assert.Equal("CNY", item.GetProperty("currency").GetString());
+    }
+
+    [Fact]
     public async Task List_reports_day_change_from_the_two_latest_daily_closes()
     {
         var seeded = await SeedAsync(priceCents: 1500);
