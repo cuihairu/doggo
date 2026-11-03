@@ -472,7 +472,7 @@
 - [x] 深审 P3 卫生:mysqladmin 密码作 CLI 参数(证据:docker-compose.yml:17、docker-compose.prod.yml:19 改 `--defaults-extra-file=<(printf '[client]...')`;docker compose config 通过,容器 healthy,dotnet test 184+107 全绿)
 <!-- 审核发现:CI 硬编码凭据(mobile.yml:86-88、104-106)不属实:该凭据仅为 CI 验收 runner 内临时 MySQL/API 的测试夹具与 seed 数据,非真实生产凭据,无泄露风险,无需改 -->
 - [x] 深审 P3 卫生:小程序 RichText 注入(证据:miniapp/src/pages/newsdetail/newsdetail.tsx:58、miniapp/package.json:35 xss@^1.0.17;filterXSS stripIgnoreTagBody 剥离 script/iframe/svg 等,typecheck+build 绿)
-- [ ] 深审 P3 卫生:小程序 urlCheck false(project.config.json:8)
+- [ ] 深审 P3 卫生:小程序 urlCheck false(project.config.json:8) — BLOCKED 缺正式 AppID 与微信后台合法域名配置(改 true 需同批上线域名,属用户侧资产,todo.md:384 提审已 BLOCKED)
 - [ ] 深审 P3 卫生:http 默认 API base(mobile/src/app.ts:17、shared/src/client.ts:8)
 - [ ] 深审 P3 卫生:nginx 缺安全头(doggo.conf.template:44-50)
 - [x] 深审 P3 卫生:inspectLink 无 scheme 白名单(CaseOpeningPage.tsx:108)(证据:a69c6a7,CaseOpeningPage.tsx:108、web/src/lib/url.ts:3)
