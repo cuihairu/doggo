@@ -458,7 +458,7 @@
 - [x] 深审 P2 安全:NewsDetailPage/ArticlePage 未消毒 HTML 渲染(NewsDetailPage.tsx:44、ArticlePage.tsx:37;新闻已在服务端消毒 NewsStore.cs:62,文章为运营所写,降为纵深防御)(证据:a69c6a7,web/src/pages/NewsDetailPage.tsx:44、ArticlePage.tsx:37)
 - [x] 深审 P2 安全:token 存 localStorage(client.ts:14-17)(证据:87dba79,web/src/api/client.ts:5、server/src/Doggo.Api/Endpoints/AuthCookies.cs:20;AuthApiTests.cs:96)
 - [x] 深审 P2 部署:nginx admin IP 白名单默认注释(doggo.conf.template:82-91)(证据:doggo.conf.template:83、doggo.conf.template:88;docs/guide/deployment.md:54)
-- [ ] 深审 P2 部署:dev compose 发布 MySQL/无密 Redis(docker-compose.yml:12-13、26-27)
+- [x] 深审 P2 部署:dev compose 发布 MySQL/无密 Redis(证据:docker-compose.yml:12-13、docker-compose.yml:26-27;docker compose config host_ip=127.0.0.1,ps 仅 127.0.0.1:13306/16379,dotnet test 107/107 绿)
 - [x] 深审 P2 安全:banner linkUrl 无 scheme 白名单(NewsListPage.tsx:47-52)(证据:a69c6a7,web/src/pages/NewsListPage.tsx:47、web/src/lib/url.ts:3)
 - [x] 深审 P2 安全:admin token 存 localStorage(app.tsx:16-18)(证据:87dba79,admin/src/app.tsx:11、admin/src/pages/Login/index.tsx:26)
 - [x] 深审 P2 安全:roll 开奖用 Random.Shared 非加密(RollService.cs:162)(证据:bfb6fe4,AliasMethod.cs:103、RollService.cs:163)
