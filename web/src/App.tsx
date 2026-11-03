@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { clearTokens, getAccessToken } from './api/client'
+import { clearTokens } from './api/client'
 import { fetchProfile, type Profile } from './api/auth'
 import { ProfileContext } from './ProfileContext'
 import { useTheme, type ThemeId } from './theme'
@@ -11,9 +11,8 @@ export default function App() {
   const { theme, themes, setTheme } = useTheme()
 
   useEffect(() => {
-    if (!getAccessToken()) {
-      return
-    }
+    // The access token lives in an httpOnly cookie, so presence is only known by
+    // asking the server; a 401 simply means the visitor is signed out.
     fetchProfile()
       .then(setProfile)
       .catch(() => {

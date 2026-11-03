@@ -1,6 +1,7 @@
 import { LoginFormPage, ProFormText } from '@ant-design/pro-components'
 import { history, useModel } from '@umijs/max'
 import { message } from 'antd'
+import { clearToken } from '@/app'
 
 /** Admin sign-in: the same account auth, gated on the role claim after login. */
 export default function LoginPage() {
@@ -9,8 +10,12 @@ export default function LoginPage() {
   async function finish(values: { account: string; password: string }) {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Doggo-Client': 'admin',
+      },
       body: JSON.stringify(values),
+      credentials: 'same-origin',
     })
     if (!response.ok) {
       const problem = await response.json().catch(() => ({ detail: '登录失败' }))
@@ -19,15 +24,22 @@ export default function LoginPage() {
     }
 
     const tokens = await response.json()
-    localStorage.setItem('doggo.admin.accessToken', tokens.accessToken)
-    const payload = JSON.parse(atob(tokens.accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
-    if (payload.role !== 'admin') {
-      localStorage.removeItem('doggo.admin.accessToken')
+    // The access token is issued into an httpOnly cookie; the role claim is not
+    // readable in JS, so confirm admin access via the /me profile before routing.
+    const me = await fetch('/api/auth/me', { credentials: 'same-origin' })
+    if (!me.ok) {
+      clearToken()
+      message.error('登录失败')
+      return
+    }
+    const profile = await me.json()
+    if (profile.isAdmin !== true) {
+      clearToken()
       message.error('该账号没有后台权限')
       return
     }
 
-    setInitialState({ isAdmin: true, nickname: tokens.nickname })
+    setInitialState({ isAdmin: true, nickname: profile.nickname })
     history.push('/dashboard')
   }
 

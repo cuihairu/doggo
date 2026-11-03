@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, getAccessToken } from '../api/client'
+import { api } from '../api/client'
 import { trackEvent } from '../api/events'
+import { ProfileContext } from '../ProfileContext'
 
 interface CaseContent {
   title: string
@@ -143,7 +144,9 @@ export default function ProductDetailPage() {
     trackEvent('page_view_product', { productId: id, source: 'direct' }, `/products/${id}`)
   }, [id])
 
-  const signedIn = getAccessToken() != null
+  // Sign-in is tracked via the app-wide profile (httpOnly cookie backed), not a JS token.
+  const { profile } = useContext(ProfileContext)
+  const signedIn = profile !== null
   const selectedSku = skus.find((sku) => sku.optionId === selectedSkuId) ?? null
   const canUseCoupon = selectedSku?.canUseCoupon ?? false
   const canUseCoin = selectedSku?.canUseCoin ?? false

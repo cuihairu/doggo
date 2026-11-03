@@ -456,11 +456,11 @@
 - [ ] 深审 P1 并发:roll 重复加入无唯一约束(RollService.cs:83-115) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束
 - [ ] 深审 P1 可靠性:webhook 幂等先声明,处理失败丢事件(VaporEndpoints.cs:71-93) — BLOCKED 缺真实 MySQL 验证幂等声明与处理事务一致性(InMemory 不强制),需 outbox/事务
 - [x] 深审 P2 安全:NewsDetailPage/ArticlePage 未消毒 HTML 渲染(NewsDetailPage.tsx:44、ArticlePage.tsx:37;新闻已在服务端消毒 NewsStore.cs:62,文章为运营所写,降为纵深防御)(证据:a69c6a7,web/src/pages/NewsDetailPage.tsx:44、ArticlePage.tsx:37)
-- [ ] 深审 P2 安全:token 存 localStorage(client.ts:14-17)
+- [x] 深审 P2 安全:token 存 localStorage(client.ts:14-17)(证据:见本提交,web/src/api/client.ts:5、server/src/Doggo.Api/Endpoints/AuthCookies.cs:20;AuthApiTests.cs:96)
 - [ ] 深审 P2 部署:nginx admin IP 白名单默认注释(doggo.conf.template:82-91)
 - [ ] 深审 P2 部署:dev compose 发布 MySQL/无密 Redis(docker-compose.yml:12-13、26-27)
 - [x] 深审 P2 安全:banner linkUrl 无 scheme 白名单(NewsListPage.tsx:47-52)(证据:a69c6a7,web/src/pages/NewsListPage.tsx:47、web/src/lib/url.ts:3)
-- [ ] 深审 P2 安全:admin token 存 localStorage(app.tsx:16-18)
+- [x] 深审 P2 安全:admin token 存 localStorage(app.tsx:16-18)(证据:见本提交,admin/src/app.tsx:11、admin/src/pages/Login/index.tsx:26)
 - [x] 深审 P2 安全:roll 开奖用 Random.Shared 非加密(RollService.cs:162)(证据:bfb6fe4,AliasMethod.cs:103、RollService.cs:163)
 - [x] 深审 P2 正确性:漏斗聚合写出 to 之后的行(FunnelAggregator.cs:26-77)(证据:a69c6a7,FunnelAggregator.cs:104)
 - [x] 深审 P2 正确性:行情日线混币种无换算(MarketStore.cs:161-230)(证据:a69c6a7,MarketStore.cs:199、MarketEntities.cs:36;MarketStoreTests.cs:149)
@@ -501,3 +501,9 @@
 - [x] 审核发现：d24107c 已实现 cap+旗标强制，但对应待办「深审 P1 校验:CoinDeduction 不封顶且 plan 的 CanUseCoin/CanUseCoupon 未强制(OrderService.cs:136-152)」仍保持未勾选且未标注已修，且行号引用已过期（实际 cap 校验在 OrderService.cs:154）（todo.md:450）(证据:529963b,todo.md:450)
 - [x] 审核发现：docs/审计-文档一致性.md:76-78 注记「（未 commit）」「todo.md 未触碰」与本区间提交状态矛盾——a5688da 已 commit 该文档并修改 todo.md，注记过时（docs/审计-文档一致性.md:76-78）(证据:529963b,docs/审计-文档一致性.md:76)
 - [x] 审核发现：本轮 diff 未见问题（d9d679f6..HEAD）——README.md / README.zh.md 为措辞去味与状态计数更新（277/323 与当前 todo.md 计数一致，无误）；其余发现已逐条列于上方。(证据:529963b,d9d679f6..HEAD)
+
+- [ ] 审核发现：行情列表 DTO 当前价与日涨跌币种不一致——list 端点 latest 快照查询（MarketEndpoints.cs:95）未按币种过滤，可取到 USD 快照作 current 价，而日涨跌徽标已改为仅 CNY（MarketEndpoints.cs:104），货币分离修复不彻底，应同样过滤 Currency=="CNY"（MarketEndpoints.cs:88-104）
+- [ ] 审核发现：GroupBuyingView 奖项按 OrderId 分组仅取最新一条（CaseEndpoints.cs:90-91），一单多奖（同一 order 跨多 seat，见既有多 claim 缺口）时会把不同奖项折叠为一条并赋给同单全部 seat（CaseEndpoints.cs:426），应按 (OrderId, AssetId) 去重而非仅按 OrderId（CaseEndpoints.cs:89）
+- [ ] 审核发现：带 OptionId 下单时 plan 被加载并校验两次——LoadPlanOptionAsync（OrderService.cs:651-686）与 LoadPlanAsync（OrderService.cs:695-710）均查同一 plan，多一次 DB 往返且校验逻辑重复（OrderService.cs:87-88）
+- [ ] 审核发现：审计-文档一致性.md:96 D-29R 记录「已修：两版 README 同步为 290 of 331」与提交后 README.md:82 实际「297 of 331」不符——a69c6a7 将计数刷新为 297 未同步该记录，复发记录再度过期（docs/审计-文档一致性.md:96）
+- [ ] 审核发现：SeedOrderWithStatusAsync（GroupBuyingApiTests.cs:96）与 SeedPaidOrderAsync（:75）订单号均为「DO{秒级时间戳}0001」固定后缀，同秒创建多单即撞唯一 OrderNo（IX_UserOrders_OrderNo 唯一）；InMemory 不强制唯一故测试未暴露，MySQL 下会失败（GroupBuyingApiTests.cs:88-96）

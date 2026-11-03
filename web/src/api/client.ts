@@ -1,25 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 
-const ACCESS_TOKEN_KEY = 'doggo.accessToken'
-const REFRESH_TOKEN_KEY = 'doggo.refreshToken'
-
-export function getAccessToken(): string | null {
-  return localStorage.getItem(ACCESS_TOKEN_KEY)
-}
-
-export function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_TOKEN_KEY)
-}
-
-export function saveTokens(accessToken: string, refreshToken: string) {
-  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
-}
-
-export function clearTokens() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_KEY)
-}
+export function clearTokens() {}
 
 export class ApiError extends Error {
   readonly status: number
@@ -42,7 +23,7 @@ interface RequestOptions {
  */
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await request(path, options)
-  if (response.status === 401 && options.auth !== false && getRefreshToken()) {
+  if (response.status === 401 && options.auth !== false) {
     if (await tryRefresh()) {
       return api<T>(path, { ...options, auth: false })
     }
@@ -60,36 +41,29 @@ async function request(path: string, options: RequestOptions): Promise<Response>
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
-  const token = getAccessToken()
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
-
   return fetch(`${API_BASE}${path}`, {
     method: options.method ?? (options.body !== undefined ? 'POST' : 'GET'),
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    credentials: 'same-origin',
   })
 }
 
 async function tryRefresh(): Promise<boolean> {
-  const refreshToken = getRefreshToken()
-  if (!refreshToken) {
-    return false
-  }
-
   const response = await fetch(`${API_BASE}/api/auth/refresh`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
+    headers: {
+      'Content-Type': 'application/json',
+      // Server decides the browser (cookie) path from this header.
+      'X-Doggo-Client': 'web',
+    },
+    credentials: 'same-origin',
   })
   if (!response.ok) {
     clearTokens()
     return false
   }
 
-  const tokens = (await response.json()) as { accessToken: string; refreshToken: string }
-  saveTokens(tokens.accessToken, tokens.refreshToken)
   return true
 }
 

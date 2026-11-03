@@ -41,7 +41,23 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer();
+    .AddJwtBearer(options =>
+    {
+        // Browser sessions carry the access token in an httpOnly cookie set by the
+        // auth endpoints, so XSS cannot read it; native clients keep the bearer header.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var cookie = context.Request.Cookies[AuthCookies.AccessTokenCookie];
+                if (!string.IsNullOrEmpty(cookie))
+                {
+                    context.Token = cookie;
+                }
+                return Task.CompletedTask;
+            }
+        };
+    });
 // Bind bearer options to the singleton TokenService so issuance and validation share one
 // signing key, including the ephemeral per-boot fallback when no Auth:SecretKey is set.
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)

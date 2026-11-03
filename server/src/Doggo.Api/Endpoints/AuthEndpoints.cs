@@ -12,6 +12,13 @@ namespace Doggo.Api.Endpoints;
 
 public static class AuthEndpoints
 {
+    /// <summary>Sets httpOnly cookies for browser sessions; native clients ignore them.</summary>
+    private static void SetBrowserCookies(HttpContext context, AuthResult result, AuthOptions options)
+    {
+        AuthCookies.SetTokens(context, result.AccessToken, result.AccessTokenExpiresAtUtc,
+            result.RefreshToken, DateTime.UtcNow.AddDays(Math.Max(options.RefreshTokenDays, 1)));
+    }
+
     public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/auth");
@@ -20,6 +27,7 @@ public static class AuthEndpoints
             [FromBody] RegisterRequest request,
             HttpContext context,
             [FromServices] AuthService auth,
+            [FromServices] IOptions<AuthOptions> authOptions,
             CancellationToken cancellationToken) =>
         {
             try
@@ -29,6 +37,7 @@ public static class AuthEndpoints
                     context.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
                     context.Request.Headers.UserAgent.ToString(),
                     cancellationToken);
+                SetBrowserCookies(context, result, authOptions.Value);
                 return Results.Created($"/api/auth/me", result);
             }
             catch (AuthValidationException ex)
@@ -45,16 +54,19 @@ public static class AuthEndpoints
             [FromBody] LoginRequest request,
             HttpContext context,
             [FromServices] AuthService auth,
+            [FromServices] IOptions<AuthOptions> authOptions,
             CancellationToken cancellationToken) =>
         {
             try
             {
-                return Results.Ok(await auth.LoginAsync(
+                var result = await auth.LoginAsync(
                     request.Account,
                     request.Password,
                     context.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
                     context.Request.Headers.UserAgent.ToString(),
-                    cancellationToken));
+                    cancellationToken);
+                SetBrowserCookies(context, result, authOptions.Value);
+                return Results.Ok(result);
             }
             catch (AuthValidationException ex)
             {
@@ -70,16 +82,19 @@ public static class AuthEndpoints
             [FromBody] WechatLoginRequest request,
             HttpContext context,
             [FromServices] AuthService auth,
+            [FromServices] IOptions<AuthOptions> authOptions,
             CancellationToken cancellationToken) =>
         {
             try
             {
-                return Results.Ok(await auth.LoginWithWechatAsync(
+                var result = await auth.LoginWithWechatAsync(
                     request.Code,
                     request.Nickname,
                     context.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
                     context.Request.Headers.UserAgent.ToString(),
-                    cancellationToken));
+                    cancellationToken);
+                SetBrowserCookies(context, result, authOptions.Value);
+                return Results.Ok(result);
             }
             catch (AuthValidationException ex)
             {
@@ -100,13 +115,28 @@ public static class AuthEndpoints
         });
 
         group.MapPost("/refresh", async (
+            HttpContext context,
             [FromBody] RefreshRequest request,
             [FromServices] AuthService auth,
+            [FromServices] IOptions<AuthOptions> authOptions,
             CancellationToken cancellationToken) =>
         {
             try
             {
-                return Results.Ok(await auth.RefreshAsync(request.RefreshToken, cancellationToken));
+                var refreshToken = AuthCookies.IsBrowser(context)
+                    ? context.Request.Cookies[AuthCookies.RefreshTokenCookie]
+                    : request.RefreshToken;
+                if (string.IsNullOrEmpty(refreshToken))
+                {
+                    return Results.Problem("Refresh token is required.", statusCode: StatusCodes.Status400BadRequest);
+                }
+                var result = await auth.RefreshAsync(refreshToken, cancellationToken);
+                if (AuthCookies.IsBrowser(context))
+                {
+                    AuthCookies.SetTokens(context, result.AccessToken, result.AccessTokenExpiresAtUtc,
+                        result.RefreshToken, DateTime.UtcNow.AddDays(Math.Max(authOptions.Value.RefreshTokenDays, 1)));
+                }
+                return Results.Ok(result);
             }
             catch (AuthValidationException ex)
             {
@@ -119,11 +149,19 @@ public static class AuthEndpoints
         });
 
         group.MapPost("/logout", async (
+            HttpContext context,
             [FromBody] RefreshRequest request,
             [FromServices] AuthService auth,
             CancellationToken cancellationToken) =>
         {
-            await auth.LogoutAsync(request.RefreshToken, cancellationToken);
+            var refreshToken = AuthCookies.IsBrowser(context)
+                ? context.Request.Cookies[AuthCookies.RefreshTokenCookie]
+                : request.RefreshToken;
+            if (!string.IsNullOrEmpty(refreshToken))
+            {
+                await auth.LogoutAsync(refreshToken, cancellationToken);
+            }
+            AuthCookies.Clear(context);
             return Results.NoContent();
         });
 

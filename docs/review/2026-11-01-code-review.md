@@ -83,7 +83,7 @@ UNVERIFIED 单独标注，不计入确认数。
 - **[S7] P2 XSS** 前端 `NewsDetailPage.tsx:44`、`ArticlePage.tsx:37` 渲染未消毒 HTML（纵深防御，见上）。
   处置：**TODO**。
 - **[S12] P2 存储** token 存 `localStorage`，XSS 可窃取。
-  `web/src/api/client.ts:14-17`。处置：**TODO**。
+  `web/src/api/client.ts:14-17`。处置：**已修**（浏览器会话改用 httpOnly cookie，JS 不可读；见本提交 AuthCookies.cs）。
 - **[D1] P2 部署** nginx admin IP 白名单默认注释。
   `deploy/doggo.conf.template:82-91`。处置：**TODO**。
 - **[D2] P2 部署** dev compose 发布 MySQL 端口、Redis 无密码。
@@ -91,7 +91,7 @@ UNVERIFIED 单独标注，不计入确认数。
 - **[F3] P2 安全** banner `linkUrl` 无 scheme 白名单，可 `javascript:` 注入。
   `web/src/pages/NewsListPage.tsx:47-52`。处置：**TODO**。
 - **[F5] P2 存储** admin token 存 `localStorage`。
-  `admin/src/app.tsx:16-18`。处置：**TODO**。
+  `admin/src/app.tsx:16-18`。处置：**已修**（admin 登录同样走 httpOnly cookie，不再持久化 token 到 localStorage；见本提交）。
 - **[B18] P2 加密** roll 开奖用 `Random.Shared` 非加密随机，中奖可预测。
   `server/src/Doggo.Infrastructure/Roll/RollService.cs:162`。处置：**TODO**。
 - **[B19] P2 正确性** 漏斗聚合写出 `to` 之后的行。

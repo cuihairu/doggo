@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, getAccessToken } from '../api/client'
+import { ApiError, api } from '../api/client'
 import { EmptyState } from '../components/States'
 
 interface RollRoom {
@@ -51,14 +51,14 @@ export default function RollRoomsPage() {
   }
 
   async function join(id: string) {
-    if (!getAccessToken()) {
-      window.location.hash = '#login'
-      return
-    }
     try {
       await api(`/api/roll/rooms/${id}/join`, { body: {} })
       await showDetail(id)
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        window.location.hash = '#login'
+        return
+      }
       setError(String((err as Error).message ?? err))
     }
   }

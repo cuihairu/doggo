@@ -45,7 +45,8 @@ public sealed record ProfileView(
     Guid? InvitedByUserId,
     string Status,
     DateTime? LastLoginAtUtc,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    bool IsAdmin);
 
 /// <summary>
 /// Account registration and login with PBKDF2 password hashing (ASP.NET Identity hasher),
@@ -292,7 +293,8 @@ public sealed partial class AuthService(
             user.InvitedByUserId,
             user.Status.ToString(),
             user.LastLoginAtUtc,
-            user.CreatedAtUtc);
+            user.CreatedAtUtc,
+            user.IsAdmin);
     }
 
     /// <summary>Links a verified Steam identity to the account; one steamid binds once.</summary>

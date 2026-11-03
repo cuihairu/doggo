@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -32,6 +33,9 @@ public class AuthApiTests(ApiFactory factory) : ApiTestBase(factory)
             "Bearer", registered.GetProperty("accessToken").GetString());
         return client;
     }
+
+    /// <summary>Browser session: the test host's default client replays cookies (HandleCookies=true).</summary>
+    private HttpClient CreateCookieBrowserClient() => Factory.CreateClient();
 
     [Fact]
     public async Task Register_login_me_refresh_and_logout_run_through_the_api()
@@ -74,6 +78,36 @@ public class AuthApiTests(ApiFactory factory) : ApiTestBase(factory)
         var logout = await client.PostAsync("/api/auth/logout", Json(new { refreshToken = newRefresh }));
         Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
         var afterLogout = await client.PostAsync("/api/auth/refresh", Json(new { refreshToken = newRefresh }));
+        Assert.Equal(HttpStatusCode.Unauthorized, afterLogout.StatusCode);
+    }
+
+    [Fact]
+    public async Task Browser_session_uses_httpOnly_cookies_instead_of_a_bearer_header()
+    {
+        var client = CreateCookieBrowserClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Doggo-Client", "web");
+
+        // Register as a browser: the response must carry both httpOnly cookies.
+        var register = await client.PostAsync("/api/auth/register", Json(new { account = Account, password = Password }));
+        Assert.Equal(HttpStatusCode.Created, register.StatusCode);
+        Assert.Contains(register.Headers, h => h.Key == "Set-Cookie" && h.Value.Any(v => v.Contains("doggo.access_token")));
+        Assert.Contains(register.Headers, h => h.Key == "Set-Cookie" && h.Value.Any(v => v.Contains("doggo.refresh_token")));
+
+        // No Authorization header: the cookie alone must authenticate /me.
+        var me = await client.GetAsync("/api/auth/me");
+        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+
+        // A fresh client with only the cookie (no bearer, no JS token) can refresh.
+        var refresh = await client.PostAsync("/api/auth/refresh", Json(new { }));
+        Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
+        var newRefresh = JsonDocument.Parse(await refresh.Content.ReadAsStringAsync()).RootElement
+            .GetProperty("refreshToken").GetString()!;
+        Assert.False(string.IsNullOrEmpty(newRefresh));
+
+        // Logout clears the session; /me then fails.
+        var logout = await client.PostAsync("/api/auth/logout", Json(new { }));
+        Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
+        var afterLogout = await client.GetAsync("/api/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, afterLogout.StatusCode);
     }
 

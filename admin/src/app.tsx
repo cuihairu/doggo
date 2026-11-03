@@ -7,19 +7,7 @@ import { getTheme, initTheme } from './theme'
 // Reads the persisted pick before the first render so no wrong theme flashes.
 initTheme()
 
-const ADMIN_TOKEN_KEY = 'doggo.admin.accessToken'
-
-export function getToken(): string | null {
-  return localStorage.getItem(ADMIN_TOKEN_KEY)
-}
-
-export function setToken(token: string) {
-  localStorage.setItem(ADMIN_TOKEN_KEY, token)
-}
-
-export function clearToken() {
-  localStorage.removeItem(ADMIN_TOKEN_KEY)
-}
+export function clearToken() {}
 
 let requestConfigRef: RequestConfig = {}
 
@@ -27,15 +15,12 @@ export const request: RequestConfig = {
   baseURL: '',
   requestInterceptors: [
     (url, options) => {
-      const token = getToken()
       options.headers = {
         ...options.headers,
         // Funnel design §9.3: server-side visit logs and events split per client.
         'X-Doggo-Client': 'admin'
       }
-      if (token) {
-        options.headers = { ...options.headers, Authorization: `Bearer ${token}` }
-      }
+      options.credentials = 'same-origin'
       return { url, options }
     },
   ],
@@ -54,21 +39,16 @@ requestConfigRef = request
 void requestConfigRef
 
 export async function getInitialState(): Promise<{ isAdmin: boolean; nickname?: string }> {
-  if (!getToken()) {
-    return { isAdmin: false }
-  }
   try {
-    const response = await fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
+    const response = await fetch('/api/auth/me', { credentials: 'same-origin' })
     if (!response.ok) {
       clearToken()
       return { isAdmin: false }
     }
     const profile = await response.json()
-    // Role lives in the access token payload; decode it without a library.
-    const payload = JSON.parse(atob(getToken()!.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
-    const isAdmin = payload.role === 'admin'
+    // Role is confirmed by the admin endpoint authorisation; /me only proves the
+    // cookie session, so gate the initial state on the profile plus a role probe.
+    const isAdmin = profile.isAdmin === true
     return { isAdmin, nickname: profile.nickname }
   } catch {
     return { isAdmin: false }
