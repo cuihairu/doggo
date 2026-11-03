@@ -45,6 +45,11 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;
 
+    # Security headers (site-wide baseline; API below may override with add_header).
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header X-Frame-Options DENY always;
+
     client_max_body_size 10m;
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
@@ -78,6 +83,11 @@ server {
     ssl_certificate     CERT_PATH/fullchain.pem;
     ssl_certificate_key CERT_PATH/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
+
+    # Security headers (admin console baseline).
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header X-Frame-Options DENY always;
 
     # Fail closed by default. Add real office/VPN allow lines above this deny.
     deny all;

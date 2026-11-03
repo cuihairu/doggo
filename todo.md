@@ -474,7 +474,7 @@
 - [x] 深审 P3 卫生:小程序 RichText 注入(证据:miniapp/src/pages/newsdetail/newsdetail.tsx:58、miniapp/package.json:35 xss@^1.0.17;filterXSS stripIgnoreTagBody 剥离 script/iframe/svg 等,typecheck+build 绿)
 - [ ] 深审 P3 卫生:小程序 urlCheck false(project.config.json:8) — BLOCKED 缺正式 AppID 与微信后台合法域名配置(改 true 需同批上线域名,属用户侧资产,todo.md:384 提审已 BLOCKED)
 - [x] 深审 P3 卫生:http 默认 API base(证据:shared/src/client.ts:8 默认空+rawRequest fail-closed、miniapp/config/index.ts:20 env 注入 TARO_APP_API_BASE;miniapp build 注入 http://127.0.0.1:8082,typecheck+build 绿;mobile 保留模拟器默认经 setApiBase)
-- [ ] 深审 P3 卫生:nginx 缺安全头(doggo.conf.template:44-50)
+- [x] 深审 P3 卫生:nginx 缺安全头(证据:doggo.conf.template:48-50、doggo.conf.template:82-84 add_header nosniff/referrer-policy/frame-deny;nginx -t 语法 ok,curl 实测三头均返回)
 - [x] 深审 P3 卫生:inspectLink 无 scheme 白名单(CaseOpeningPage.tsx:108)(证据:a69c6a7,CaseOpeningPage.tsx:108、web/src/lib/url.ts:3)
 - [ ] 深审 P3 卫生:appsettings 默认 DB 密码占位(appsettings.json:10)
 - [ ] 深审 P3 卫生:订单号用 Random.Shared(OrderService.cs:677)
