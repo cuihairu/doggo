@@ -1,4 +1,5 @@
 using Doggo.Domain.Cases;
+using System.Security.Cryptography;
 
 namespace Doggo.Domain.Tests;
 
@@ -104,6 +105,18 @@ public class AliasMethodTests
         {
             var uniform = i / 128.0;
             Assert.Equal(fromLongs.Sample(uniform), fromInts.Sample(uniform));
+        }
+    }
+
+    [Fact]
+    public void Sample_CryptographicUniform_ReturnsValidBucket()
+    {
+        var sampler = new AliasSampler([1, 1]);
+
+        for (var i = 0; i < 100; i++)
+        {
+            var bucket = sampler.Sample();
+            Assert.InRange(bucket, 0, sampler.BucketCount - 1);
         }
     }
 }

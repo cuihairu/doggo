@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace Doggo.Domain.Cases;
 
 /// <summary>
@@ -96,4 +98,15 @@ public sealed class AliasSampler
     }
 
     public int Sample(Random random) => Sample(random.NextDouble());
+
+    /// <summary>Draws a cryptographic uniform in [0,1) so winner selection is not predictable.</summary>
+    public int Sample()
+    {
+        Span<byte> bytes = stackalloc byte[8];
+        RandomNumberGenerator.Fill(bytes);
+        // Top 53 bits of a 64-bit draw make a uniform double in [0,1) (same grid as the
+        // double precision unit interval), so the bucket mapping is unbiased.
+        var uniform = (BitConverter.ToUInt64(bytes) >> 11) / (double)(1UL << 53);
+        return Sample(uniform);
+    }
 }

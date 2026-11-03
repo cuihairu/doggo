@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Doggo.Domain.Cases;
 using Doggo.Domain.Orders;
 using Doggo.Domain.Products;
@@ -159,10 +160,11 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
             return new DrawResult(room.Id, room.Status, null, null, null);
         }
 
-        var winner = participants[Random.Shared.Next(participants.Count)];
+        // Cryptographic draws so the winner and prize cannot be predicted by observers.
+        var winner = participants[RandomNumberGenerator.GetInt32(participants.Count)];
         var prize = prizes.Count == 1
             ? prizes[0]
-            : prizes[NewSampler(prizes).Sample(Random.Shared)];
+            : prizes[NewSampler(prizes).Sample()];
 
         RollRoomStateMachine.RequireTransition(RollRoomStatus.Drawing, RollRoomStatus.Drawn);
         room.Status = RollRoomStatus.Drawn;
