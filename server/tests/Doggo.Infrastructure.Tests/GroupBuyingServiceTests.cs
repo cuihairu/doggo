@@ -110,13 +110,14 @@ public class GroupBuyingServiceTests
         return product;
     }
 
-    private static async Task<UserOrder> SeedPaidOrderAsync(DoggoDbContext db, ServiceMode mode = ServiceMode.CloudOpen)
+    private static async Task<UserOrder> SeedPaidOrderAsync(DoggoDbContext db, Guid productId, ServiceMode mode = ServiceMode.CloudOpen)
     {
         var order = new UserOrder
         {
             Id = Guid.CreateVersion7(),
             UserId = UserId,
             OrderNo = $"DO{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(100000, 999999)}",
+            ProductId = productId,
             Status = OrderStatus.PendingSettlement,
             ServiceMode = mode
         };
@@ -154,6 +155,22 @@ public class GroupBuyingServiceTests
 
         await db.SaveChangesAsync();
         return batch;
+    }
+
+    private static async Task<UserOrder> SeedValidOrderAsync(DoggoDbContext db, Guid productId)
+    {
+        var order = new UserOrder
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = UserId,
+            OrderNo = $"DO{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(100000, 999999)}",
+            ProductId = productId,
+            Status = OrderStatus.PendingSettlement,
+            ServiceMode = ServiceMode.CloudOpen
+        };
+        db.UserOrders.Add(order);
+        await db.SaveChangesAsync();
+        return order;
     }
 
     private static OpeningResultItem DropItem(string assetId = "730-drop-1") => new(
@@ -227,7 +244,7 @@ public class GroupBuyingServiceTests
     {
         using var db = CreateDb();
         var batch = await SeedBatchAsync(db);
-        var order = await SeedPaidOrderAsync(db);
+        var order = await SeedPaidOrderAsync(db, batch.ProductId);
         var (service, _) = CreateService(db);
 
         var claimed = await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, order.Id));
@@ -246,15 +263,16 @@ public class GroupBuyingServiceTests
         var batch = await SeedBatchAsync(db, seatCount: 2);
         var (service, _) = CreateService(db);
 
-        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, Guid.CreateVersion7()));
-        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, Guid.CreateVersion7()));
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, (await SeedValidOrderAsync(db, batch.ProductId)).Id));
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, (await SeedValidOrderAsync(db, batch.ProductId)).Id));
 
         var stored = db.GroupBuyings.First(b => b.Id == batch.Id);
         Assert.Equal(GroupBuyingStatus.SoldOut, stored.Status);
         Assert.Equal(2, stored.SoldCount);
 
+        var soldOutOrder = await SeedValidOrderAsync(db, batch.ProductId);
         await Assert.ThrowsAsync<BatchSoldOutException>(() =>
-            service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, Guid.CreateVersion7())));
+            service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, soldOutOrder.Id)));
         await Assert.ThrowsAsync<BatchNotFoundException>(() =>
             service.ClaimSeatAsync(new ClaimSeatCommand(Guid.CreateVersion7(), Guid.CreateVersion7())));
     }
@@ -281,8 +299,9 @@ public class GroupBuyingServiceTests
         rivalSeat.Status = SeatStatus.Locked;
         await db2.SaveChangesAsync();
 
+        var racedOrder = await SeedValidOrderAsync(db1, batch.ProductId);
         await Assert.ThrowsAsync<BatchSoldOutException>(() =>
-            service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, Guid.CreateVersion7())));
+            service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, racedOrder.Id)));
     }
 
     [Fact]
@@ -291,7 +310,7 @@ public class GroupBuyingServiceTests
         using var db = CreateDb();
         var batch = await SeedBatchAsync(db);
         var (service, _) = CreateService(db);
-        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, Guid.CreateVersion7()));
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, (await SeedValidOrderAsync(db, batch.ProductId)).Id));
 
         Assert.Equal(1, await service.MarkSeatPaidAsync(batch.Id, 1));
         Assert.Equal(SeatStatus.Paid, (db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1)).Status);
@@ -299,7 +318,7 @@ public class GroupBuyingServiceTests
         // Release only applies to locked seats.
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReleaseSeatAsync(batch.Id, 1));
 
-        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, Guid.CreateVersion7()));
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, (await SeedValidOrderAsync(db, batch.ProductId)).Id));
         Assert.Equal(2, await service.ReleaseSeatAsync(batch.Id, 2));
         var seat = db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 2);
         Assert.Equal(SeatStatus.OnSale, seat.Status);
@@ -319,7 +338,7 @@ public class GroupBuyingServiceTests
         Assert.Equal(SeatStatus.OnSale, (db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1)).Status);
 
         // Configured vapor, but a failed task: the seat must return to Paid for retry.
-        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, Guid.CreateVersion7()));
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, (await SeedValidOrderAsync(db, batch.ProductId)).Id));
         await service.MarkSeatPaidAsync(batch.Id, 1);
         var (failing, _) = CreateService(db, VaporStub(status: "failed", error: "case not found"));
         await Assert.ThrowsAsync<VaporClientException>(() =>
@@ -333,7 +352,7 @@ public class GroupBuyingServiceTests
         using var db = CreateDb();
         var batch = await SeedBatchAsync(db);
         var (service, _) = CreateService(db);
-        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, Guid.CreateVersion7()));
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, (await SeedValidOrderAsync(db, batch.ProductId)).Id));
         await service.MarkSeatPaidAsync(batch.Id, 1);
 
         var bodies = new List<string>();
@@ -358,7 +377,7 @@ public class GroupBuyingServiceTests
         using var db = CreateDb();
         var batch = await SeedBatchAsync(db);
         var (service, _) = CreateService(db);
-        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, Guid.CreateVersion7()));
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, (await SeedValidOrderAsync(db, batch.ProductId)).Id));
         await service.MarkSeatPaidAsync(batch.Id, 1);
 
         var seat = db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1);
@@ -376,7 +395,7 @@ public class GroupBuyingServiceTests
     {
         using var db = CreateDb();
         var batch = await SeedBatchAsync(db);
-        var order = await SeedPaidOrderAsync(db);
+        var order = await SeedPaidOrderAsync(db, batch.ProductId);
         var (service, _) = CreateService(db);
         await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, order.Id));
         await service.MarkSeatPaidAsync(batch.Id, 1);
@@ -407,7 +426,7 @@ public class GroupBuyingServiceTests
     {
         using var db = CreateDb();
         var batch = await SeedBatchAsync(db);
-        var order = await SeedPaidOrderAsync(db);
+        var order = await SeedPaidOrderAsync(db, batch.ProductId);
         var (service, _) = CreateService(db);
         await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, order.Id));
         await service.MarkSeatPaidAsync(batch.Id, 1);
@@ -438,12 +457,15 @@ public class GroupBuyingServiceTests
         };
         db.UserOrders.Add(cancelled);
         await db.SaveChangesAsync();
-        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, cancelled.Id));
+        var cancelledSeat = db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1);
+        cancelledSeat.OrderId = cancelled.Id;
+        cancelledSeat.Status = SeatStatus.Opened;
+        await db.SaveChangesAsync();
         await Assert.ThrowsAsync<CaseValidationException>(() =>
             service.ApplyOpeningResultAsync(new ApplyOpeningResultCommand(batch.Id, 1, DropItem(), null, null)));
 
         // Prize on a seat that never opened → illegal transition.
-        var order = await SeedPaidOrderAsync(db);
+        var order = await SeedPaidOrderAsync(db, batch.ProductId);
         await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, order.Id));
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.ApplyOpeningResultAsync(new ApplyOpeningResultCommand(batch.Id, 2, DropItem(), null, null)));
@@ -454,7 +476,7 @@ public class GroupBuyingServiceTests
     {
         using var db = CreateDb();
         var batch = await SeedBatchAsync(db);
-        var order = await SeedPaidOrderAsync(db);
+        var order = await SeedPaidOrderAsync(db, batch.ProductId);
         var (service, _) = CreateService(db);
 
         await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, order.Id));

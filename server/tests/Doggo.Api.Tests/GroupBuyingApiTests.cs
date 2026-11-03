@@ -64,7 +64,7 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         return (view.RootElement.GetProperty("batchId").GetGuid(), view.RootElement.GetProperty("seatCount").GetInt32());
     }
 
-    private async Task<Guid> SeedPaidOrderAsync(Guid userId)
+    private async Task<Guid> SeedPaidOrderAsync(Guid userId, Guid productId)
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
@@ -73,9 +73,31 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
             Id = Guid.CreateVersion7(),
             UserId = userId,
             OrderNo = $"DO{DateTime.UtcNow:yyyyMMddHHmmss}0001",
+            ProductId = productId,
             TotalPriceCents = 10000,
             TotalCostCents = 10000,
             Status = OrderStatus.PendingSettlement,
+            ServiceMode = ServiceMode.CloudOpen,
+            FulfillmentType = FulfillmentType.Spot
+        };
+        db.UserOrders.Add(order);
+        await db.SaveChangesAsync();
+        return order.Id;
+    }
+
+    private async Task<Guid> SeedOrderWithStatusAsync(Guid userId, Guid productId, OrderStatus status)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        var order = new UserOrder
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = userId,
+            OrderNo = $"DO{DateTime.UtcNow:yyyyMMddHHmmss}0001",
+            ProductId = productId,
+            TotalPriceCents = 10000,
+            TotalCostCents = 10000,
+            Status = status,
             ServiceMode = ServiceMode.CloudOpen,
             FulfillmentType = FulfillmentType.Spot
         };
@@ -111,7 +133,7 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         var (batchId, seatCount) = await CreateBatchAsync(client, productId, seats: 2);
         Assert.Equal(2, seatCount);
 
-        var firstOrder = await SeedPaidOrderAsync(userId);
+        var firstOrder = await SeedPaidOrderAsync(userId, productId);
         var first = await ClaimAsync(client, batchId, firstOrder);
         first.EnsureSuccessStatusCode();
         using (var firstView = JsonDocument.Parse(await first.Content.ReadAsStringAsync()))
@@ -119,11 +141,11 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
             Assert.Equal(1, firstView.RootElement.GetProperty("seatNo").GetInt32());
         }
 
-        var secondOrder = await SeedPaidOrderAsync(userId);
+        var secondOrder = await SeedPaidOrderAsync(userId, productId);
         var second = await ClaimAsync(client, batchId, secondOrder);
         second.EnsureSuccessStatusCode();
 
-        var thirdOrder = await SeedPaidOrderAsync(userId);
+        var thirdOrder = await SeedPaidOrderAsync(userId, productId);
         var third = await ClaimAsync(client, batchId, thirdOrder);
         Assert.Equal(HttpStatusCode.Conflict, third.StatusCode);
 
@@ -138,7 +160,7 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
     {
         var productId = await SeedCrateAsync();
         var (client, userId) = await AuthorizedAsync();
-        var orderId = await SeedPaidOrderAsync(userId);
+        var orderId = await SeedPaidOrderAsync(userId, productId);
 
         var (batchId, _) = await CreateBatchAsync(client, productId, seats: 2);
         await SeedSeatOpeningAsync(batchId, seatNo: 1, orderId);
@@ -212,8 +234,8 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         var (other, otherId) = await AuthorizedAsync();
 
         var (batchId, _) = await CreateBatchAsync(owner, productId, seats: 2);
-        var ownerOrderId = await SeedPaidOrderAsync(ownerId);
-        var otherOrderId = await SeedPaidOrderAsync(otherId);
+        var ownerOrderId = await SeedPaidOrderAsync(ownerId, productId);
+        var otherOrderId = await SeedPaidOrderAsync(otherId, productId);
 
         // An attacker cannot claim a seat with someone else's order.
         var foreignClaim = await ClaimAsync(other, batchId, ownerOrderId);
@@ -237,5 +259,28 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.Equal(HttpStatusCode.NotFound, foreignRelease.StatusCode);
         var foreignAdvance = await other.PostAsJsonAsync($"/api/group-buyings/{batchId}/seats/1/advance", new { target = (int)SeatStatus.Opening });
         Assert.Equal(HttpStatusCode.NotFound, foreignAdvance.StatusCode);
+        var foreignOpen = await other.PostAsync($"/api/group-buyings/{batchId}/seats/1/open", content: null);
+        Assert.Equal(HttpStatusCode.NotFound, foreignOpen.StatusCode);
+    }
+
+    [Fact]
+    public async Task Claim_rejects_cancelled_or_mismatched_product_orders()
+    {
+        var productId = await SeedCrateAsync();
+        var (client, userId) = await AuthorizedAsync();
+        var (batchId, _) = await CreateBatchAsync(client, productId, seats: 2);
+
+        var cancelledOrderId = await SeedOrderWithStatusAsync(userId, productId, OrderStatus.Cancelled);
+        var cancelled = await ClaimAsync(client, batchId, cancelledOrderId);
+        Assert.Equal(HttpStatusCode.Conflict, cancelled.StatusCode);
+
+        var foreignProductId = await SeedCrateAsync();
+        var mismatchedOrderId = await SeedOrderWithStatusAsync(userId, foreignProductId, OrderStatus.PendingSettlement);
+        var mismatched = await ClaimAsync(client, batchId, mismatchedOrderId);
+        Assert.Equal(HttpStatusCode.Conflict, mismatched.StatusCode);
+
+        var detail = await client.GetStringAsync($"/api/group-buyings/{batchId}");
+        using var view = JsonDocument.Parse(detail);
+        Assert.Equal(0, view.RootElement.GetProperty("soldCount").GetInt32());
     }
 }

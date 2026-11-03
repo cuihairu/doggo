@@ -250,6 +250,84 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task Create_rejects_a_disabled_or_foreign_plan_without_an_option()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 10000);
+        var otherProduct = await SeedProductAsync(db, finalPriceCents: 12000);
+
+        var disabled = new CasePlan
+        {
+            Id = Guid.CreateVersion7(),
+            ProductId = product.Id,
+            Title = "disabled",
+            Enabled = false
+        };
+        var foreign = new CasePlan
+        {
+            Id = Guid.CreateVersion7(),
+            ProductId = otherProduct.Id,
+            Title = "foreign",
+            Enabled = true
+        };
+        db.CasePlans.AddRange(disabled, foreign);
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<OrderValidationException>(() => orders.CreateOrderAsync(new CreateOrderCommand(
+            UserId, product.Id, disabled.Id, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Alipay)));
+
+        await Assert.ThrowsAsync<OrderValidationException>(() => orders.CreateOrderAsync(new CreateOrderCommand(
+            UserId, product.Id, foreign.Id, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Alipay)));
+    }
+
+    [Fact]
+    public async Task Create_rejects_a_negative_coin_deduction()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 10000);
+
+        await Assert.ThrowsAsync<OrderValidationException>(() => orders.CreateOrderAsync(new CreateOrderCommand(
+            UserId, product.Id, null, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Alipay,
+            CoinDeduction: -1)));
+
+        Assert.Empty(db.UserOrders);
+    }
+
+    [Fact]
+    public async Task Create_with_a_coupon_but_insufficient_coins_leaves_no_ghost_order()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 10000);
+
+        var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
+        var coupons = new CouponService(db, ledger, NullLogger<CouponService>.Instance);
+        var coupon = await db.Coupons.AddAsync(new Coupon
+        {
+            Id = Guid.CreateVersion7(),
+            Title = "Minus 2 yuan",
+            Type = CouponType.AmountOff,
+            AmountOffCents = 200,
+            MinOrderCents = 0,
+            Scope = CouponScope.All
+        });
+        await db.SaveChangesAsync();
+        var claimed = await coupons.ClaimCouponAsync(UserId, coupon.Entity.Id);
+
+        // No coin balance seeded: the cap passes (200 < 10000) but the spend must fail.
+        await Assert.ThrowsAsync<CoinValidationException>(() => orders.CreateOrderAsync(new CreateOrderCommand(
+            UserId, product.Id, null, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Alipay,
+            CoinDeduction: 200, UserCouponId: claimed.Id)));
+
+        Assert.Empty(db.UserOrders);
+        var restored = await db.UserCoupons.SingleAsync();
+        Assert.Equal(UserCouponStatus.Unused, restored.Status);
+        Assert.Null(restored.UsedOrderId);
+    }
+
+    [Fact]
     public async Task Create_plan_option_quantity_wins_over_request_quantity()
     {
         using var db = CreateDb();

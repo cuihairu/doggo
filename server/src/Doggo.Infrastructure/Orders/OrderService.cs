@@ -79,10 +79,13 @@ public sealed partial class OrderService(
 
         ValidateServiceMode(product.Status, command.ServiceMode);
 
+        if (command.CoinDeduction < 0)
+        {
+            throw new OrderValidationException("Coin deduction must not be negative.");
+        }
+
         var planOption = await LoadPlanOptionAsync(command, cancellationToken);
-        var plan = command.PlanId is null
-            ? null
-            : await db.CasePlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == command.PlanId.Value, cancellationToken);
+        var plan = await LoadPlanAsync(command, cancellationToken);
 
         // A plan can opt out of coupon or coin payment; enforce that before any deduction is
         // consumed so a rejection leaves the coupon instance and coin ledger untouched.
@@ -135,8 +138,6 @@ public sealed partial class OrderService(
             PayType = command.PayType,
             PayDeadlineUtc = now.AddSeconds(Math.Max(_options.PayTimeoutSeconds, 1))
         };
-        db.UserOrders.Add(order);
-
         // The coupon is consumed first so an invalid coupon never burns coins; a coin spend
         // that then fails gives the coupon back before the rejection surfaces.
         if (command.UserCouponId is { } userCouponId)
@@ -169,6 +170,9 @@ public sealed partial class OrderService(
         }
 
         order.TotalCostCents = Math.Max(total - order.CoinDeduction - order.CouponDeductionCents, 0);
+        // The order row joins the SaveChanges batch only after every deduction succeeded,
+        // so a rejected spend never leaves a half-built PendingPayment row behind.
+        db.UserOrders.Add(order);
 
         // Same SaveChanges batch as the order row: the funnel's authoritative third step.
         analytics.EnqueueOrderCreated(order);
@@ -681,6 +685,30 @@ public sealed partial class OrderService(
         }
 
         return option;
+    }
+
+    /// <summary>
+    /// Loads a bare plan (no option) and enforces that it exists, is enabled and belongs to
+    /// the ordered product. Without this an attacker could pass a disabled plan or a plan of
+    /// another product just to unlock cashback or to bypass the CanUseCoupon/CanUseCoin gate.
+    /// </summary>
+    private async Task<CasePlan?> LoadPlanAsync(CreateOrderCommand command, CancellationToken cancellationToken)
+    {
+        if (command.PlanId is null)
+        {
+            return null;
+        }
+
+        var plan = await db.CasePlans.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == command.PlanId.Value, cancellationToken)
+            ?? throw new OrderValidationException($"Plan {command.PlanId} was not found.");
+
+        if (!plan.Enabled || plan.ProductId != command.ProductId)
+        {
+            throw new OrderValidationException($"Plan {plan.Title} is not available for this product.");
+        }
+
+        return plan;
     }
 
     private static void ValidateServiceMode(ProductStatus status, ServiceMode requested)

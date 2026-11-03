@@ -4,6 +4,7 @@ using System.Text.Json;
 using Doggo.Domain.Orders;
 using Doggo.Domain.Products;
 using Doggo.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Doggo.Api.Tests;
@@ -87,6 +88,33 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
             SourceType = "test"
         });
         await db.SaveChangesAsync();
+    }
+
+    private async Task<Guid> SeedCouponAsync(Guid userId, long amountOffCents = 200)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        var coupon = new Doggo.Domain.Users.Coupon
+        {
+            Id = Guid.CreateVersion7(),
+            Title = "Minus 2 yuan",
+            Type = Doggo.Domain.Users.CouponType.AmountOff,
+            AmountOffCents = amountOffCents,
+            MinOrderCents = 0,
+            Scope = Doggo.Domain.Users.CouponScope.All
+        };
+        db.Coupons.Add(coupon);
+        await db.SaveChangesAsync();
+        var owned = new Doggo.Domain.Users.UserCoupon
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = userId,
+            CouponId = coupon.Id,
+            Status = Doggo.Domain.Users.UserCouponStatus.Unused
+        };
+        db.UserCoupons.Add(owned);
+        await db.SaveChangesAsync();
+        return owned.Id;
     }
 
     private async Task<Guid> SeedPromotionAsync(Guid productId, int stock, long discountPriceCents)
@@ -401,6 +429,7 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
     {
         var product = await SeedCrateAsync(finalPriceCents: 10000);
         var (client, userId) = await AuthorizedAsync();
+        await SeedCoinsAsync(userId, balance: 100000);
 
         var response = await client.PostAsJsonAsync("/api/orders", new
         {
@@ -413,6 +442,12 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         });
 
         Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+
+        // The cap rejected before the spend; the balance must be untouched and no order row saved.
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        Assert.Equal(100000, Assert.Single(await db.UserCoins.Where(c => c.UserId == userId).ToListAsync()).Balance);
+        Assert.Empty(db.UserOrders);
     }
 
     [Fact]
@@ -428,5 +463,39 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
 
         Assert.Equal(2000, order.GetProperty("coinDeduction").GetInt64());
         Assert.Equal(8000, order.GetProperty("totalCostCents").GetInt64());
+
+        // The coin ledger must actually shrink by the deduction.
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        Assert.Equal(98000, Assert.Single(await db.UserCoins.Where(c => c.UserId == userId).ToListAsync()).Balance);
+    }
+
+    [Fact]
+    public async Task Rejection_after_coupon_consumption_restores_the_coupon_and_leaves_no_order()
+    {
+        var product = await SeedCrateAsync(finalPriceCents: 10000);
+        var (client, userId) = await AuthorizedAsync();
+        // No coin balance: the cap passes (200 < 10000) but SpendAsync fails on balance.
+        var userCouponId = await SeedCouponAsync(userId, amountOffCents: 200);
+
+        var response = await client.PostAsJsonAsync("/api/orders", new
+        {
+            productId = product.Id,
+            entry = (int)OrderEntry.Case,
+            serviceMode = (int)ServiceMode.CloudOpen,
+            fulfillmentType = (int)FulfillmentType.Spot,
+            payType = (int)PaymentProvider.Alipay,
+            coinDeduction = 200,
+            userCouponId
+        });
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+        var restored = Assert.Single(await db.UserCoupons.Where(c => c.Id == userCouponId).ToListAsync());
+        Assert.Equal(Doggo.Domain.Users.UserCouponStatus.Unused, restored.Status);
+        Assert.Null(restored.UsedOrderId);
+        Assert.Empty(db.UserOrders);
     }
 }

@@ -161,6 +161,21 @@ public sealed partial class GroupBuyingService(
             throw new BatchSoldOutException($"Batch {command.BatchId} has no seats left.");
         }
 
+        var order = await db.UserOrders.AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == command.OrderId, cancellationToken);
+        if (order is null)
+        {
+            throw new BatchNotFoundException($"Order {command.OrderId} was not found.");
+        }
+        if (order.Status is not (OrderStatus.PendingSettlement or OrderStatus.PendingRetrieval or OrderStatus.Retrieving))
+        {
+            throw new InvalidOperationException($"Order {order.OrderNo} is not eligible for a seat (status {order.Status}).");
+        }
+        if (order.ProductId != batch.ProductId)
+        {
+            throw new InvalidOperationException($"Order {order.OrderNo} is for a different product than batch {batch.Lot}.");
+        }
+
         var seat = await db.GroupBuyingSeats
             .Where(s => s.GroupBuyingId == command.BatchId && s.Status == SeatStatus.OnSale)
             .OrderBy(s => s.SeatNo)
