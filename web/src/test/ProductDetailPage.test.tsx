@@ -83,11 +83,13 @@ describe('product detail place order profile gate (audit: unknown retry)', () =>
   })
 
   it('navigates to login when retry returns 401 (true sign-out)', async () => {
+    const setStatus = vi.fn()
     vi.mocked(fetchProfile).mockRejectedValue(new ApiError(401, 'unauthorized'))
-    renderWith('unknown')
+    renderWith('unknown', { setProfileStatus: setStatus })
     await screen.findByText('测试箱子')
     await userEvent.click(screen.getByRole('button', { name: /立即开箱/ }))
     await waitFor(() => expect(screen.getByText('login-page')).toBeInTheDocument())
+    expect(setStatus).toHaveBeenCalledWith('anonymous')
   })
 
   it('shows a transient error (not login redirect) on non-401 retry failure', async () => {

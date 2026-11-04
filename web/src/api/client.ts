@@ -22,8 +22,12 @@ interface RequestOptions {
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await request(path, options)
   if (response.status === 401 && options.auth !== false) {
-    if (await tryRefresh()) {
+    const refreshStatus = await tryRefresh()
+    if (refreshStatus === 200) {
       return api<T>(path, { ...options, auth: false })
+    }
+    if (refreshStatus >= 500) {
+      throw new ApiError(refreshStatus, `Authentication refresh failed (${refreshStatus})`)
     }
   }
   return parseBody<T>(response)
@@ -47,7 +51,7 @@ async function request(path: string, options: RequestOptions): Promise<Response>
   })
 }
 
-async function tryRefresh(): Promise<boolean> {
+async function tryRefresh(): Promise<number> {
   const response = await fetch(`${API_BASE}/api/auth/refresh`, {
     method: 'POST',
     headers: {
@@ -57,11 +61,7 @@ async function tryRefresh(): Promise<boolean> {
     },
     credentials: 'same-origin',
   })
-  if (!response.ok) {
-    return false
-  }
-
-  return true
+  return response.status
 }
 
 async function parseBody<T>(response: Response): Promise<T> {

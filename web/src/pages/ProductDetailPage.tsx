@@ -190,6 +190,8 @@ export default function ProductDetailPage() {
       } catch (error: unknown) {
         if (error instanceof ApiError && error.status === 401) {
           // Definitive sign-out: send the user to the login page.
+          setProfile(null)
+          setProfileStatus('anonymous')
           navigate('/login')
         } else {
           setError('登录状态暂时不可用，请稍后再试')

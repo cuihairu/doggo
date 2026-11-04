@@ -526,10 +526,11 @@
 - [x] 审核发现：'unknown' 状态在 App 导航与 ProductDetailPage 语义相反——App.tsx:64 仅判 'loading'，'unknown' 落 else 显示「登录」链接（已登录但 /me 临时失败的会话在导航栏被显示为未登录）；ProductDetailPage:184 却把 'unknown' 当「可恢复会话」发起重试。同一状态两处解读相反，已登录用户 /me 网络抖动时导航显示「登录」而详情页却尝试下单恢复（web/src/App.tsx:64）(证据:App.tsx:99;ProductDetailPage.tsx:183;web pnpm test 10 绿)
 - [x] 审核发现：ProfileContext.ts:8 setProfileStatus 参数类型仍为 'loading'|'ready'|'anonymous'，未随 profileStatus 联合新增 'unknown'；当前因 App 用 useState 的 setter（兼容宽联合赋值）编译通过，但 context 接口契约与实际可设值脱节，任何消费方调 setProfileStatus('unknown') 会被 TS 拒绝，接口未同步扩展（web/src/ProfileContext.ts:8）(证据:ProfileContext.ts:8;web pnpm build 绿)
 - [x] 审核发现：web 端登录态状态机改动（新增 'unknown'、'loading'/'unknown' 分支、handleSignOut 成功后才清状态）无任何自动化测试——web 无 test 脚本、无 vitest/jest/@testing-library（web/package.json scripts 仅 dev/build/lint/preview，无测试框架），登录态三分支回归只能靠人工验证；服务端 EmptyBodyBehavior/RefreshResult 修复有 AuthApiTests.cs:108 空 body 刷新覆盖（web/src/App.tsx:22,30,64;ProductDetailPage.tsx:177-198）(证据:web/package.json:12;App.test.tsx:1;ProductDetailPage.test.tsx:1;web pnpm test 10 绿)
-- [ ] 审核发现：新增测试依赖和升级后的插件未同步更新 web/pnpm-lock.yaml，导致 Web Docker 构建中的 frozen-lockfile 安装直接失败（web/package.json:20）
-- [ ] 审核发现：访问令牌过期且刷新接口返回 5xx 时，客户端仍抛出原始 /me 的 401，此处误判为已登出并隐藏会话重试入口（web/src/App.tsx:26）
-- [ ] 审核发现：商品页重试会话收到 401 后只跳转登录页，未将共享登录状态设为 anonymous，导致导航栏仍显示会话检查失败且后续购买继续重复检查（web/src/pages/ProductDetailPage.tsx:193）
+- [x] 审核发现：新增测试依赖和升级后的插件未同步更新 web/pnpm-lock.yaml，导致 Web Docker 构建中的 frozen-lockfile 安装直接失败（web/package.json:20）(已修：同步 vitest/jsdom/@testing-library/* 与 @vitejs/plugin-react 入锁；隔离 workspace 环境复核 `pnpm install --frozen-lockfile` 通过；web pnpm test 12 绿、build 绿)
+- [x] 审核发现：访问令牌过期且刷新接口返回 5xx 时，客户端仍抛出原始 /me 的 401，此处误判为已登出并隐藏会话重试入口（web/src/App.tsx:26）(已修：tryRefresh 返回状态，5xx 抛刷新失败而不是回抛 401；client.test.ts 覆盖 503；web pnpm test 12 绿、build 绿)
+- [x] 审核发现：商品页重试会话收到 401 后只跳转登录页，未将共享登录状态设为 anonymous，导致导航栏仍显示会话检查失败且后续购买继续重复检查（web/src/pages/ProductDetailPage.tsx:193）(已修：401 时同步 `setProfile(null)` 与 `setProfileStatus('anonymous')`；ProductDetailPage.test.tsx 断言状态；web pnpm test 12 绿、build 绿)
 - [x] 审核发现：代码块仅对 pre 设置换行，但 VitePress 默认样式在内层 code 上显式设置 white-space: pre，长代码行仍不换行，窄屏仍需横向滚动（docs/.vitepress/theme/custom.css:2）(已修：选择器扩为 `.vp-doc div[class*='language-'] pre, ... pre code`，内层 code 继承换行，docs/.vitepress/theme/custom.css:2-5；dd9b8f7；docs build 绿)
 - [x] 审核发现：内容宽度覆盖的选择器优先级低于 VitePress 组件的 scoped 样式，带侧栏目录的正文仍限宽 688px、无侧栏正文仍限宽 752/784px，设置的 960px 不生效（docs/.vitepress/theme/custom.css:9）(已修：三处 max-width 补 `!important` 压过 scoped 默认限宽，docs/.vitepress/theme/custom.css:8-14；dd9b8f7；docs build 绿)
 
 - [x] 审核发现：两版 README 的待办统计仍写已完成 328 项，但本次提交中两条 CSS 审核项已勾选，HEAD 实际为 354 项中完成 330 项（README.md:82；README.zh.md:82）(已修：两版 README 计数随本行勾选重算为 331 of 355／已完成 331 项；grep 复核 `[x]`=331、`[ ]`=24；同 commit)
+- [x] 审核发现：本轮 diff 未见问题（6180452e..HEAD）(复核属实：范围仅 e8db18a 三文档计数更新，README 331/355 与当时 331 勾、24 未勾一致；无代码改动)
