@@ -380,8 +380,8 @@
 
 ## 未完成项
 
-- [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号 — BLOCKED 缺可用的 vapor 实例与 Steam 账号
-- [ ] 小程序提审:需主体资质、正式 AppID 与合法域名 — BLOCKED 缺主体资质、正式 AppID 与合法域名
+- [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号 — BLOCKED 缺可用的 vapor 实例与 Steam 账号　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 小程序提审:需主体资质、正式 AppID 与合法域名 — BLOCKED 缺主体资质、正式 AppID 与合法域名　复核注记：2026-11-04 复核仍缺外部条件
 - [x] docs 双语补齐
 - [x] docs/ 根目录:审计-文档一致性.md 已配 docs/en/审计-文档一致性.md(真实英译)
 - [x] docs/index.md:用户已代决=站点级 i18n(config.mts 加 `locales.{root,en}`,英文首页挂 /en/;home 页不塞逐页切换器,语言切换走站点级导航 `VPNavBarTranslations`,两个 locale 各声明 label 即出现)。复核注:home 布局正文实际会渲染(dist/index.html 的 `.vp-doc` 内含「界面预览」与截图 `<img>`),原「不渲染正文、切换器无处放」的判断有误;按代决执行,不影响验收
@@ -439,22 +439,22 @@
 
 ### 待处理
 
-- [ ] 深审 P0 部署:MockPaymentProvider 在生产被注册为唯一支付渠道(Program.cs:83;需 fail-closed 或接入真实渠道,本轮仅修金额校验) — BLOCKED 缺真实支付渠道接入决策与凭据(Alipay/WeChat 密钥),Program.cs:83 注释明示属部署里程碑
-- [ ] 深审 P0 并发:取消与支付回调竞态,UserOrder 无乐观锁(OrderService.cs:241-256;需条件更新或 rowversion) — BLOCKED 缺真实 MySQL 验证行级并发/乐观锁(InMemory 不强制),需 EF migration+条件更新
-- [ ] 深审 P0 并发:roll 开奖无双实例锁,两 worker 同开双中奖(RollService.cs:121-173) — BLOCKED 缺真实 MySQL 验证原子状态迁移(InMemory 不强制),需条件更新或分布式锁
-- [ ] 深审 P0 并发:roll 金币奖励双发,ClaimedAtUtc 竞态(RollService.cs:204-266) — BLOCKED 缺真实 MySQL 验证条件更新(InMemory 不强制),需并发令牌+幂等约束
-- [ ] 深审 P1 并发:金币余额非原子读改写,无并发令牌(CoinService.cs:38-176) — BLOCKED 缺真实 MySQL 验证余额 RMW(InMemory 不强制),需 rowversion/原子 SQL
-- [ ] 深审 P1 并发:优惠券双用,UsedOrderId 无唯一索引(CouponService.cs:169-208) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束
-- [ ] 深审 P1 并发:兑换码超兑+先发币后记账失败(CouponService.cs:62-106) — BLOCKED 缺真实 MySQL 验证事务+原子自增(InMemory 不支持事务),需事务重构
-- [ ] 深审 P1 一致性:下单部分失败不回滚库存/券/币(OrderService.cs:98-157) — BLOCKED 缺真实 MySQL 验证事务(InMemory 不支持事务),需事务包裹多步写入
+- [ ] 深审 P0 部署:MockPaymentProvider 在生产被注册为唯一支付渠道(Program.cs:83;需 fail-closed 或接入真实渠道,本轮仅修金额校验) — BLOCKED 缺真实支付渠道接入决策与凭据(Alipay/WeChat 密钥),Program.cs:83 注释明示属部署里程碑　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P0 并发:取消与支付回调竞态,UserOrder 无乐观锁(OrderService.cs:241-256;需条件更新或 rowversion) — BLOCKED 缺真实 MySQL 验证行级并发/乐观锁(InMemory 不强制),需 EF migration+条件更新　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P0 并发:roll 开奖无双实例锁,两 worker 同开双中奖(RollService.cs:121-173) — BLOCKED 缺真实 MySQL 验证原子状态迁移(InMemory 不强制),需条件更新或分布式锁　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P0 并发:roll 金币奖励双发,ClaimedAtUtc 竞态(RollService.cs:204-266) — BLOCKED 缺真实 MySQL 验证条件更新(InMemory 不强制),需并发令牌+幂等约束　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P1 并发:金币余额非原子读改写,无并发令牌(CoinService.cs:38-176) — BLOCKED 缺真实 MySQL 验证余额 RMW(InMemory 不强制),需 rowversion/原子 SQL　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P1 并发:优惠券双用,UsedOrderId 无唯一索引(CouponService.cs:169-208) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P1 并发:兑换码超兑+先发币后记账失败(CouponService.cs:62-106) — BLOCKED 缺真实 MySQL 验证事务+原子自增(InMemory 不支持事务),需事务重构　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P1 一致性:下单部分失败不回滚库存/券/币(OrderService.cs:98-157) — BLOCKED 缺真实 MySQL 验证事务(InMemory 不支持事务),需事务包裹多步写入　复核注记：2026-11-04 复核仍缺外部条件
 - [x] 深审 P1 校验:CoinDeduction 不封顶且 plan 的 CanUseCoin/CanUseCoupon 未强制(OrderService.cs:136-152)(证据:d24107c/b9bf2f6,OrderService.cs:87、OrderService.cs:154)
-- [ ] 深审 P1 并发:退款先打款后复查致双退(OrderService.cs:287-328) — BLOCKED 缺真实 MySQL 验证原子退款声明(InMemory 不强制),需先声明后打款的事务/条件更新
-- [ ] 深审 P1 并发:手机/邮箱无唯一约束致重复注册(AuthService.cs:85-90) — BLOCKED 缺真实 MySQL 验证唯一索引对既有数据无冲突(InMemory 不强制),需 EF migration 唯一约束
-- [ ] 深审 P1 并发:refresh token 轮换竞态,双 token 有效(AuthService.cs:223-262) — BLOCKED 缺真实 MySQL 验证原子撤销(WHERE RevokedAtUtc IS NULL)(InMemory 不强制),需条件更新
-- [ ] 深审 P1 并发:签到双发,MakeupOrderNo 无唯一约束(SignService.cs:53-99) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束
-- [ ] 深审 P1 并发:邀请一次性竞态(InviteService.cs:38-53) — BLOCKED 缺真实 MySQL 验证原子认领(InMemory 不强制),需条件更新/唯一约束
-- [ ] 深审 P1 并发:roll 重复加入无唯一约束(RollService.cs:83-115) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束
-- [ ] 深审 P1 可靠性:webhook 幂等先声明,处理失败丢事件(VaporEndpoints.cs:71-93) — BLOCKED 缺真实 MySQL 验证幂等声明与处理事务一致性(InMemory 不强制),需 outbox/事务
+- [ ] 深审 P1 并发:退款先打款后复查致双退(OrderService.cs:287-328) — BLOCKED 缺真实 MySQL 验证原子退款声明(InMemory 不强制),需先声明后打款的事务/条件更新　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P1 并发:手机/邮箱无唯一约束致重复注册(AuthService.cs:85-90) — BLOCKED 缺真实 MySQL 验证唯一索引对既有数据无冲突(InMemory 不强制),需 EF migration 唯一约束　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P1 并发:refresh token 轮换竞态,双 token 有效(AuthService.cs:223-262) — BLOCKED 缺真实 MySQL 验证原子撤销(WHERE RevokedAtUtc IS NULL)(InMemory 不强制),需条件更新　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P1 并发:签到双发,MakeupOrderNo 无唯一约束(SignService.cs:53-99) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P1 并发:邀请一次性竞态(InviteService.cs:38-53) — BLOCKED 缺真实 MySQL 验证原子认领(InMemory 不强制),需条件更新/唯一约束　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P1 并发:roll 重复加入无唯一约束(RollService.cs:83-115) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P1 可靠性:webhook 幂等先声明,处理失败丢事件(VaporEndpoints.cs:71-93) — BLOCKED 缺真实 MySQL 验证幂等声明与处理事务一致性(InMemory 不强制),需 outbox/事务　复核注记：2026-11-04 复核仍缺外部条件
 - [x] 深审 P2 安全:NewsDetailPage/ArticlePage 未消毒 HTML 渲染(NewsDetailPage.tsx:44、ArticlePage.tsx:37;新闻已在服务端消毒 NewsStore.cs:62,文章为运营所写,降为纵深防御)(证据:a69c6a7,web/src/pages/NewsDetailPage.tsx:44、ArticlePage.tsx:37)
 - [x] 深审 P2 安全:token 存 localStorage(client.ts:14-17)(证据:87dba79,web/src/api/client.ts:5、server/src/Doggo.Api/Endpoints/AuthCookies.cs:20;AuthApiTests.cs:96)
 - [x] 深审 P2 部署:nginx admin IP 白名单默认注释(doggo.conf.template:82-91)(证据:doggo.conf.template:83、doggo.conf.template:88;docs/guide/deployment.md:54)
@@ -464,15 +464,15 @@
 - [x] 深审 P2 安全:roll 开奖用 Random.Shared 非加密(RollService.cs:162)(证据:bfb6fe4,AliasMethod.cs:103、RollService.cs:163)
 - [x] 深审 P2 正确性:漏斗聚合写出 to 之后的行(FunnelAggregator.cs:26-77)(证据:a69c6a7,FunnelAggregator.cs:104)
 - [x] 深审 P2 正确性:行情日线混币种无换算(MarketStore.cs:161-230)(证据:a69c6a7,MarketStore.cs:199、MarketEntities.cs:36;MarketStoreTests.cs:149)
-- [ ] 深审 P2 并发:重复提交取回双发 trade offer(OrderService.cs:406-463) — BLOCKED 缺真实 MySQL 验证原子状态迁移(InMemory 不强制),需条件更新进入 Retrieving
+- [ ] 深审 P2 并发:重复提交取回双发 trade offer(OrderService.cs:406-463) — BLOCKED 缺真实 MySQL 验证原子状态迁移(InMemory 不强制),需条件更新进入 Retrieving　复核注记：2026-11-04 复核仍缺外部条件
 - [x] 深审 P2 正确性:SteamOpenId 状态过期时间按本地时区解析(SteamOpenIdService.cs:129-130)(证据:a69c6a7,SteamOpenIdService.cs:130)
 - [x] 深审 P2 正确性:GroupBuyingView 对重复 OrderId 的 ToDictionary 抛异常(CaseEndpoints.cs:61、331)(证据:a69c6a7,CaseEndpoints.cs:87)
-- [ ] 深审 P2 并发:同模板双开房(RollService.cs:273-309) — BLOCKED 缺真实 MySQL 验证唯一约束(InMemory 不强制),需 EF migration 唯一索引
+- [ ] 深审 P2 并发:同模板双开房(RollService.cs:273-309) — BLOCKED 缺真实 MySQL 验证唯一约束(InMemory 不强制),需 EF migration 唯一索引　复核注记：2026-11-04 复核仍缺外部条件
 - [x] 深审 P3 卫生:axios 0.27.2 传递依赖(证据:admin/pnpm-workspace.yaml:6 override axios=1.20.0、admin/package.json:23 pnpm.overrides 同步、admin/pnpm-lock.yaml:2147 锁定 axios@1.20.0;pnpm build 编译成功,Umi v4.7.23 webpack 无冲突)
 - [x] 深审 P3 卫生:mysqladmin 密码作 CLI 参数(证据:docker-compose.yml:17、docker-compose.prod.yml:19 改 `--defaults-extra-file=<(printf '[client]...')`;docker compose config 通过,容器 healthy,dotnet test 184+107 全绿)
 <!-- 审核发现:CI 硬编码凭据(mobile.yml:86-88、104-106)不属实:该凭据仅为 CI 验收 runner 内临时 MySQL/API 的测试夹具与 seed 数据,非真实生产凭据,无泄露风险,无需改 -->
 - [x] 深审 P3 卫生:小程序 RichText 注入(证据:miniapp/src/pages/newsdetail/newsdetail.tsx:58、miniapp/package.json:35 xss@^1.0.17;filterXSS stripIgnoreTagBody 剥离 script/iframe/svg 等,typecheck+build 绿)
-- [ ] 深审 P3 卫生:小程序 urlCheck false(project.config.json:8) — BLOCKED 缺正式 AppID 与微信后台合法域名配置(改 true 需同批上线域名,属用户侧资产,todo.md:384 提审已 BLOCKED)
+- [ ] 深审 P3 卫生:小程序 urlCheck false(project.config.json:8) — BLOCKED 缺正式 AppID 与微信后台合法域名配置(改 true 需同批上线域名,属用户侧资产,todo.md:384 提审已 BLOCKED)　复核注记：2026-11-04 复核仍缺外部条件
 - [x] 深审 P3 卫生:http 默认 API base(证据:shared/src/client.ts:8 默认空+rawRequest fail-closed、miniapp/config/index.ts:20 env 注入 TARO_APP_API_BASE;miniapp build 注入 http://127.0.0.1:8082,typecheck+build 绿;mobile 保留模拟器默认经 setApiBase)
 - [x] 深审 P3 卫生:nginx 缺安全头(证据:doggo.conf.template:48-50、doggo.conf.template:82-84 add_header nosniff/referrer-policy/frame-deny;nginx -t 语法 ok,curl 实测三头均返回)
 - [x] 深审 P3 卫生:inspectLink 无 scheme 白名单(CaseOpeningPage.tsx:108)(证据:a69c6a7,CaseOpeningPage.tsx:108、web/src/lib/url.ts:3)
