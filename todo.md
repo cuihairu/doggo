@@ -531,3 +531,5 @@
 - [ ] 审核发现：商品页重试会话收到 401 后只跳转登录页，未将共享登录状态设为 anonymous，导致导航栏仍显示会话检查失败且后续购买继续重复检查（web/src/pages/ProductDetailPage.tsx:193）
 - [x] 审核发现：代码块仅对 pre 设置换行，但 VitePress 默认样式在内层 code 上显式设置 white-space: pre，长代码行仍不换行，窄屏仍需横向滚动（docs/.vitepress/theme/custom.css:2）(已修：选择器扩为 `.vp-doc div[class*='language-'] pre, ... pre code`，内层 code 继承换行，docs/.vitepress/theme/custom.css:2-5；dd9b8f7；docs build 绿)
 - [x] 审核发现：内容宽度覆盖的选择器优先级低于 VitePress 组件的 scoped 样式，带侧栏目录的正文仍限宽 688px、无侧栏正文仍限宽 752/784px，设置的 960px 不生效（docs/.vitepress/theme/custom.css:9）(已修：三处 max-width 补 `!important` 压过 scoped 默认限宽，docs/.vitepress/theme/custom.css:8-14；dd9b8f7；docs build 绿)
+
+- [x] 审核发现：两版 README 的待办统计仍写已完成 328 项，但本次提交中两条 CSS 审核项已勾选，HEAD 实际为 354 项中完成 330 项（README.md:82；README.zh.md:82）(已修：两版 README 计数随本行勾选重算为 331 of 355／已完成 331 项；grep 复核 `[x]`=331、`[ ]`=24；同 commit)
