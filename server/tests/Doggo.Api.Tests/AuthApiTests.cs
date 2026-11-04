@@ -18,6 +18,9 @@ public class AuthApiTests(ApiFactory factory) : ApiTestBase(factory)
     private static StringContent Json(object payload) =>
         new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
+    private static StringContent EmptyJson() =>
+        new(string.Empty, Encoding.UTF8, "application/json");
+
     private async Task<JsonElement> RegisterAsync(HttpClient client, string account = Account, string password = Password)
     {
         var response = await client.PostAsync("/api/auth/register", Json(new { account, password }));
@@ -92,20 +95,25 @@ public class AuthApiTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.Equal(HttpStatusCode.Created, register.StatusCode);
         Assert.Contains(register.Headers, h => h.Key == "Set-Cookie" && h.Value.Any(v => v.Contains("doggo.access_token")));
         Assert.Contains(register.Headers, h => h.Key == "Set-Cookie" && h.Value.Any(v => v.Contains("doggo.refresh_token")));
+        var registerBody = JsonDocument.Parse(await register.Content.ReadAsStringAsync()).RootElement;
+        Assert.False(registerBody.TryGetProperty("accessToken", out _));
+        Assert.False(registerBody.TryGetProperty("refreshToken", out _));
 
         // No Authorization header: the cookie alone must authenticate /me.
         var me = await client.GetAsync("/api/auth/me");
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
 
-        // A fresh client with only the cookie (no bearer, no JS token) can refresh.
-        var refresh = await client.PostAsync("/api/auth/refresh", Json(new { }));
+        // A fresh client with only the cookie (no bearer, no JS token) can refresh
+        // using the exact empty body sent by the web client.
+        var refresh = await client.PostAsync("/api/auth/refresh", EmptyJson());
         Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
-        var newRefresh = JsonDocument.Parse(await refresh.Content.ReadAsStringAsync()).RootElement
-            .GetProperty("refreshToken").GetString()!;
-        Assert.False(string.IsNullOrEmpty(newRefresh));
+        var refreshBody = JsonDocument.Parse(await refresh.Content.ReadAsStringAsync()).RootElement;
+        Assert.True(refreshBody.TryGetProperty("accessTokenExpiresAtUtc", out _));
+        Assert.False(refreshBody.TryGetProperty("accessToken", out _));
+        Assert.False(refreshBody.TryGetProperty("refreshToken", out _));
 
         // Logout clears the session; /me then fails.
-        var logout = await client.PostAsync("/api/auth/logout", Json(new { }));
+        var logout = await client.PostAsync("/api/auth/logout", EmptyJson());
         Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
         var afterLogout = await client.GetAsync("/api/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, afterLogout.StatusCode);

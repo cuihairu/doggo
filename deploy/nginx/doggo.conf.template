@@ -56,6 +56,13 @@ server {
 
     # Vapor webhooks are the only unauthenticated API caller; nothing else
     # on the API needs to be reachable except through the web origin.
+    # Management endpoints are never reachable from the public main domain;
+    # they belong exclusively to the IP-allowlisted admin origin below.
+    location /api/admin/ {
+        deny all;
+        return 403;
+    }
+
     location /api/ {
         proxy_pass http://doggo_api;
         proxy_set_header Host $host;

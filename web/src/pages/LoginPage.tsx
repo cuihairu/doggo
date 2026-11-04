@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const { setProfile } = useContext(ProfileContext)
+  const { setProfile, setProfileStatus } = useContext(ProfileContext)
   const navigate = useNavigate()
 
   async function submit() {
@@ -26,6 +26,7 @@ export default function LoginPage() {
         await apiRegister(account, password, inviteCode || undefined)
       }
       setProfile(await fetchProfile())
+      setProfileStatus('ready')
       navigate('/')
     } catch (err) {
       setError(String((err as Error).message ?? err))

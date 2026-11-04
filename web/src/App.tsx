@@ -1,12 +1,12 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { clearTokens } from './api/client'
-import { fetchProfile, type Profile } from './api/auth'
+import { fetchProfile, logout, type Profile } from './api/auth'
 import { ProfileContext } from './ProfileContext'
 import { useTheme, type ThemeId } from './theme'
 
 export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [profileStatus, setProfileStatus] = useState<'loading' | 'ready' | 'anonymous'>('loading')
   const navigate = useNavigate()
   const { theme, themes, setTheme } = useTheme()
 
@@ -14,23 +14,30 @@ export default function App() {
     // The access token lives in an httpOnly cookie, so presence is only known by
     // asking the server; a 401 simply means the visitor is signed out.
     fetchProfile()
-      .then(setProfile)
+      .then((loadedProfile) => {
+        setProfile(loadedProfile)
+        setProfileStatus('ready')
+      })
       .catch(() => {
-        clearTokens()
         setProfile(null)
+        setProfileStatus('anonymous')
       })
   }, [])
 
-  const signedIn = profile !== null
+  const signedIn = profileStatus === 'ready' && profile !== null
 
-  function handleSignOut() {
-    clearTokens()
-    setProfile(null)
-    navigate('/')
+  async function handleSignOut() {
+    try {
+      await logout()
+    } finally {
+      setProfile(null)
+      setProfileStatus('anonymous')
+      navigate('/')
+    }
   }
 
   return (
-    <ProfileContext.Provider value={{ profile, setProfile }}>
+    <ProfileContext.Provider value={{ profile, profileStatus, setProfile, setProfileStatus }}>
       <div className="app-shell">
         <nav className="app-nav">
           <span className="app-logo">Doggo</span>
@@ -51,7 +58,9 @@ export default function App() {
               </option>
             ))}
           </select>
-          {signedIn ? (
+          {profileStatus === 'loading' ? (
+            <span className="muted" aria-busy="true">检查登录…</span>
+          ) : signedIn ? (
             <>
               <span className="app-user">{profile.nickname}</span>
               <NavLink to="/user">用户中心</NavLink>
@@ -59,7 +68,7 @@ export default function App() {
                 href="#signout"
                 onClick={(event) => {
                   event.preventDefault()
-                  handleSignOut()
+                  void handleSignOut()
                 }}
               >
                 退出

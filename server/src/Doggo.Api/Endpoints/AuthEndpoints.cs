@@ -19,6 +19,24 @@ public static class AuthEndpoints
             result.RefreshToken, DateTime.UtcNow.AddDays(Math.Max(options.RefreshTokenDays, 1)));
     }
 
+    /// <summary>Browser sessions keep both tokens in httpOnly cookies, so the JSON
+    /// body must not leak them to JS (XSS could otherwise read them back). Native
+    /// clients (mobile/miniapp) still receive the full pair in the body.</summary>
+    private static IResult BrowserResult(HttpContext context, string? uri, AuthResult result)
+    {
+        var body = new { result.UserId, result.Nickname };
+        return uri is null ? Results.Ok(body) : Results.Created(uri, body);
+    }
+
+    private static IResult RefreshResult(HttpContext context, AuthResult result)
+    {
+        // Only the access-token expiry is needed to schedule the next refresh;
+        // the new token values are already in httpOnly cookies for browsers.
+        return AuthCookies.IsBrowser(context)
+            ? Results.Ok(new { result.AccessTokenExpiresAtUtc })
+            : Results.Ok(result);
+    }
+
     public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/auth");
@@ -38,7 +56,9 @@ public static class AuthEndpoints
                     context.Request.Headers.UserAgent.ToString(),
                     cancellationToken);
                 SetBrowserCookies(context, result, authOptions.Value);
-                return Results.Created($"/api/auth/me", result);
+                return AuthCookies.IsBrowser(context)
+                    ? BrowserResult(context, $"/api/auth/me", result)
+                    : Results.Created($"/api/auth/me", result);
             }
             catch (AuthValidationException ex)
             {
@@ -66,7 +86,9 @@ public static class AuthEndpoints
                     context.Request.Headers.UserAgent.ToString(),
                     cancellationToken);
                 SetBrowserCookies(context, result, authOptions.Value);
-                return Results.Ok(result);
+                return AuthCookies.IsBrowser(context)
+                    ? BrowserResult(context, null, result)
+                    : Results.Ok(result);
             }
             catch (AuthValidationException ex)
             {
@@ -94,7 +116,9 @@ public static class AuthEndpoints
                     context.Request.Headers.UserAgent.ToString(),
                     cancellationToken);
                 SetBrowserCookies(context, result, authOptions.Value);
-                return Results.Ok(result);
+                return AuthCookies.IsBrowser(context)
+                    ? BrowserResult(context, null, result)
+                    : Results.Ok(result);
             }
             catch (AuthValidationException ex)
             {
@@ -116,7 +140,7 @@ public static class AuthEndpoints
 
         group.MapPost("/refresh", async (
             HttpContext context,
-            [FromBody] RefreshRequest request,
+            [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshRequest? request,
             [FromServices] AuthService auth,
             [FromServices] IOptions<AuthOptions> authOptions,
             CancellationToken cancellationToken) =>
@@ -125,7 +149,7 @@ public static class AuthEndpoints
             {
                 var refreshToken = AuthCookies.IsBrowser(context)
                     ? context.Request.Cookies[AuthCookies.RefreshTokenCookie]
-                    : request.RefreshToken;
+                    : request?.RefreshToken;
                 if (string.IsNullOrEmpty(refreshToken))
                 {
                     return Results.Problem("Refresh token is required.", statusCode: StatusCodes.Status400BadRequest);
@@ -136,7 +160,7 @@ public static class AuthEndpoints
                     AuthCookies.SetTokens(context, result.AccessToken, result.AccessTokenExpiresAtUtc,
                         result.RefreshToken, DateTime.UtcNow.AddDays(Math.Max(authOptions.Value.RefreshTokenDays, 1)));
                 }
-                return Results.Ok(result);
+                return RefreshResult(context, result);
             }
             catch (AuthValidationException ex)
             {
@@ -150,13 +174,13 @@ public static class AuthEndpoints
 
         group.MapPost("/logout", async (
             HttpContext context,
-            [FromBody] RefreshRequest request,
+            [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshRequest? request,
             [FromServices] AuthService auth,
             CancellationToken cancellationToken) =>
         {
             var refreshToken = AuthCookies.IsBrowser(context)
                 ? context.Request.Cookies[AuthCookies.RefreshTokenCookie]
-                : request.RefreshToken;
+                : request?.RefreshToken;
             if (!string.IsNullOrEmpty(refreshToken))
             {
                 await auth.LogoutAsync(refreshToken, cancellationToken);

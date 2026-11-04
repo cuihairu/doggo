@@ -145,8 +145,8 @@ export default function ProductDetailPage() {
   }, [id])
 
   // Sign-in is tracked via the app-wide profile (httpOnly cookie backed), not a JS token.
-  const { profile } = useContext(ProfileContext)
-  const signedIn = profile !== null
+  const { profile, profileStatus } = useContext(ProfileContext)
+  const signedIn = profileStatus === 'ready' && profile !== null
   const selectedSku = skus.find((sku) => sku.optionId === selectedSkuId) ?? null
   const canUseCoupon = selectedSku?.canUseCoupon ?? false
   const canUseCoin = selectedSku?.canUseCoin ?? false

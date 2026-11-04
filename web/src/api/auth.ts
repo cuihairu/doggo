@@ -1,11 +1,9 @@
 import { api, clearTokens } from './client'
 
-export interface AuthTokens {
+/** Browser sessions receive only the identity; tokens live in httpOnly cookies. */
+export interface BrowserAuthResult {
   userId: string
   nickname: string
-  accessToken: string
-  accessTokenExpiresAtUtc: string
-  refreshToken: string
 }
 
 export interface Profile {
@@ -20,18 +18,16 @@ export interface Profile {
   isAdmin: boolean
 }
 
-export async function register(account: string, password: string, inviteCode?: string): Promise<AuthTokens> {
-  const tokens = await api<AuthTokens>('/api/auth/register', {
+export async function register(account: string, password: string, inviteCode?: string): Promise<BrowserAuthResult> {
+  return api<BrowserAuthResult>('/api/auth/register', {
     body: { account, password, inviteCode },
   })
-  return tokens
 }
 
-export async function login(account: string, password: string): Promise<AuthTokens> {
-  const tokens = await api<AuthTokens>('/api/auth/login', {
+export async function login(account: string, password: string): Promise<BrowserAuthResult> {
+  return api<BrowserAuthResult>('/api/auth/login', {
     body: { account, password },
   })
-  return tokens
 }
 
 export async function logout(): Promise<void> {
