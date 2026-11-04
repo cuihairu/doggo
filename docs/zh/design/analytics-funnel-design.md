@@ -346,10 +346,34 @@ admin.MapGet("/funnel", async (
     {
       "key": "web",
       "steps": [
-        { "step": "page_view_product", "label": "浏览商品", "uv": 12000, "rate": 1.0,    "dropRate": 0.0 },
-        { "step": "checkout_intent",   "label": "加购",     "uv": 3600,  "rate": 0.30,  "dropRate": 0.70 },
-        { "step": "order_created",     "label": "下单",     "uv": 900,   "rate": 0.25,  "dropRate": 0.75 },
-        { "step": "order_paid",        "label": "支付",     "uv": 540,   "rate": 0.60,  "dropRate": 0.40 }
+        {
+          "step": "page_view_product",
+          "label": "浏览商品",
+          "uv": 12000,
+          "rate": 1.0,
+          "dropRate": 0.0
+        },
+        {
+          "step": "checkout_intent",
+          "label": "加购",
+          "uv": 3600,
+          "rate": 0.3,
+          "dropRate": 0.7
+        },
+        {
+          "step": "order_created",
+          "label": "下单",
+          "uv": 900,
+          "rate": 0.25,
+          "dropRate": 0.75
+        },
+        {
+          "step": "order_paid",
+          "label": "支付",
+          "uv": 540,
+          "rate": 0.6,
+          "dropRate": 0.4
+        }
       ]
     },
     { "key": "miniapp", "steps": [ /* ... */ ] }
