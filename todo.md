@@ -518,3 +518,11 @@
 - [x] 审核发现：BrowserResult 冗余 context 参数——AuthEndpoints.cs:25 签名 BrowserResult(HttpContext context,…) 的 context 在方法体内从未使用（仅用 result 与 uri），三处调用（:60、:90、:120）均传 context 属冗余，可移除（server/src/Doggo.Api/Endpoints/AuthEndpoints.cs:25）(证据:AuthEndpoints.cs:25,60,90,120;dotnet test 526 绿)
 - [x] 审核发现：clearTokens 变 no-op 后仍被导出并调用——client.ts:3 clearTokens(){} 为空实现，auth.ts:36（logout 成功后）与 client.ts:63（tryRefresh 失败）仍调用之，无实际作用且暗示仍有 JS token 需清理，误导后续维护，宜删除函数与调用点（web/src/api/client.ts:3）(证据:client.ts:3,63;auth.ts:36;web pnpm build 绿)
 - [x] 审核发现：handleSignOut 吞掉登出失败——App.tsx:29-37 try/finally 中 logout() 网络失败时 finally 仍 setProfile(null) 并 navigate('/')，但服务端未吊销 refresh token、未清 httpOnly cookie，刷新页面后 fetchProfile 凭仍有效 cookie 重新登录，「退出」UI 上看似成功实则未生效（仅乐观隐藏）；建议 logout 成功后再清状态，失败时保留会话并提示（web/src/App.tsx:29-37）(证据:App.tsx:29,33;auth.ts:33;web pnpm build 绿)
+
+
+## 审核发现：253adaa7..HEAD（1 commit：dbaa6fa）
+
+- [x] 审核发现：/me 失败一律落 'unknown'（App.tsx:22-25 仅 .catch），混淆「401 真未登录」与「网络/服务故障」；ProductDetailPage:184 对 'unknown' 走 fetchProfile 重试而非跳 /login，真未登录用户点「购买」先多打一次注定失败的 /me、被挡在「登录状态暂时不可用」错误而非跳转登录页，相对基线（'anonymous'→直接 navigate('/login')，base ProductDetailPage.tsx:178-181）为回归（web/src/App.tsx:24）(证据:App.tsx:25;ProductDetailPage.tsx:183;web pnpm test 10 绿)
+- [x] 审核发现：'unknown' 状态在 App 导航与 ProductDetailPage 语义相反——App.tsx:64 仅判 'loading'，'unknown' 落 else 显示「登录」链接（已登录但 /me 临时失败的会话在导航栏被显示为未登录）；ProductDetailPage:184 却把 'unknown' 当「可恢复会话」发起重试。同一状态两处解读相反，已登录用户 /me 网络抖动时导航显示「登录」而详情页却尝试下单恢复（web/src/App.tsx:64）(证据:App.tsx:99;ProductDetailPage.tsx:183;web pnpm test 10 绿)
+- [x] 审核发现：ProfileContext.ts:8 setProfileStatus 参数类型仍为 'loading'|'ready'|'anonymous'，未随 profileStatus 联合新增 'unknown'；当前因 App 用 useState 的 setter（兼容宽联合赋值）编译通过，但 context 接口契约与实际可设值脱节，任何消费方调 setProfileStatus('unknown') 会被 TS 拒绝，接口未同步扩展（web/src/ProfileContext.ts:8）(证据:ProfileContext.ts:8;web pnpm build 绿)
+- [x] 审核发现：web 端登录态状态机改动（新增 'unknown'、'loading'/'unknown' 分支、handleSignOut 成功后才清状态）无任何自动化测试——web 无 test 脚本、无 vitest/jest/@testing-library（web/package.json scripts 仅 dev/build/lint/preview，无测试框架），登录态三分支回归只能靠人工验证；服务端 EmptyBodyBehavior/RefreshResult 修复有 AuthApiTests.cs:108 空 body 刷新覆盖（web/src/App.tsx:22,30,64;ProductDetailPage.tsx:177-198）(证据:web/package.json:12;App.test.tsx:1;ProductDetailPage.test.tsx:1;web pnpm test 10 绿)

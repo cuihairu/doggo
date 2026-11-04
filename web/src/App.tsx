@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { fetchProfile, logout, type Profile } from './api/auth'
+import { ApiError } from './api/client'
 import { ProfileContext, type ProfileContextValue } from './ProfileContext'
 import { useTheme, type ThemeId } from './theme'
 
@@ -19,13 +20,26 @@ export default function App() {
         setProfile(loadedProfile)
         setProfileStatus('ready')
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         setProfile(null)
-        setProfileStatus('unknown')
+        // A 401 is a definitive sign-out; anything else is a transient failure.
+        setProfileStatus(error instanceof ApiError && error.status === 401 ? 'anonymous' : 'unknown')
       })
   }, [])
 
   const signedIn = profileStatus === 'ready' && profile !== null
+
+  async function retryProfile() {
+    setProfileStatus('loading')
+    try {
+      const loadedProfile = await fetchProfile()
+      setProfile(loadedProfile)
+      setProfileStatus('ready')
+    } catch (error: unknown) {
+      setProfile(null)
+      setProfileStatus(error instanceof ApiError && error.status === 401 ? 'anonymous' : 'unknown')
+    }
+  }
 
   async function handleSignOut() {
     try {
@@ -77,6 +91,16 @@ export default function App() {
                 退出
               </a>
             </>
+          ) : profileStatus === 'unknown' ? (
+            <a
+              href="#retry-profile"
+              onClick={(event) => {
+                event.preventDefault()
+                void retryProfile()
+              }}
+            >
+              会话检查失败，重试
+            </a>
           ) : (
             <NavLink to="/login">登录</NavLink>
           )}

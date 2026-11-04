@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, ApiError } from '../api/client'
 import { trackEvent } from '../api/events'
 import { fetchProfile } from '../api/auth'
 import { ProfileContext } from '../ProfileContext'
@@ -187,8 +187,13 @@ export default function ProductDetailPage() {
         setProfile(loadedProfile)
         setProfileStatus('ready')
         sessionReady = true
-      } catch {
-        setError('登录状态暂时不可用，请稍后再试')
+      } catch (error: unknown) {
+        if (error instanceof ApiError && error.status === 401) {
+          // Definitive sign-out: send the user to the login page.
+          navigate('/login')
+        } else {
+          setError('登录状态暂时不可用，请稍后再试')
+        }
         return
       }
     }
