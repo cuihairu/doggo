@@ -58,7 +58,7 @@ server {
     # on the API needs to be reachable except through the web origin.
     # Management endpoints are never reachable from the public main domain;
     # they belong exclusively to the IP-allowlisted admin origin below.
-    location /api/admin/ {
+    location /api/admin {
         deny all;
         return 403;
     }

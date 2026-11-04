@@ -1,12 +1,13 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { fetchProfile, logout, type Profile } from './api/auth'
-import { ProfileContext } from './ProfileContext'
+import { ProfileContext, type ProfileContextValue } from './ProfileContext'
 import { useTheme, type ThemeId } from './theme'
 
 export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [profileStatus, setProfileStatus] = useState<'loading' | 'ready' | 'anonymous'>('loading')
+  const [profileStatus, setProfileStatus] = useState<ProfileContextValue['profileStatus']>('loading')
+  const [signOutError, setSignOutError] = useState('')
   const navigate = useNavigate()
   const { theme, themes, setTheme } = useTheme()
 
@@ -20,7 +21,7 @@ export default function App() {
       })
       .catch(() => {
         setProfile(null)
-        setProfileStatus('anonymous')
+        setProfileStatus('unknown')
       })
   }, [])
 
@@ -29,10 +30,12 @@ export default function App() {
   async function handleSignOut() {
     try {
       await logout()
-    } finally {
       setProfile(null)
       setProfileStatus('anonymous')
+      setSignOutError('')
       navigate('/')
+    } catch {
+      setSignOutError('退出失败，请重试')
     }
   }
 
@@ -77,6 +80,7 @@ export default function App() {
           ) : (
             <NavLink to="/login">登录</NavLink>
           )}
+          {signOutError && <span className="error-text">{signOutError}</span>}
         </nav>
         <main className="app-main">
           <Outlet />

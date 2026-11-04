@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Routing;
 
 namespace Doggo.Api.Endpoints;
@@ -22,13 +23,13 @@ public static class AuthEndpoints
     /// <summary>Browser sessions keep both tokens in httpOnly cookies, so the JSON
     /// body must not leak them to JS (XSS could otherwise read them back). Native
     /// clients (mobile/miniapp) still receive the full pair in the body.</summary>
-    private static IResult BrowserResult(HttpContext context, string? uri, AuthResult result)
+    private static IResult BrowserResult(string? uri, AuthResult result)
     {
         var body = new { result.UserId, result.Nickname };
         return uri is null ? Results.Ok(body) : Results.Created(uri, body);
     }
 
-    private static IResult RefreshResult(HttpContext context, AuthResult result)
+    private static IResult RefreshResult(HttpContext context, RefreshedResult result)
     {
         // Only the access-token expiry is needed to schedule the next refresh;
         // the new token values are already in httpOnly cookies for browsers.
@@ -57,7 +58,7 @@ public static class AuthEndpoints
                     cancellationToken);
                 SetBrowserCookies(context, result, authOptions.Value);
                 return AuthCookies.IsBrowser(context)
-                    ? BrowserResult(context, $"/api/auth/me", result)
+                    ? BrowserResult($"/api/auth/me", result)
                     : Results.Created($"/api/auth/me", result);
             }
             catch (AuthValidationException ex)
@@ -87,7 +88,7 @@ public static class AuthEndpoints
                     cancellationToken);
                 SetBrowserCookies(context, result, authOptions.Value);
                 return AuthCookies.IsBrowser(context)
-                    ? BrowserResult(context, null, result)
+                    ? BrowserResult(null, result)
                     : Results.Ok(result);
             }
             catch (AuthValidationException ex)
@@ -117,7 +118,7 @@ public static class AuthEndpoints
                     cancellationToken);
                 SetBrowserCookies(context, result, authOptions.Value);
                 return AuthCookies.IsBrowser(context)
-                    ? BrowserResult(context, null, result)
+                    ? BrowserResult(null, result)
                     : Results.Ok(result);
             }
             catch (AuthValidationException ex)

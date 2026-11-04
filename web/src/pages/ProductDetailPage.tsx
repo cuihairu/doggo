@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { trackEvent } from '../api/events'
+import { fetchProfile } from '../api/auth'
 import { ProfileContext } from '../ProfileContext'
 
 interface CaseContent {
@@ -145,7 +146,7 @@ export default function ProductDetailPage() {
   }, [id])
 
   // Sign-in is tracked via the app-wide profile (httpOnly cookie backed), not a JS token.
-  const { profile, profileStatus } = useContext(ProfileContext)
+  const { profile, profileStatus, setProfile, setProfileStatus } = useContext(ProfileContext)
   const signedIn = profileStatus === 'ready' && profile !== null
   const selectedSku = skus.find((sku) => sku.optionId === selectedSkuId) ?? null
   const canUseCoupon = selectedSku?.canUseCoupon ?? false
@@ -175,7 +176,23 @@ export default function ProductDetailPage() {
 
   async function placeOrder() {
     if (!id || !product) return
-    if (!signedIn) {
+    let sessionReady = signedIn
+    if (profileStatus === 'loading') {
+      setError('登录状态检查中，请稍后再试')
+      return
+    }
+    if (profileStatus === 'unknown') {
+      try {
+        const loadedProfile = await fetchProfile()
+        setProfile(loadedProfile)
+        setProfileStatus('ready')
+        sessionReady = true
+      } catch {
+        setError('登录状态暂时不可用，请稍后再试')
+        return
+      }
+    }
+    if (!sessionReady) {
       navigate('/login')
       return
     }

@@ -1,7 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 
-export function clearTokens() {}
-
 export class ApiError extends Error {
   readonly status: number
 
@@ -60,7 +58,6 @@ async function tryRefresh(): Promise<boolean> {
     credentials: 'same-origin',
   })
   if (!response.ok) {
-    clearTokens()
     return false
   }
 

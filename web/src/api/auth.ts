@@ -1,4 +1,4 @@
-import { api, clearTokens } from './client'
+import { api } from './client'
 
 /** Browser sessions receive only the identity; tokens live in httpOnly cookies. */
 export interface BrowserAuthResult {
@@ -33,7 +33,6 @@ export async function login(account: string, password: string): Promise<BrowserA
 export async function logout(): Promise<void> {
   // The server revokes the refresh token held in its httpOnly cookie.
   await api<void>('/api/auth/logout', { body: {}, auth: false })
-  clearTokens()
 }
 
 export function fetchProfile(): Promise<Profile> {
