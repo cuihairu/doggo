@@ -534,3 +534,7 @@
 
 - [x] 审核发现：两版 README 的待办统计仍写已完成 328 项，但本次提交中两条 CSS 审核项已勾选，HEAD 实际为 354 项中完成 330 项（README.md:82；README.zh.md:82）(已修：两版 README 计数随本行勾选重算为 331 of 355／已完成 331 项；grep 复核 `[x]`=331、`[ ]`=24；同 commit)
 - [x] 审核发现：本轮 diff 未见问题（6180452e..HEAD）(复核属实：范围仅 e8db18a 三文档计数更新，README 331/355 与当时 331 勾、24 未勾一致；无代码改动)
+
+- [x] 审核发现：刷新接口返回 4xx（非 401，如 429 限流、400 配置错）时，client.ts 未特殊处理仍落入原逻辑，回退返回原始 /me 的 401 并被消费方按“确定登出”处理，可能把瞬时服务错误误判为登出；本次修复仅特判 200 与 >=500，4xx 中段遗漏（web/src/api/client.ts:29）(属实：`tryRefresh` 现返回 `Response`，非 401 的刷新失败抛 `ApiError(status)`，不再回抛原始 /me 的 401；`App.tsx:26` 仅 401 视为登出；证据:6b41fa3, client.ts:33-35;client.test.ts:39-48;web pnpm test 17 绿、build 绿)
+- [x] 审核发现：新增 client.test.ts 仅覆盖 refresh 200 重试与 503 两种分支，未覆盖 4xx（非 401）回退登出、>=500 边界（如 500），以及 refresh 网络异常（fetch reject）向上传播的路径，新增分支存在未测路径（web/src/test/client.test.ts:18）(属实：补 5 例——429、500、refresh 401 回抛、204 成功重试、fetch reject 传播；证据:6b41fa3, client.test.ts:39-90;web pnpm test 17 绿)
+- [x] 审核发现：tryRefresh 成功判定由原 `response.ok`（任意 2xx）收窄为 `refreshStatus === 200`，与同文件 parseBody 将 204 视为成功响应（client.ts:68-70）的既有语义不一致；刷新端点未来若返回 204/201（如改无 body 的 cookie-only 路径或代理返回 204），将被误判为刷新失败并回退解析原始 /me 的 401，把瞬时服务行为当确定登出处理（web/src/api/client.ts:26）(属实：成功判定改回 `refresh.ok`（任意 2xx），与 parseBody 204 语义一致；证据:6b41fa3, client.ts:26-28;client.test.ts:72-81;web pnpm test 17 绿、build 绿)
