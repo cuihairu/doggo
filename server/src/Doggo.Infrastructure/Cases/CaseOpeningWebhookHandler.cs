@@ -61,7 +61,7 @@ public sealed partial class CaseOpeningWebhookHandler(
                     result.SeatNo,
                     ToItem(result.Item),
                     result.HistoryId,
-                    payload.GetRawText()), cancellationToken);
+                    payload.GetRawText()), null, cancellationToken);
                 return true;
 
             case "stock_fetch_started":
@@ -85,7 +85,7 @@ public sealed partial class CaseOpeningWebhookHandler(
     {
         var step = payload.Deserialize<SeatRefPayload>(VaporJson.Options)
             ?? throw new JsonException("seat payload was null");
-        await batches.AdvanceSeatAsync(step.BatchId, step.SeatNo, target, cancellationToken);
+        await batches.AdvanceSeatAsync(step.BatchId, step.SeatNo, target, null, cancellationToken);
         return true;
     }
 

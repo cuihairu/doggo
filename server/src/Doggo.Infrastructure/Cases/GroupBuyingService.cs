@@ -29,6 +29,11 @@ public sealed class CaseOpeningUnavailableException(string message) : Exception(
 {
 }
 
+/// <summary>Thrown when a seat write loses the optimistic-lock race to a concurrent mutation.</summary>
+public sealed class SeatConcurrencyException(string message) : Exception(message)
+{
+}
+
 public sealed record BatchSeatInput(string CrateAssetId, string? KeyAssetId);
 
 public sealed record CreateBatchCommand(Guid ProductId, string Lot, string VaporCaseId, IReadOnlyList<BatchSeatInput> Seats);
@@ -185,6 +190,7 @@ public sealed partial class GroupBuyingService(
         SeatStateMachine.RequireTransition(seat.Status, SeatStatus.Locked);
         seat.Status = SeatStatus.Locked;
         seat.OrderId = command.OrderId;
+        seat.Version++;
 
         batch.SoldCount++;
         batch.Version++;
@@ -208,13 +214,15 @@ public sealed partial class GroupBuyingService(
     }
 
     /// <summary>Puts a locked seat back on sale (order cancelled before payment).</summary>
-    public async Task<int> ReleaseSeatAsync(Guid batchId, int seatNo, CancellationToken cancellationToken = default)
+    public async Task<int> ReleaseSeatAsync(Guid batchId, int seatNo, Guid? userId, CancellationToken cancellationToken = default)
     {
         var (batch, seat) = await LoadSeatAsync(batchId, seatNo, cancellationToken);
+        await EnsureSeatOwnedAsync(seat, userId, cancellationToken);
 
         SeatStateMachine.RequireTransition(seat.Status, SeatStatus.OnSale);
         seat.Status = SeatStatus.OnSale;
         seat.OrderId = null;
+        seat.Version++;
 
         batch.SoldCount = Math.Max(batch.SoldCount - 1, 0);
         batch.Version++;
@@ -223,19 +231,21 @@ public sealed partial class GroupBuyingService(
             batch.Status = GroupBuyingStatus.OnSale;
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        await SaveSeatAsync(cancellationToken);
         LogSeatReleased(batch.Lot, seatNo);
         return seatNo;
     }
 
     /// <summary>Confirms payment for a locked seat; normally driven by the payment callback.</summary>
-    public async Task<int> MarkSeatPaidAsync(Guid batchId, int seatNo, CancellationToken cancellationToken = default)
+    public async Task<int> MarkSeatPaidAsync(Guid batchId, int seatNo, Guid? userId, CancellationToken cancellationToken = default)
     {
         var (batch, seat) = await LoadSeatAsync(batchId, seatNo, cancellationToken);
+        await EnsureSeatOwnedAsync(seat, userId, cancellationToken);
 
         SeatStateMachine.RequireTransition(seat.Status, SeatStatus.Paid);
         seat.Status = SeatStatus.Paid;
-        await db.SaveChangesAsync(cancellationToken);
+        seat.Version++;
+        await SaveSeatAsync(cancellationToken);
         LogSeatPaid(batch.Lot, seatNo);
         return seatNo;
     }
@@ -245,14 +255,15 @@ public sealed partial class GroupBuyingService(
     /// first; if the dispatch fails it returns to Paid for retry. The drop itself arrives
     /// later as an event handled by <see cref="ApplyOpeningResultAsync"/>.
     /// </summary>
-    public async Task<Guid> SubmitOpeningAsync(SubmitOpeningCommand command, CancellationToken cancellationToken = default)
+    public async Task<Guid> SubmitOpeningAsync(SubmitOpeningCommand command, Guid? userId, CancellationToken cancellationToken = default)
     {
+        var (batch, seat) = await LoadSeatAsync(command.BatchId, command.SeatNo, cancellationToken);
+        await EnsureSeatOwnedAsync(seat, userId, cancellationToken);
+
         if (!vapor.IsConfigured)
         {
             throw new CaseOpeningUnavailableException("vapor is not configured; opening is unavailable.");
         }
-
-        var (batch, seat) = await LoadSeatAsync(command.BatchId, command.SeatNo, cancellationToken);
 
         // Real opens burn one crate + one key, so vapor needs both asset ids together
         // with the case's catalog id; validate before the seat leaves Paid.
@@ -268,7 +279,8 @@ public sealed partial class GroupBuyingService(
 
         SeatStateMachine.RequireTransition(seat.Status, SeatStatus.Opening);
         seat.Status = SeatStatus.Opening;
-        await db.SaveChangesAsync(cancellationToken);
+        seat.Version++;
+        await SaveSeatAsync(cancellationToken);
 
         try
         {
@@ -290,7 +302,8 @@ public sealed partial class GroupBuyingService(
         catch (VaporClientException)
         {
             seat.Status = SeatStatus.Paid;
-            await db.SaveChangesAsync(cancellationToken);
+            seat.Version++;
+            await SaveSeatAsync(cancellationToken);
             LogOpeningDispatchFailed(batch.Lot, seat.SeatNo);
             throw;
         }
@@ -303,9 +316,11 @@ public sealed partial class GroupBuyingService(
     /// </summary>
     public async Task<OpeningResultApplied> ApplyOpeningResultAsync(
         ApplyOpeningResultCommand command,
+        Guid? userId,
         CancellationToken cancellationToken = default)
     {
         var (batch, seat) = await LoadSeatAsync(command.BatchId, command.SeatNo, cancellationToken);
+        await EnsureSeatOwnedAsync(seat, userId, cancellationToken);
 
         var order = seat.OrderId is { } orderId
             ? await db.UserOrders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
@@ -332,6 +347,7 @@ public sealed partial class GroupBuyingService(
         seat.Status = SeatStatus.Opened;
         seat.PrizeAssetId = command.Item.AssetId;
         seat.HistoryId = command.HistoryId ?? seat.HistoryId;
+        seat.Version++;
 
         var prize = new UserPrize
         {
@@ -362,7 +378,7 @@ public sealed partial class GroupBuyingService(
             RawJson = command.RawJson
         });
 
-        await db.SaveChangesAsync(cancellationToken);
+        await SaveSeatAsync(cancellationToken);
         LogPrizeCreated(batch.Lot, command.SeatNo, order.OrderNo, command.Item.AssetId);
         return new OpeningResultApplied(true, prize.Id);
     }
@@ -371,13 +387,15 @@ public sealed partial class GroupBuyingService(
     /// Moves a seat one step along the post-open chain (stock fetch, trading, completion) as
     /// inventory/trade events arrive. Jumps and backwards moves are rejected by the machine.
     /// </summary>
-    public async Task<int> AdvanceSeatAsync(Guid batchId, int seatNo, SeatStatus target, CancellationToken cancellationToken = default)
+    public async Task<int> AdvanceSeatAsync(Guid batchId, int seatNo, SeatStatus target, Guid? userId, CancellationToken cancellationToken = default)
     {
         var (batch, seat) = await LoadSeatAsync(batchId, seatNo, cancellationToken);
+        await EnsureSeatOwnedAsync(seat, userId, cancellationToken);
 
         SeatStateMachine.RequireTransition(seat.Status, target);
         seat.Status = target;
-        await db.SaveChangesAsync(cancellationToken);
+        seat.Version++;
+        await SaveSeatAsync(cancellationToken);
         LogSeatAdvanced(batch.Lot, seatNo, target);
         return seatNo;
     }
@@ -388,6 +406,35 @@ public sealed partial class GroupBuyingService(
         ServiceMode.SelfOpen => PrizeSource.SelfOpen,
         _ => PrizeSource.GroupOpen
     };
+
+    private async Task EnsureSeatOwnedAsync(GroupBuyingSeat seat, Guid? userId, CancellationToken cancellationToken)
+    {
+        if (userId is null)
+        {
+            return;
+        }
+
+        var ownerId = await (from candidate in db.GroupBuyingSeats.AsNoTracking()
+                             join order in db.UserOrders.AsNoTracking() on candidate.OrderId equals order.Id
+                             where candidate.Id == seat.Id
+                             select (Guid?)order.UserId).FirstOrDefaultAsync(cancellationToken);
+        if (ownerId != userId)
+        {
+            throw new SeatNotFoundException($"Seat {seat.SeatNo} of batch {seat.GroupBuyingId} was not found.");
+        }
+    }
+
+    private async Task SaveSeatAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new SeatConcurrencyException("The seat changed concurrently; reload and retry.");
+        }
+    }
 
     private async Task<(GroupBuying Batch, GroupBuyingSeat Seat)> LoadSeatAsync(
         Guid batchId, int seatNo, CancellationToken cancellationToken)

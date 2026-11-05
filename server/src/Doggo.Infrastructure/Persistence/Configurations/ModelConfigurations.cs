@@ -141,8 +141,11 @@ public class GroupBuyingConfiguration : IEntityTypeConfiguration<GroupBuying>
 
 public class GroupBuyingSeatConfiguration : IEntityTypeConfiguration<GroupBuyingSeat>
 {
-    public void Configure(EntityTypeBuilder<GroupBuyingSeat> builder) =>
+    public void Configure(EntityTypeBuilder<GroupBuyingSeat> builder)
+    {
         builder.HasIndex(x => new { x.GroupBuyingId, x.SeatNo }).IsUnique();
+        builder.Property(x => x.Version).IsConcurrencyToken();
+    }
 }
 
 public class UserPrizeConfiguration : IEntityTypeConfiguration<UserPrize>

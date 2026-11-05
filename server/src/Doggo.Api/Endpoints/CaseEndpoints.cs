@@ -13,17 +13,6 @@ namespace Doggo.Api.Endpoints;
 
 public static class CaseEndpoints
 {
-    /// <summary>True when the seat's paid order belongs to the caller (no result injection into others' seats).</summary>
-    private static async Task<bool> SeatOwnedByAsync(
-        DoggoDbContext db, Guid batchId, int seatNo, Guid userId, CancellationToken cancellationToken)
-    {
-        var owner = await (from seat in db.GroupBuyingSeats.AsNoTracking()
-                           join order in db.UserOrders.AsNoTracking() on seat.OrderId equals order.Id
-                           where seat.GroupBuyingId == batchId && seat.SeatNo == seatNo
-                           select (Guid?)order.UserId).FirstOrDefaultAsync(cancellationToken);
-        return owner == userId;
-    }
-
     /// <summary>True when the order belongs to the caller (no claiming a seat with someone else's order).</summary>
     private static async Task<bool> OrderOwnedByAsync(
         DoggoDbContext db, Guid orderId, Guid userId, CancellationToken cancellationToken) =>
@@ -130,6 +119,10 @@ public static class CaseEndpoints
             {
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
             }
+            catch (SeatConcurrencyException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+            }
         });
 
         group.MapPost("/{id:guid}/seats/{seatNo:int}/paid", PaidOrReleased);
@@ -151,12 +144,7 @@ public static class CaseEndpoints
 
             try
             {
-                if (!await SeatOwnedByAsync(db, id, seatNo, userId.Value, cancellationToken))
-                {
-                    return Results.NotFound();
-                }
-
-                var jobId = await batches.SubmitOpeningAsync(new SubmitOpeningCommand(id, seatNo), cancellationToken);
+                var jobId = await batches.SubmitOpeningAsync(new SubmitOpeningCommand(id, seatNo), userId.Value, cancellationToken);
                 return Results.Ok(new { jobId });
             }
             catch (CaseOpeningUnavailableException ex)
@@ -172,6 +160,10 @@ public static class CaseEndpoints
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
             }
             catch (InvalidOperationException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+            }
+            catch (SeatConcurrencyException ex)
             {
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
             }
@@ -192,11 +184,6 @@ public static class CaseEndpoints
                 return Results.Unauthorized();
             }
 
-            if (!await SeatOwnedByAsync(db, id, seatNo, userId.Value, cancellationToken))
-            {
-                return Results.NotFound();
-            }
-
             try
             {
                 var applied = await batches.ApplyOpeningResultAsync(new ApplyOpeningResultCommand(
@@ -204,7 +191,7 @@ public static class CaseEndpoints
                     seatNo,
                     request.ToItem(),
                     request.HistoryId,
-                    request.RawJson), cancellationToken);
+                    request.RawJson), userId.Value, cancellationToken);
                 return Results.Ok(applied);
             }
             catch (BatchNotFoundException ex)
@@ -220,6 +207,10 @@ public static class CaseEndpoints
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
             catch (InvalidOperationException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+            }
+            catch (SeatConcurrencyException ex)
             {
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
             }
@@ -242,12 +233,7 @@ public static class CaseEndpoints
 
             try
             {
-                if (!await SeatOwnedByAsync(db, id, seatNo, userId.Value, cancellationToken))
-                {
-                    return Results.NotFound();
-                }
-
-                await batches.AdvanceSeatAsync(id, seatNo, request.Target, cancellationToken);
+                await batches.AdvanceSeatAsync(id, seatNo, request.Target, userId.Value, cancellationToken);
                 return Results.Ok(new { seatNo, status = (int)request.Target });
             }
             catch (BatchNotFoundException ex)
@@ -259,6 +245,10 @@ public static class CaseEndpoints
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
             }
             catch (InvalidOperationException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+            }
+            catch (SeatConcurrencyException ex)
             {
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
             }
@@ -283,18 +273,13 @@ public static class CaseEndpoints
 
         try
         {
-            if (!await SeatOwnedByAsync(db, id, seatNo, userId.Value, cancellationToken))
-            {
-                return Results.NotFound();
-            }
-
             if (request.Path.Value!.EndsWith("/paid", StringComparison.Ordinal))
             {
-                await batches.MarkSeatPaidAsync(id, seatNo, cancellationToken);
+                await batches.MarkSeatPaidAsync(id, seatNo, userId.Value, cancellationToken);
             }
             else
             {
-                await batches.ReleaseSeatAsync(id, seatNo, cancellationToken);
+                await batches.ReleaseSeatAsync(id, seatNo, userId.Value, cancellationToken);
             }
 
             return Results.Ok(new { seatNo });
@@ -308,6 +293,10 @@ public static class CaseEndpoints
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
         }
         catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (SeatConcurrencyException ex)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
         }

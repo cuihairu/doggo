@@ -88,6 +88,8 @@ public class GroupBuyingSeat : Entity
     public long? HistoryId { get; set; }
     public SeatStatus Status { get; set; } = SeatStatus.OnSale;
     public Guid? OrderId { get; set; }
+    /// <summary>Manual concurrency token bumped on every seat mutation; concurrent stale reads fail the write.</summary>
+    public long Version { get; set; } = 1;
 }
 
 public class UserPrize : Entity
