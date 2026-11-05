@@ -35,4 +35,57 @@ describe('api transparent refresh (audit: refresh 5xx vs sign-out)', () => {
     expect(failure).toBeInstanceOf(ApiError)
     expect(failure).toMatchObject({ status: 503 })
   })
+
+  it('treats a 4xx refresh failure as transient, not the original 401 sign-out', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(401, { title: 'expired' }))
+      .mockResolvedValueOnce(jsonResponse(429, { title: 'rate limited' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const failure = await api('/api/me').catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(ApiError)
+    expect(failure).toMatchObject({ status: 429 })
+  })
+
+  it('treats a 500 refresh failure as transient', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(401, { title: 'expired' }))
+      .mockResolvedValueOnce(jsonResponse(500, { title: 'server error' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const failure = await api('/api/me').catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(ApiError)
+    expect(failure).toMatchObject({ status: 500 })
+  })
+
+  it('propagates a refresh 401 as the original 401 (definitive sign-out)', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(401, { title: 'expired' }))
+      .mockResolvedValueOnce(jsonResponse(401, { title: 'refresh rejected' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const failure = await api('/api/me').catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(ApiError)
+    expect(failure).toMatchObject({ status: 401 })
+  })
+
+  it('retries after a 204 refresh success (no body)', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(401, { title: 'expired' }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(api<{ ok: boolean }>('/api/me')).resolves.toEqual({ ok: true })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('propagates a network failure from the refresh request', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(401, { title: 'expired' }))
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(api('/api/me')).rejects.toThrow('fetch failed')
+  })
 })

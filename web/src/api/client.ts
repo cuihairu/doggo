@@ -22,12 +22,16 @@ interface RequestOptions {
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await request(path, options)
   if (response.status === 401 && options.auth !== false) {
-    const refreshStatus = await tryRefresh()
-    if (refreshStatus === 200) {
+    const refresh = await tryRefresh()
+    // Any 2xx (200/201/204) counts as a successful refresh, matching parseBody.
+    if (refresh.ok) {
       return api<T>(path, { ...options, auth: false })
     }
-    if (refreshStatus >= 500) {
-      throw new ApiError(refreshStatus, `Authentication refresh failed (${refreshStatus})`)
+    // A 401 from the refresh endpoint is a definitive sign-out; any other status
+    // (4xx rate limit/validation, 5xx outage) is transient and must not be
+    // surfaced as the original /me 401, which consumers treat as "signed out".
+    if (refresh.status !== 401) {
+      throw new ApiError(refresh.status, `Authentication refresh failed (${refresh.status})`)
     }
   }
   return parseBody<T>(response)
@@ -51,7 +55,7 @@ async function request(path: string, options: RequestOptions): Promise<Response>
   })
 }
 
-async function tryRefresh(): Promise<number> {
+async function tryRefresh(): Promise<Response> {
   const response = await fetch(`${API_BASE}/api/auth/refresh`, {
     method: 'POST',
     headers: {
@@ -61,7 +65,7 @@ async function tryRefresh(): Promise<number> {
     },
     credentials: 'same-origin',
   })
-  return response.status
+  return response
 }
 
 async function parseBody<T>(response: Response): Promise<T> {
