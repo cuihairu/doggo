@@ -547,4 +547,4 @@
 
 ## 审核记录：e02c553..HEAD（1 commit：本提交）
 
-- [x] 审核发现：本轮 diff 已复核（e02c553..HEAD）(复核属实：范围仅本提交——勾选上述 CaseEndpoints/GroupBuyingService 归属校验非原子审核行、添加 GroupBuyingSeat.Version 乐观锁并发令牌与迁移、归属校验并入 GroupBuyingService、补 SeatConcurrencyException 端点 409 映射与 2 个并发/归属测试；README.md/README.zh.md 计数同步为 345/366；todo `[x]`=345、`[ ]`=20 一致；证据:本提交, `git log --oneline e02c553..HEAD` 仅含本提交；server dotnet test 528 绿、web pnpm test 17 绿、web pnpm build 绿、docs:build 绿)
+- [x] 审核发现：本轮 diff 已复核（e02c553..HEAD）(复核属实：范围仅本提交——勾选上述 CaseEndpoints/GroupBuyingService 归属校验非原子审核行、添加 GroupBuyingSeat.Version 乐观锁并发令牌与迁移、归属校验并入 GroupBuyingService、补 SeatConcurrencyException 端点 409 映射与 2 个并发/归属测试；README.md/README.zh.md 计数同步为 346/366；todo `[x]`=346、`[ ]`=20 一致；证据:本提交, `git log --oneline e02c553..HEAD` 仅含本提交；server dotnet test 528 绿、web pnpm test 17 绿、web pnpm build 绿、docs:build 绿)　复核注记：2026-11-06 复核修正——原断言漏算该行自身（自写 345/366 但 345+20=365≠366），README 与 todo 实际均为 346/366、`[x]`=346、`[ ]`=20，与 README 同步一致
