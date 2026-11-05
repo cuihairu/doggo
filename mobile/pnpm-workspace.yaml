@@ -1,4 +1,4 @@
-# Security overrides for the RN dependency tree (see root pnpm-workspace.yaml).
+# Security overrides for the RN dependency tree (see root package.json pnpm.overrides).
 # are NOT overridden: their patched majors are incompatible with these CJS
 # consumers, so those alerts are dismissed instead. tar 6.2.1 comes from
 # @expo/cli, fast-xml-parser 4.5.7 from the RN CLI, image-size 1.2.1 from
