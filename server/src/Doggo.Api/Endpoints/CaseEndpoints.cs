@@ -3,6 +3,7 @@ using Doggo.Domain.Cases;
 using Doggo.Domain.Products;
 using Doggo.Infrastructure.Cases;
 using Doggo.Infrastructure.Persistence;
+using Doggo.Infrastructure.Vapor;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -119,10 +120,6 @@ public static class CaseEndpoints
             {
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
             }
-            catch (SeatConcurrencyException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
-            }
         });
 
         group.MapPost("/{id:guid}/seats/{seatNo:int}/paid", PaidOrReleased);
@@ -166,6 +163,10 @@ public static class CaseEndpoints
             catch (SeatConcurrencyException ex)
             {
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+            }
+            catch (VaporClientException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status502BadGateway);
             }
         });
 

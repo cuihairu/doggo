@@ -68,8 +68,9 @@ public static class VaporEndpoints
             return Results.BadRequest(new { message = "Invalid webhook envelope." });
         }
 
+        var claimKey = $"vapor:webhook:{envelope.Id}";
         var claimed = await idempotency
-            .TryClaimAsync($"vapor:webhook:{envelope.Id}", TimeSpan.FromDays(7), cancellationToken)
+            .TryClaimAsync(claimKey, TimeSpan.FromDays(7), cancellationToken)
             .ConfigureAwait(false);
         if (!claimed)
         {
@@ -86,9 +87,17 @@ public static class VaporEndpoints
             logger.LogDebug("vapor webhook {WebhookId} payload: {Payload}", envelope.Id, payload.GetRawText());
         }
 
-        // Handler failures are logged, not surfaced: the idempotency claim above already
-        // deduped this event, so an error status would only make vapor retry into a no-op.
-        await caseOpening.HandleAsync(envelope, cancellationToken);
+        try
+        {
+            await caseOpening.HandleAsync(envelope, cancellationToken);
+        }
+        catch
+        {
+            // The event was not applied. Release the claim so vapor's retry can reprocess it
+            // instead of being acknowledged as a duplicate.
+            await idempotency.ReleaseAsync(claimKey, cancellationToken);
+            throw;
+        }
 
         return Results.Ok(new { ok = true, duplicate = false });
     }

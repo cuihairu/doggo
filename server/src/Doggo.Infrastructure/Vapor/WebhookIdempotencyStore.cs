@@ -12,6 +12,9 @@ public interface IWebhookIdempotencyStore
 {
     /// <summary>Returns true when the key was claimed by this call, false when it was already seen.</summary>
     Task<bool> TryClaimAsync(string key, TimeSpan ttl, CancellationToken cancellationToken = default);
+
+    /// <summary>Releases a claim so a failed delivery can be retried instead of treated as a replay.</summary>
+    Task ReleaseAsync(string key, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Process-local fallback; used when Redis is not reachable.</summary>
@@ -31,6 +34,12 @@ public sealed class InMemoryWebhookIdempotencyStore : IWebhookIdempotencyStore
         }
 
         return Task.FromResult(_claims.TryAdd(key, now + ttl));
+    }
+
+    public Task ReleaseAsync(string key, CancellationToken cancellationToken = default)
+    {
+        _claims.TryRemove(key, out _);
+        return Task.CompletedTask;
     }
 }
 
@@ -57,6 +66,21 @@ public sealed partial class RedisWebhookIdempotencyStore(
             LogFallback(ex.Message);
             return await _fallback.TryClaimAsync(key, ttl, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    public async Task ReleaseAsync(string key, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var database = redis.GetDatabase();
+            await database.KeyDeleteAsync(key).ConfigureAwait(false);
+        }
+        catch (RedisException ex)
+        {
+            LogFallback(ex.Message);
+        }
+
+        await _fallback.ReleaseAsync(key, cancellationToken).ConfigureAwait(false);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "redis unavailable for webhook idempotency, using in-memory fallback: {Message}")]

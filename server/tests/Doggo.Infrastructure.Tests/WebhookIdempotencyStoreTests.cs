@@ -30,4 +30,14 @@ public class WebhookIdempotencyStoreTests
         Assert.True(await store.TryClaimAsync("vapor:webhook:a", TimeSpan.Zero));
         Assert.True(await store.TryClaimAsync("vapor:webhook:a", TimeSpan.FromMinutes(1)));
     }
+
+    [Fact]
+    public async Task Released_claim_can_be_reclaimed()
+    {
+        var store = new InMemoryWebhookIdempotencyStore();
+
+        Assert.True(await store.TryClaimAsync("vapor:webhook:a", TimeSpan.FromMinutes(1)));
+        await store.ReleaseAsync("vapor:webhook:a");
+        Assert.True(await store.TryClaimAsync("vapor:webhook:a", TimeSpan.FromMinutes(1)));
+    }
 }

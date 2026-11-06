@@ -37,7 +37,7 @@ public sealed partial class CaseOpeningWebhookHandler(
                 LogUnknownType(envelope.Id, envelope.Type);
             }
         }
-        catch (Exception ex) when (ex is JsonException or CaseValidationException or BatchNotFoundException or SeatNotFoundException or InvalidOperationException)
+        catch (Exception ex) when (ex is JsonException or CaseValidationException or BatchNotFoundException or SeatNotFoundException or SeatConcurrencyException or InvalidOperationException)
         {
             LogRejected(envelope.Id, envelope.Type, ex.Message);
         }

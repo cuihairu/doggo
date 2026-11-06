@@ -320,6 +320,21 @@ public class GroupBuyingApiTests(ApiFactory factory) : ApiTestBase(factory)
         Assert.Equal(HttpStatusCode.NotFound, foreignAdvance.StatusCode);
         var foreignOpen = await other.PostAsync($"/api/group-buyings/{batchId}/seats/1/open", content: null);
         Assert.Equal(HttpStatusCode.NotFound, foreignOpen.StatusCode);
+        var foreignResult = await other.PostAsJsonAsync($"/api/group-buyings/{batchId}/seats/1/result", new
+        {
+            assetId = "730-foreign-drop",
+            classId = "493",
+            instanceId = "0",
+            marketHashName = "AK-47 | Redline",
+            quality = (int)CaseQuality.Classified,
+            exterior = "Field-Tested",
+            floatValue = 0.2312,
+            rarity = "classified",
+            iconUrl = "https://img.example/ak.png",
+            inspectLink = "https://steam.com/inspect/1",
+            priceCents = 8800
+        });
+        Assert.Equal(HttpStatusCode.NotFound, foreignResult.StatusCode);
     }
 
     [Fact]

@@ -157,12 +157,12 @@ public class GroupBuyingServiceTests
         return batch;
     }
 
-    private static async Task<UserOrder> SeedValidOrderAsync(DoggoDbContext db, Guid productId)
+    private static async Task<UserOrder> SeedValidOrderAsync(DoggoDbContext db, Guid productId, Guid? userId = null)
     {
         var order = new UserOrder
         {
             Id = Guid.CreateVersion7(),
-            UserId = UserId,
+            UserId = userId ?? UserId,
             OrderNo = $"DO{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(100000, 999999)}",
             ProductId = productId,
             Status = OrderStatus.PendingSettlement,
@@ -346,8 +346,9 @@ public class GroupBuyingServiceTests
         rival.Version++;
         await rivalDb.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<SeatConcurrencyException>(() =>
+        var ex = await Assert.ThrowsAsync<SeatConcurrencyException>(() =>
             service.MarkSeatPaidAsync(batch.Id, 1, UserId));
+        Assert.IsType<DbUpdateConcurrencyException>(ex.InnerException);
     }
 
     [Fact]
@@ -363,7 +364,36 @@ public class GroupBuyingServiceTests
         await Assert.ThrowsAsync<SeatNotFoundException>(() => service.ReleaseSeatAsync(batch.Id, 1, otherUserId));
         await Assert.ThrowsAsync<SeatNotFoundException>(() =>
             service.AdvanceSeatAsync(batch.Id, 1, SeatStatus.FetchingStock, otherUserId));
+        await Assert.ThrowsAsync<SeatNotFoundException>(() =>
+            service.ApplyOpeningResultAsync(new ApplyOpeningResultCommand(batch.Id, 1, DropItem(), null, null), otherUserId));
+        await Assert.ThrowsAsync<SeatNotFoundException>(() =>
+            service.SubmitOpeningAsync(new SubmitOpeningCommand(batch.Id, 1), otherUserId));
         Assert.Equal(SeatStatus.Locked, (db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1)).Status);
+    }
+
+    [Fact]
+    public async Task Released_seat_bound_to_a_new_user_rejects_the_previous_owner()
+    {
+        using var db = CreateDb();
+        var batch = await SeedBatchAsync(db);
+        var (service, _) = CreateService(db);
+        var oldOrder = await SeedValidOrderAsync(db, batch.ProductId);
+
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, oldOrder.Id));
+        await service.ReleaseSeatAsync(batch.Id, 1, UserId);
+
+        var newUserId = Guid.CreateVersion7();
+        var newOrder = await SeedValidOrderAsync(db, batch.ProductId, newUserId);
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, newOrder.Id));
+
+        await Assert.ThrowsAsync<SeatNotFoundException>(() => service.MarkSeatPaidAsync(batch.Id, 1, UserId));
+        await Assert.ThrowsAsync<SeatNotFoundException>(() => service.ReleaseSeatAsync(batch.Id, 1, UserId));
+        await Assert.ThrowsAsync<SeatNotFoundException>(() =>
+            service.ApplyOpeningResultAsync(new ApplyOpeningResultCommand(batch.Id, 1, DropItem(), null, null), UserId));
+
+        var seat = db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1);
+        Assert.Equal(newOrder.Id, seat.OrderId);
+        Assert.Equal(SeatStatus.Locked, seat.Status);
     }
 
     [Fact]
@@ -385,6 +415,46 @@ public class GroupBuyingServiceTests
         var (failing, _) = CreateService(db, VaporStub(status: "failed", error: "case not found"));
         await Assert.ThrowsAsync<VaporClientException>(() =>
             failing.SubmitOpeningAsync(new SubmitOpeningCommand(batch.Id, 1), UserId));
+        Assert.Equal(SeatStatus.Paid, (db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1)).Status);
+    }
+
+    [Fact]
+    public async Task SubmitOpening_preserves_the_dispatch_error_when_rollback_conflicts()
+    {
+        var store = $"gb-open-rollback-{Guid.NewGuid():N}";
+        var seed = CreateDb(store);
+        var batch = await SeedBatchAsync(seed);
+        var order = await SeedValidOrderAsync(seed, batch.ProductId);
+        seed.ChangeTracker.Clear();
+        await seed.DisposeAsync();
+
+        using var db = CreateDb(store);
+        var (service, _) = CreateService(db);
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, order.Id));
+        await service.MarkSeatPaidAsync(batch.Id, 1, UserId);
+
+        // A rival context moves the seat version while vapor is dispatching. The rollback
+        // must reload and retry instead of replacing the dispatch failure.
+        using var rival = CreateDb(store);
+        var (failing, _) = CreateService(db, async request =>
+        {
+            if (request.Method == HttpMethod.Post)
+            {
+                var rivalSeat = await rival.GroupBuyingSeats.FirstAsync(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1);
+                rivalSeat.Version++;
+                await rival.SaveChangesAsync();
+                return Response(HttpStatusCode.Accepted, JsonSerializer.Serialize(new
+                {
+                    job = new { id = Guid.NewGuid(), action = "case_open", status = "queued", createdAt = "2026-10-11T12:00:00Z" }
+                }));
+            }
+
+            return Response(HttpStatusCode.OK, JobJson(Guid.NewGuid(), "failed", "case not found"));
+        });
+
+        var ex = await Assert.ThrowsAsync<VaporClientException>(() =>
+            failing.SubmitOpeningAsync(new SubmitOpeningCommand(batch.Id, 1), UserId));
+        Assert.Contains("case not found", ex.Message);
         Assert.Equal(SeatStatus.Paid, (db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1)).Status);
     }
 

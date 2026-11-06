@@ -30,7 +30,7 @@ public sealed class CaseOpeningUnavailableException(string message) : Exception(
 }
 
 /// <summary>Thrown when a seat write loses the optimistic-lock race to a concurrent mutation.</summary>
-public sealed class SeatConcurrencyException(string message) : Exception(message)
+public sealed class SeatConcurrencyException(string message, Exception innerException) : Exception(message, innerException)
 {
 }
 
@@ -301,9 +301,9 @@ public sealed partial class GroupBuyingService(
         }
         catch (VaporClientException)
         {
-            seat.Status = SeatStatus.Paid;
-            seat.Version++;
-            await SaveSeatAsync(cancellationToken);
+            // Rollback is best-effort but must never hide the dispatch failure: a concurrent
+            // seat write is resolved by reloading, and the original vapor error is rethrown.
+            await RollBackOpeningSeatAsync(batch.Id, seat.SeatNo, seat.OrderId, cancellationToken);
             LogOpeningDispatchFailed(batch.Lot, seat.SeatNo);
             throw;
         }
@@ -430,10 +430,44 @@ public sealed partial class GroupBuyingService(
         {
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateConcurrencyException)
+        catch (DbUpdateConcurrencyException ex)
         {
-            throw new SeatConcurrencyException("The seat changed concurrently; reload and retry.");
+            throw new SeatConcurrencyException("The seat changed concurrently; reload and retry.", ex);
         }
+    }
+
+    private async Task RollBackOpeningSeatAsync(Guid batchId, int seatNo, Guid? orderId, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            try
+            {
+                var seat = await db.GroupBuyingSeats
+                    .FirstOrDefaultAsync(s => s.GroupBuyingId == batchId && s.SeatNo == seatNo, cancellationToken);
+                if (seat is null || seat.Status != SeatStatus.Opening || seat.OrderId != orderId)
+                {
+                    LogOpeningRollbackSkipped(batchId, seatNo);
+                    return;
+                }
+
+                seat.Status = SeatStatus.Paid;
+                seat.Version++;
+                await db.SaveChangesAsync(cancellationToken);
+                LogOpeningRolledBack(batchId, seatNo);
+                return;
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                foreach (var entry in ex.Entries)
+                {
+                    entry.State = EntityState.Detached;
+                }
+
+                LogOpeningRollbackConflict(batchId, seatNo, attempt, ex.Message);
+            }
+        }
+
+        LogOpeningRollbackFailed(batchId, seatNo);
     }
 
     private async Task<(GroupBuying Batch, GroupBuyingSeat Seat)> LoadSeatAsync(
@@ -467,6 +501,18 @@ public sealed partial class GroupBuyingService(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "opening dispatch failed for seat {SeatNo} of batch {Lot}; seat returned to paid")]
     private partial void LogOpeningDispatchFailed(string lot, int seatNo);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "opening rollback skipped for seat {SeatNo} of batch {BatchId}; the seat moved on")]
+    private partial void LogOpeningRollbackSkipped(Guid batchId, int seatNo);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "seat {SeatNo} of batch {BatchId} returned to paid after opening dispatch failure")]
+    private partial void LogOpeningRolledBack(Guid batchId, int seatNo);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "opening rollback for seat {SeatNo} of batch {BatchId} hit a conflict (attempt {Attempt}): {Reason}")]
+    private partial void LogOpeningRollbackConflict(Guid batchId, int seatNo, int attempt, string reason);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "opening rollback for seat {SeatNo} of batch {BatchId} gave up after repeated conflicts")]
+    private partial void LogOpeningRollbackFailed(Guid batchId, int seatNo);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "opening result for seat {SeatNo} of batch {Lot} was already applied (asset {AssetId})")]
     private partial void LogDuplicatePrize(string lot, int seatNo, string assetId);
