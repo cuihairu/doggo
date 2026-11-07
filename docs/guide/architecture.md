@@ -43,6 +43,8 @@ Doggo is organised as a monorepo, split into service modules by responsibility. 
 | `mobile/` | Mobile app | Taro + React + TypeScript |
 | [vapor](https://github.com/cuihairu/vapor) (external dependency, same author) | **Steam-side capabilities**: skin market and inventory data sync, trading bot, case-opening execution. Talks only to the Steam network; not responsible for external news scraping | .NET + SteamKit2 |
 
+The runtime can also be read as five responsibility layers. Their concrete files, schemas, protocol locations, copy locations, storage, and call surfaces are mapped in [Layer Analysis](./layer-analysis); the cross-module vocabulary is defined in the [Glossary](./glossary).
+
 ## Division of labour: vapor vs the news scraper
 
 - **vapor owns Steam.** Everything that talks to the Steam network — market price fetching, inventory sync, trade offers, case-opening actions — is integrated through vapor's REST API / webhooks, reusing its control plane / proxy architecture and plugin system (the CaseOpening, MarketWatch, GameData plugins).

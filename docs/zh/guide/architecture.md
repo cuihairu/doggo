@@ -43,6 +43,8 @@ Doggo 采用 monorepo 组织,按职责拆分为多个服务模块,全部基于 C
 | `mobile/` | 手机端 App | Taro + React + TypeScript |
 | [vapor](https://github.com/cuihairu/vapor)(外部依赖,同一作者) | **Steam 侧能力**:饰品行情与库存数据同步、交易机器人、开箱动作执行。只对接 Steam 网络,不负责外部资讯抓取 | .NET + SteamKit2 |
 
+运行时还可归纳为五个职责层。各层的具体文件、配置 schema、专属协议、文案挂载、存储与调用面在[分层分析](./layer-analysis)中映射；跨模块词汇见[术语表](./glossary)。
+
 ## 分工边界:vapor 与资讯爬虫
 
 - **vapor 只负责 Steam**。所有需要与 Steam 网络交互的能力——市场行情抓取、库存同步、交易报价、开箱动作——都通过 vapor 的 REST API / Webhook 集成,复用其控制平面 / 代理架构与插件体系(如 CaseOpening、MarketWatch、GameData 插件)。

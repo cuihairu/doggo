@@ -560,3 +560,28 @@
 - [x] 审核发现：新增并发测试仅直接递增同一座位的版本，未覆盖原问题中的旧用户请求与释放后由新用户重新认领交错执行，因此无法验证换主竞态下归属保护是否生效（server/tests/Doggo.Infrastructure.Tests/GroupBuyingServiceTests.cs:329）(属实：新增 `Released_seat_bound_to_a_new_user_rejects_the_previous_owner`——旧用户 claim/release 后新用户 re-claim，旧用户对 paid/release/result 均被 `SeatNotFoundException` 拒绝，seat 仍归属新用户；证据:GroupBuyingServiceTests.cs:374-400;server dotnet test 528 绿)
 
 - [x] 审核发现：本轮 diff 已复核（2059f62..HEAD）(复核属实：本提交仅针对上述 7 条复核发现——属实并逐条修复：回滚改为重载重试保留 vapor 原异常、/claim 删死代码、补 /result 与 service 层归属测试、webhook when 加 SeatConcurrencyException、SeatConcurrencyException 携带 inner、幂等失败释放 claim、补换主竞态测试；同时清理上次中断残留的 UserOrder/RollRoom Version 未配令牌无迁移改动；README/README.zh 计数同步为 354/374；todo `[x]`=354、`[ ]`=20 一致；证据:本提交, `git log --oneline 2059f62..HEAD` 仅含本提交；server dotnet test 532 绿、web pnpm test 17 绿、web pnpm build 绿、docs:build 绿)
+- [ ] 审核发现：座位乐观锁冲突被处理器吞掉并返回成功，实际未应用的开箱结果或状态事件仍会保留幂等认领而无法重试（server/src/Doggo.Infrastructure/Cases/CaseOpeningWebhookHandler.cs:40）。
+- [ ] 审核发现：Redis 认领成功后若释放时 Redis 故障，删除异常被吞掉且原认领仍保留，恢复后的重试会被误判为重复事件（server/src/Doggo.Infrastructure/Vapor/WebhookIdempotencyStore.cs:78）。
+- [ ] 审核发现：Redis 故障时获得的内存认领在释放时仍无条件删除 Redis 同名键，若 Redis 已恢复且另一实例已认领该事件，会删除对方的认领并允许重复处理（server/src/Doggo.Infrastructure/Vapor/WebhookIdempotencyStore.cs:76）。
+- [ ] 审核发现：回滚只捕获并发异常，数据库访问失败或请求取消时回滚异常会覆盖原始 VaporClientException，且座位可能停留在 Opening（server/src/Doggo.Infrastructure/Cases/GroupBuyingService.cs:306）。
+- [ ] 审核发现：事件尚在处理时并发到达的重复投递会立即收到成功响应，若原投递随后失败并释放认领，发送方可能已因该成功响应停止重试而丢失事件（server/src/Doggo.Api/Endpoints/VaporEndpoints.cs:75）。
+
+## 源码分层分析 2026-11-07
+
+- 抽象层清单：
+  - 契约与规则层：以不依赖框架的类型定义实体、状态机、概率与价格规则。代表模块：server/src/Doggo.Domain/Orders/OrderStateMachine.cs:8。
+  - 持久化与应用服务层：注册 MySQL/Redis，维护 EF 映射与事务索引，封装订单、营销、抽奖、行情、认证等跨表操作。代表模块：server/src/Doggo.Infrastructure/DoggoInfrastructureExtensions.cs:11。
+  - 对接与编排层：以 REST 端点、认证/授权、访问日志、限流和 OpenAPI 暴露业务能力，并把请求落到应用服务。代表模块：server/src/Doggo.Api/Program.cs:134。
+  - 调度与异步层：承载市场同步、订单超时/对账、抽奖开奖、积分过期和漏斗聚合等后台循环。代表模块：server/src/Doggo.Worker/Program.cs:18。
+  - 外部采集层：按源适配 RSS、Steam App News、HTML，以及第三方价格站点，完成抓取、清洗、去重与入库。代表模块：server/src/Doggo.Scraper/Program.cs:11。
+  - 客户端体验层：Web、管理台、小程序和 RN App 分别渲染入口并经 REST 调用同一 API。代表模块：web/src/main.tsx:11。
+  - 运行面与共享客户端库层：提供数据库/缓存/迁移进程、反代静态资源，并让小程序与 RN 共享请求、令牌和事件队列实现。代表模块：deploy/docker-compose.prod.yml:35。
+- 超大文件候选：
+  - [ ] LAY-001 [P1] 拆分 server/src/Doggo.Api/Endpoints/AdminEndpoints.cs（1285 行）——back-office 端点与大型 inline DTO/请求类型集中在同一文件，按内容、商品、订单、用户、统计分面可减少修改冲突。（server/src/Doggo.Api/Endpoints/AdminEndpoints.cs:27）
+  - [ ] LAY-002 [P1] 拆分 server/src/Doggo.Infrastructure/Persistence/Migrations/20261010171121_DomainEntities.cs（1490 行）——初始迁移把全部域表、索引与外键绑定在一处；可在下次结构迁移时将可独立演进的高写入表拆出，但 EF 迁移历史通常不可改写。（server/src/Doggo.Infrastructure/Persistence/Migrations/20261010171121_DomainEntities.cs:21）
+  - [ ] LAY-003 [P2] 拆分 server/src/Doggo.Infrastructure/Persistence/Migrations/DoggoDbContextModelSnapshot.cs（2803 行）——快照聚合所有实体配置，EF 工具会整体重写；根治手段是把大型聚合分组到多个 owned type/configuration，而不是手工分裂快照。（server/src/Doggo.Infrastructure/Persistence/Migrations/DoggoDbContextModelSnapshot.cs:10）
+  - [ ] LAY-004 [P3] 评估拆分 admin/pnpm-lock.yaml（14661 行）等 lockfile——多包锁文件超过 1000 行，但为包管理器生成的派生文件，不应人工拆分。（admin/pnpm-lock.yaml:1）
+- 目录/分类问题：
+  - Doggo.Infrastructure 反向引用 Doggo.PriceCrawler，而 PriceCrawler 又只依赖 Domain，这使基础层与采集实现层互相纠缠；管理台审查端点也被放置在采集库里。（server/src/Doggo.Infrastructure/Doggo.Infrastructure.csproj:16）
+  - VisitLogMiddleware 属于 HTTP 边缘行为，却放在 Doggo.Api 根目录；EventRateLimiter 属于事件接入策略，却放在 EventEndpoints.cs 内，边缘横切面缺少独立归属。（server/src/Doggo.Api/Program.cs:132）
+  - Doggo.Scraper 进程同时挂载 PriceCrawler 库，程序集名表达资讯，进程实际承担两类采集生命周期；分离依赖未造成部署困难，但命名未表达运行组合。（server/src/Doggo.Scraper/Program.cs:38）
