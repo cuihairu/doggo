@@ -14,7 +14,10 @@ namespace Doggo.Infrastructure.Cases;
 /// currently emits only job/session/auth events, so seat results arrive through
 /// the seat result endpoint meanwhile. Unknown or malformed payloads are logged
 /// and swallowed (the webhook is already idempotency-claimed, so vapor retries
-/// would be deduped anyway) instead of failing the webhook call.
+/// would be deduped anyway) instead of failing the webhook call. A seat optimistic-lock
+/// conflict is transient — it may mean the winning writer already applied this event, and
+/// if not the retry applies it — so it propagates to release the claim and let vapor retry
+/// rather than being swallowed as a success that loses the event.
 ///
 /// Handled types:
 /// - opening_result: the drop — payload {batch_id, seat_no, history_id, item{...}} creates
@@ -37,7 +40,7 @@ public sealed partial class CaseOpeningWebhookHandler(
                 LogUnknownType(envelope.Id, envelope.Type);
             }
         }
-        catch (Exception ex) when (ex is JsonException or CaseValidationException or BatchNotFoundException or SeatNotFoundException or SeatConcurrencyException or InvalidOperationException)
+        catch (Exception ex) when (ex is JsonException or CaseValidationException or BatchNotFoundException or SeatNotFoundException or InvalidOperationException)
         {
             LogRejected(envelope.Id, envelope.Type, ex.Message);
         }

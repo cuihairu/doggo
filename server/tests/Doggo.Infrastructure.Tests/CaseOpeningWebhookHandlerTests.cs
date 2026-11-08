@@ -31,7 +31,7 @@ public class CaseOpeningWebhookHandlerTests
     }
 
     [Fact]
-    public async Task Handler_swallows_seat_concurrency_conflicts()
+    public async Task Handler_propagates_seat_concurrency_conflicts()
     {
         var options = new DbContextOptionsBuilder<DoggoDbContext>()
             .UseInMemoryDatabase($"webhook-concurrency-{Guid.NewGuid():N}")
@@ -109,8 +109,9 @@ public class CaseOpeningWebhookHandlerTests
         var envelope = payload.RootElement.Deserialize<VaporWebhookEnvelope>(VaporJson.Options)
             ?? throw new InvalidOperationException("test envelope failed to deserialize");
 
-        // A seat conflict is transient and the duplicate event may already have been applied by
-        // the winning writer, so the handler records it instead of failing the webhook.
-        await handler.HandleAsync(envelope);
+        // A seat conflict is transient and may mean the event was not applied at all; swallowing
+        // it would keep the idempotency claim and lose the event. Propagating it lets the
+        // endpoint release the claim so vapor retries and the event is applied (or found applied).
+        await Assert.ThrowsAsync<SeatConcurrencyException>(() => handler.HandleAsync(envelope));
     }
 }
