@@ -69,13 +69,26 @@ public static class VaporEndpoints
         }
 
         var claimKey = $"vapor:webhook:{envelope.Id}";
-        var claimed = await idempotency
-            .TryClaimAsync(claimKey, TimeSpan.FromDays(7), cancellationToken)
+        // Processing claims are short-lived so a delivery that never completes (crash, or a
+        // release that could not reach Redis) self-expires and is reprocessed; a completed
+        // delivery is deduped for a week.
+        var completedTtl = TimeSpan.FromDays(7);
+        var claim = await idempotency
+            .TryClaimAsync(claimKey, TimeSpan.FromMinutes(5), completedTtl, cancellationToken)
             .ConfigureAwait(false);
-        if (!claimed)
+        if (!claim.Claimed)
         {
-            logger.LogInformation("vapor webhook {WebhookId} is a replay of {Category}/{Type}", envelope.Id, envelope.Category, envelope.Type);
-            return Results.Ok(new { ok = true, duplicate = true });
+            if (claim.State == WebhookClaimState.Completed)
+            {
+                logger.LogInformation("vapor webhook {WebhookId} is a replay of {Category}/{Type}", envelope.Id, envelope.Category, envelope.Type);
+                return Results.Ok(new { ok = true, duplicate = true });
+            }
+
+            // Still being processed by another delivery. Acknowledging it now would let vapor
+            // stop retrying while the original may still fail and release its claim, losing the
+            // event; signal retry instead.
+            logger.LogInformation("vapor webhook {WebhookId} is in flight ({Category}/{Type})", envelope.Id, envelope.Category, envelope.Type);
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
         }
 
         logger.LogInformation(
@@ -99,6 +112,8 @@ public static class VaporEndpoints
             throw;
         }
 
+        // Settle the claim as completed so later replays are acknowledged as duplicates.
+        await idempotency.CompleteAsync(claimKey, completedTtl, cancellationToken);
         return Results.Ok(new { ok = true, duplicate = false });
     }
 }
