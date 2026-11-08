@@ -303,6 +303,8 @@ public sealed partial class GroupBuyingService(
         {
             // Rollback is best-effort but must never hide the dispatch failure: a concurrent
             // seat write is resolved by reloading, and the original vapor error is rethrown.
+            // RollBackOpeningSeatAsync itself swallows its own failures, so a database outage
+            // or a cancelled request during the rollback cannot override the vapor exception.
             await RollBackOpeningSeatAsync(batch.Id, seat.SeatNo, seat.OrderId, cancellationToken);
             LogOpeningDispatchFailed(batch.Lot, seat.SeatNo);
             throw;
@@ -465,9 +467,17 @@ public sealed partial class GroupBuyingService(
 
                 LogOpeningRollbackConflict(batchId, seatNo, attempt, ex.Message);
             }
+            catch (Exception ex)
+            {
+                // A rollback that itself fails (database outage, cancelled request) must never
+                // override the caller's original dispatch exception. The seat stays Opening for
+                // a later retry; non-concurrency failures are not retried against a dead store.
+                LogOpeningRollbackFailed(batchId, seatNo, ex.Message);
+                return;
+            }
         }
 
-        LogOpeningRollbackFailed(batchId, seatNo);
+        LogOpeningRollbackFailed(batchId, seatNo, "repeated optimistic-lock conflicts");
     }
 
     private async Task<(GroupBuying Batch, GroupBuyingSeat Seat)> LoadSeatAsync(
@@ -511,8 +521,8 @@ public sealed partial class GroupBuyingService(
     [LoggerMessage(Level = LogLevel.Warning, Message = "opening rollback for seat {SeatNo} of batch {BatchId} hit a conflict (attempt {Attempt}): {Reason}")]
     private partial void LogOpeningRollbackConflict(Guid batchId, int seatNo, int attempt, string reason);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "opening rollback for seat {SeatNo} of batch {BatchId} gave up after repeated conflicts")]
-    private partial void LogOpeningRollbackFailed(Guid batchId, int seatNo);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "opening rollback for seat {SeatNo} of batch {BatchId} gave up: {Reason}")]
+    private partial void LogOpeningRollbackFailed(Guid batchId, int seatNo, string reason);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "opening result for seat {SeatNo} of batch {Lot} was already applied (asset {AssetId})")]
     private partial void LogDuplicatePrize(string lot, int seatNo, string assetId);

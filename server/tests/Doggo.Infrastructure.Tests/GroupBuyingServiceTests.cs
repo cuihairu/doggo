@@ -35,6 +35,23 @@ public class GroupBuyingServiceTests
             .UseInMemoryDatabase(name ?? $"group-buying-tests-{Guid.NewGuid():N}")
             .Options);
 
+    /// <summary>Lets a test fail one write with a plain database outage (not a lock conflict).</summary>
+    private sealed class OutageDbContext(DbContextOptions<DoggoDbContext> options) : DoggoDbContext(options)
+    {
+        public bool ThrowOnNextSave { get; set; }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnNextSave)
+            {
+                ThrowOnNextSave = false;
+                throw new InvalidOperationException("simulated database outage");
+            }
+
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+    }
+
     private static (GroupBuyingService Service, StubHandler Handler) CreateService(
         DoggoDbContext db,
         Func<HttpRequestMessage, Task<HttpResponseMessage>>? vaporResponder = null,
@@ -456,6 +473,45 @@ public class GroupBuyingServiceTests
             failing.SubmitOpeningAsync(new SubmitOpeningCommand(batch.Id, 1), UserId));
         Assert.Contains("case not found", ex.Message);
         Assert.Equal(SeatStatus.Paid, (db.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1)).Status);
+    }
+
+    [Fact]
+    public async Task SubmitOpening_preserves_the_dispatch_error_when_rollback_fails()
+    {
+        var store = $"gb-open-rollback-outage-{Guid.NewGuid():N}";
+        var options = new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store)
+            .Options;
+        await using var db = new OutageDbContext(options);
+        var batch = await SeedBatchAsync(db);
+        var (service, _) = CreateService(db);
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, (await SeedValidOrderAsync(db, batch.ProductId)).Id));
+        await service.MarkSeatPaidAsync(batch.Id, 1, UserId);
+
+        var (failing, _) = CreateService(db, request =>
+        {
+            if (request.Method == HttpMethod.Post)
+            {
+                return Task.FromResult(Response(HttpStatusCode.Accepted, JsonSerializer.Serialize(new
+                {
+                    job = new { id = Guid.NewGuid(), action = "case_open", status = "queued", createdAt = "2026-10-11T12:00:00Z" }
+                })));
+            }
+
+            // The dispatch failed and the rollback's write is about to hit a database outage:
+            // the outage must not replace the vapor error, and the seat stays Opening.
+            db.ThrowOnNextSave = true;
+            return Task.FromResult(Response(HttpStatusCode.OK, JobJson(Guid.NewGuid(), "failed", "case not found")));
+        });
+
+        var ex = await Assert.ThrowsAsync<VaporClientException>(() =>
+            failing.SubmitOpeningAsync(new SubmitOpeningCommand(batch.Id, 1), UserId));
+        Assert.Contains("case not found", ex.Message);
+
+        // Check the persisted state with a fresh context: the failed rollback must not have
+        // moved the seat out of Opening (it stays recoverable for a later paid-open retry).
+        await using var verify = CreateDb(store);
+        Assert.Equal(SeatStatus.Opening, verify.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id && s.SeatNo == 1).Status);
     }
 
     [Fact]
