@@ -577,10 +577,10 @@
   - 客户端体验层：Web、管理台、小程序和 RN App 分别渲染入口并经 REST 调用同一 API。代表模块：web/src/main.tsx:11。
   - 运行面与共享客户端库层：提供数据库/缓存/迁移进程、反代静态资源，并让小程序与 RN 共享请求、令牌和事件队列实现。代表模块：deploy/docker-compose.prod.yml:35。
 - 超大文件候选：
-  - [ ] LAY-001 [P1] 拆分 server/src/Doggo.Api/Endpoints/AdminEndpoints.cs（1285 行）——back-office 端点与大型 inline DTO/请求类型集中在同一文件，按内容、商品、订单、用户、统计分面可减少修改冲突。（server/src/Doggo.Api/Endpoints/AdminEndpoints.cs:27）
-  - [ ] LAY-002 [P1] 拆分 server/src/Doggo.Infrastructure/Persistence/Migrations/20261010171121_DomainEntities.cs（1490 行）——初始迁移把全部域表、索引与外键绑定在一处；可在下次结构迁移时将可独立演进的高写入表拆出，但 EF 迁移历史通常不可改写。（server/src/Doggo.Infrastructure/Persistence/Migrations/20261010171121_DomainEntities.cs:21）
-  - [ ] LAY-003 [P2] 拆分 server/src/Doggo.Infrastructure/Persistence/Migrations/DoggoDbContextModelSnapshot.cs（2803 行）——快照聚合所有实体配置，EF 工具会整体重写；根治手段是把大型聚合分组到多个 owned type/configuration，而不是手工分裂快照。（server/src/Doggo.Infrastructure/Persistence/Migrations/DoggoDbContextModelSnapshot.cs:10）
-  - [ ] LAY-004 [P3] 评估拆分 admin/pnpm-lock.yaml（14661 行）等 lockfile——多包锁文件超过 1000 行，但为包管理器生成的派生文件，不应人工拆分。（admin/pnpm-lock.yaml:1）
+  - [x] LAY-001 [P1] 拆分 server/src/Doggo.Api/Endpoints/AdminEndpoints.cs（1285 行）——back-office 端点与大型 inline DTO/请求类型集中在同一文件，按内容、商品、订单、用户、统计分面可减少修改冲突。（server/src/Doggo.Api/Endpoints/AdminEndpoints.cs:27）(属实：原文件拆为根组合器 `AdminEndpoints.MapAdminEndpoints`（建 `/api/admin` 分组并调六个分面）+ 六个分面文件（Content/Product/Order/User/Stats/System）与共享 `AdminContracts.EnabledRequest`；1285 行 → 根 28 行 + 六分面共 1358 行，45 条路由与全部 DTO/rules 逐一核对无缺漏；证据:2f8eba6;server dotnet test 536 绿（Api 107 全绿）)
+  - [ ] LAY-002 [P1] 拆分 server/src/Doggo.Infrastructure/Persistence/Migrations/20261010171121_DomainEntities.cs（1490 行）——初始迁移把全部域表、索引与外键绑定在一处；可在下次结构迁移时将可独立演进的高写入表拆出，但 EF 迁移历史通常不可改写。（server/src/Doggo.Infrastructure/Persistence/Migrations/20261010171121_DomainEntities.cs:21）— BLOCKED 缺下一次结构迁移：初始迁移已应用，EF 迁移历史应用后不可改写；拆分只能在下次 `dotnet ef migrations add` 生成新的结构迁移时把高写入表放入其中，当前无待做的结构迁移
+  - [ ] LAY-003 [P2] 拆分 server/src/Doggo.Infrastructure/Persistence/Migrations/DoggoDbContextModelSnapshot.cs（2803 行）——快照聚合所有实体配置，EF 工具会整体重写；根治手段是把大型聚合分组到多个 owned type/configuration，而不是手工分裂快照。（server/src/Doggo.Infrastructure/Persistence/Migrations/DoggoDbContextModelSnapshot.cs:10）— BLOCKED 缺架构决策：快照由 EF 工具在下次迁移时整体重写，手工分裂会在下一次 `dotnet ef migrations add` 被覆盖；根治手段是把大型聚合分组到多个 owned type/configuration（独立架构重构），而非分裂快照文件
+  - [ ] LAY-004 [P3] 评估拆分 admin/pnpm-lock.yaml（14661 行）等 lockfile——多包锁文件超过 1000 行，但为包管理器生成的派生文件，不应人工拆分。（admin/pnpm-lock.yaml:1）— BLOCKED 不适用：pnpm-lock.yaml 为包管理器生成的派生文件，`pnpm install` 会整体重写，人工拆分无意义且会被下一次安装覆盖
 - 目录/分类问题：
   - Doggo.Infrastructure 反向引用 Doggo.PriceCrawler，而 PriceCrawler 又只依赖 Domain，这使基础层与采集实现层互相纠缠；管理台审查端点也被放置在采集库里。（server/src/Doggo.Infrastructure/Doggo.Infrastructure.csproj:16）
   - VisitLogMiddleware 属于 HTTP 边缘行为，却放在 Doggo.Api 根目录；EventRateLimiter 属于事件接入策略，却放在 EventEndpoints.cs 内，边缘横切面缺少独立归属。（server/src/Doggo.Api/Program.cs:132）
