@@ -79,7 +79,7 @@ doggo/
 
 ## 项目状态
 
-已实现的部分：服务端（资讯、行情、订单、开箱、Steam 与微信登录）、管理后台、微信小程序、Android 手机端，以及 Docker 部署栈。剩余工作见 [todo.md](todo.md)：380 项清单已完成 360 项，未完成的是两项外部依赖（vapor 集成与小程序审核）、等待真实 MySQL 环境的深审并发/一致性项，以及未勾的代码评审发现，明细列在该文件中。每次 push 都会跑测试（见 `.github/workflows/ci.yml`）、nightly 镜像发布到 GHCR。欢迎提 Issue 与 PR。
+已实现的部分：服务端（资讯、行情、订单、开箱、Steam 与微信登录）、管理后台、微信小程序、Android 手机端，以及 Docker 部署栈。剩余工作见 [todo.md](todo.md)：380 项清单已完成 361 项，未完成的是两项外部依赖（vapor 集成与小程序审核）、等待真实 MySQL 环境的深审并发/一致性项，以及未勾的代码评审发现，明细列在该文件中。每次 push 都会跑测试（见 `.github/workflows/ci.yml`）、nightly 镜像发布到 GHCR。欢迎提 Issue 与 PR。
 
 ## 许可证
 

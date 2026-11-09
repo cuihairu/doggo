@@ -454,7 +454,7 @@
 - [ ] 深审 P1 并发:签到双发,MakeupOrderNo 无唯一约束(SignService.cs:53-99) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束　复核注记：2026-11-04 复核仍缺外部条件
 - [ ] 深审 P1 并发:邀请一次性竞态(InviteService.cs:38-53) — BLOCKED 缺真实 MySQL 验证原子认领(InMemory 不强制),需条件更新/唯一约束　复核注记：2026-11-04 复核仍缺外部条件
 - [ ] 深审 P1 并发:roll 重复加入无唯一约束(RollService.cs:83-115) — BLOCKED 缺真实 MySQL 验证唯一索引(InMemory 不强制),需 EF migration 唯一约束　复核注记：2026-11-04 复核仍缺外部条件
-- [ ] 深审 P1 可靠性:webhook 幂等先声明,处理失败丢事件(VaporEndpoints.cs:71-93) — BLOCKED 缺真实 MySQL 验证幂等声明与处理事务一致性(InMemory 不强制),需 outbox/事务　复核注记：2026-11-04 复核仍缺外部条件
+- [x] 深审 P1 可靠性:webhook 幂等先声明,处理失败丢事件(VaporEndpoints.cs:71-93)(属实并已修：处理失败不再保留认领——端点 catch 后 `ReleaseAsync` 再 rethrow 让 vapor 重试(证据:94ea425)；认领改两阶段 Processing(5 分钟短 TTL)/Completed(7 天)，在飞重复投递回 503 可重试而非抢先回 200，进程崩溃滞留的 Processing 键按短 TTL 自过期由重试重处理，重放经 handler 既有的 existing-prize/asset 判重幂等落库(证据:faa0b60,VaporEndpoints.cs:77-91,116;WebhookIdempotencyStore.cs:117,128,164;WebhookIdempotencyStoreTests.cs 全 7 项、VaporWebhookApiTests 4 项)；设计下不丢事件，残余仅为 outbox/事务级一致性升级且仅在 handler 变为非幂等时才有必要;server dotnet test 536 绿)
 - [x] 深审 P2 安全:NewsDetailPage/ArticlePage 未消毒 HTML 渲染(NewsDetailPage.tsx:44、ArticlePage.tsx:37;新闻已在服务端消毒 NewsStore.cs:62,文章为运营所写,降为纵深防御)(证据:a69c6a7,web/src/pages/NewsDetailPage.tsx:44、ArticlePage.tsx:37)
 - [x] 深审 P2 安全:token 存 localStorage(client.ts:14-17)(证据:87dba79,web/src/api/client.ts:5、server/src/Doggo.Api/Endpoints/AuthCookies.cs:20;AuthApiTests.cs:96)
 - [x] 深审 P2 部署:nginx admin IP 白名单默认注释(doggo.conf.template:82-91)(证据:doggo.conf.template:83、doggo.conf.template:88;docs/guide/deployment.md:54)
@@ -565,6 +565,10 @@
 - [x] 审核发现：Redis 故障时获得的内存认领在释放时仍无条件删除 Redis 同名键，若 Redis 已恢复且另一实例已认领该事件，会删除对方的认领并允许重复处理（server/src/Doggo.Infrastructure/Vapor/WebhookIdempotencyStore.cs:76）(属实：`_claimedInRedis` 记录认领来源，释放/完成时内存来源分支只清内存兜底、绝不触碰 Redis；`In_flight_duplicate_is_reported_as_processing` 覆盖重复投递判定，证据:faa0b60;WebhookIdempotencyStore.cs:152-158,176-182;server dotnet test 536 绿)
 - [x] 审核发现：回滚只捕获并发异常，数据库访问失败或请求取消时回滚异常会覆盖原始 VaporClientException，且座位可能停留在 Opening（server/src/Doggo.Infrastructure/Cases/GroupBuyingService.cs:306）(属实：`RollBackOpeningSeatAsync` 新增非并发异常分支，记录日志后返回，回滚自身的故障不再覆盖原始 vapor 异常；座位保持 Opening 供后续 retry（Opening→Paid 为合法迁移）；`SubmitOpening_preserves_the_dispatch_error_when_rollback_fails` 模拟数据库故障断言原异常透传且重新读取的持久化状态仍为 Opening，证据:1480048;GroupBuyingService.cs:470-476;GroupBuyingServiceTests.cs:462-506;server dotnet test 536 绿)
 - [x] 审核发现：事件尚在处理时并发到达的重复投递会立即收到成功响应，若原投递随后失败并释放认领，发送方可能已因该成功响应停止重试而丢失事件（server/src/Doggo.Api/Endpoints/VaporEndpoints.cs:75）(属实：未认领且状态为 Processing 时改返回 503 可重试信号，只有 Completed 才按重复回 200；证据:faa0b60;VaporEndpoints.cs:81-91;WebhookIdempotencyStoreTests.cs:66-75;server dotnet test 536 绿)
+
+## 审核记录：深审 BLOCKED 项复核（2026-11-09）
+
+- [x] 审核发现：深审「待处理」BLOCKED 项（383/384/442-446/448/449/451-456/467/470/475 共 18 项）2026-11-09 逐项对照当前代码复核，外部条件均未解除：vapor 实例与 Steam 账号（383）、小程序主体资质与合法域名（384、475）、真实支付渠道接入决策与凭据（442）、真实 MySQL 验证（443-446/448/449/451-456/467/470——已确认 UserOrder/RollRoom 仍无并发令牌、CoinService.cs:45 仍为内存读改写、AuthService.cs:85-90 注册仍为 check-then-insert 无唯一约束、SignService.cs:68-96 MakeupOrderNo 无唯一索引、InviteService.cs:38 与 RollService.cs:393-395 仍为 check-then-写、CreateRoomFromTemplateAsync 无同模板唯一防护、退款仍为先打款后复查）；其中 457（webhook 处理失败丢事件）经 94ea425+faa0b60 两阶段幂等改造关闭并勾选，见该行注记。(复核属实：本次复核无代码改动，仅勾选 457 并记录；复核时工作区与 8e7e8c4 一致)
 
 ## 源码分层分析 2026-11-07
 
