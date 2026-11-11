@@ -23,17 +23,13 @@ public static class CaseEndpoints
     {
         var group = app.MapGroup("/api/group-buyings");
 
+        // Creating a group-buying batch is a back-office inventory action: a regular user
+        // could otherwise mint seats that do not exist.
         group.MapPost("/", async (
             [FromBody] CreateBatchRequest request,
-            ClaimsPrincipal principal,
             [FromServices] GroupBuyingService batches,
             CancellationToken cancellationToken) =>
         {
-            if (principal.CurrentUserId() is null)
-            {
-                return Results.Unauthorized();
-            }
-
             try
             {
                 var result = await batches.CreateBatchAsync(new CreateBatchCommand(
@@ -49,7 +45,7 @@ public static class CaseEndpoints
             {
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
-        });
+        }).RequireAuthorization("Admin");
 
         group.MapGet("/{id:guid}", async (
             Guid id,
@@ -122,8 +118,13 @@ public static class CaseEndpoints
             }
         });
 
-        group.MapPost("/{id:guid}/seats/{seatNo:int}/paid", PaidOrReleased);
-        group.MapPost("/{id:guid}/seats/{seatNo:int}/release", PaidOrReleased);
+        // Seat inventory corrections (a seat paid off-system, a stuck seat released) are
+        // back-office actions, not user mutations: only admins drive them, and the owner
+        // check is skipped because the admin is not the seat's buyer.
+        group.MapPost("/{id:guid}/seats/{seatNo:int}/paid", PaidOrReleased)
+            .RequireAuthorization("Admin");
+        group.MapPost("/{id:guid}/seats/{seatNo:int}/release", PaidOrReleased)
+            .RequireAuthorization("Admin");
 
         group.MapPost("/{id:guid}/seats/{seatNo:int}/open", async (
             Guid id,
@@ -170,90 +171,10 @@ public static class CaseEndpoints
             }
         });
 
-        group.MapPost("/{id:guid}/seats/{seatNo:int}/result", async (
-            Guid id,
-            int seatNo,
-            [FromBody] OpeningResultRequest request,
-            ClaimsPrincipal principal,
-            [FromServices] GroupBuyingService batches,
-            [FromServices] DoggoDbContext db,
-            CancellationToken cancellationToken) =>
-        {
-            var userId = principal.CurrentUserId();
-            if (userId is null)
-            {
-                return Results.Unauthorized();
-            }
-
-            try
-            {
-                var applied = await batches.ApplyOpeningResultAsync(new ApplyOpeningResultCommand(
-                    id,
-                    seatNo,
-                    request.ToItem(),
-                    request.HistoryId,
-                    request.RawJson), userId.Value, cancellationToken);
-                return Results.Ok(applied);
-            }
-            catch (BatchNotFoundException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
-            }
-            catch (SeatNotFoundException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
-            }
-            catch (CaseValidationException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
-            }
-            catch (SeatConcurrencyException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
-            }
-        });
-
-        group.MapPost("/{id:guid}/seats/{seatNo:int}/advance", async (
-            Guid id,
-            int seatNo,
-            [FromBody] AdvanceSeatRequest request,
-            ClaimsPrincipal principal,
-            [FromServices] GroupBuyingService batches,
-            [FromServices] DoggoDbContext db,
-            CancellationToken cancellationToken) =>
-        {
-            var userId = principal.CurrentUserId();
-            if (userId is null)
-            {
-                return Results.Unauthorized();
-            }
-
-            try
-            {
-                await batches.AdvanceSeatAsync(id, seatNo, request.Target, userId.Value, cancellationToken);
-                return Results.Ok(new { seatNo, status = (int)request.Target });
-            }
-            catch (BatchNotFoundException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
-            }
-            catch (SeatNotFoundException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
-            }
-            catch (SeatConcurrencyException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
-            }
-        });
+        // The drop (opening_result) and the post-open chain (stock_fetch_started, stock_ready,
+        // trade_started, trade_completed) are driven by the vapor webhook, not by the user who
+        // opened the seat. A client-supplied result would let a user mint any prize for a seat
+        // they did not actually win, so those user endpoints are gone.
     }
 
     /// <summary>Shared handler for the paid and release transitions (same shape, no body).</summary>
@@ -261,26 +182,20 @@ public static class CaseEndpoints
         Guid id,
         int seatNo,
         HttpRequest request,
-        ClaimsPrincipal principal,
         [FromServices] GroupBuyingService batches,
         [FromServices] DoggoDbContext db,
         CancellationToken cancellationToken)
     {
-        var userId = principal.CurrentUserId();
-        if (userId is null)
-        {
-            return Results.Unauthorized();
-        }
-
         try
         {
             if (request.Path.Value!.EndsWith("/paid", StringComparison.Ordinal))
             {
-                await batches.MarkSeatPaidAsync(id, seatNo, userId.Value, cancellationToken);
+                // Admin operation: no owner check (the admin is not the seat's buyer).
+                await batches.MarkSeatPaidAsync(id, seatNo, userId: null, cancellationToken);
             }
             else
             {
-                await batches.ReleaseSeatAsync(id, seatNo, userId.Value, cancellationToken);
+                await batches.ReleaseSeatAsync(id, seatNo, userId: null, cancellationToken);
             }
 
             return Results.Ok(new { seatNo });
@@ -309,39 +224,6 @@ public sealed record CreateBatchRequest(Guid ProductId, string Lot, string Vapor
 public sealed record BatchSeatRequest(string CrateAssetId, string? KeyAssetId);
 
 public sealed record ClaimSeatRequest(Guid OrderId);
-
-public sealed record OpeningResultRequest(
-    string AssetId,
-    string? ClassId,
-    string? InstanceId,
-    string? MarketHashName,
-    CaseQuality Quality,
-    string? Exterior,
-    double? FloatValue,
-    string? Rarity,
-    string? IconUrl,
-    string? InspectLink,
-    long PriceCents,
-    DateTime? TradableAtUtc,
-    long? HistoryId,
-    string? RawJson)
-{
-    public OpeningResultItem ToItem() => new(
-        AssetId,
-        ClassId ?? string.Empty,
-        InstanceId ?? string.Empty,
-        MarketHashName ?? string.Empty,
-        Quality,
-        Exterior ?? string.Empty,
-        FloatValue,
-        Rarity ?? string.Empty,
-        IconUrl ?? string.Empty,
-        InspectLink,
-        PriceCents,
-        TradableAtUtc);
-}
-
-public sealed record AdvanceSeatRequest(SeatStatus Target);
 
 public sealed record PrizeView(
     string AssetId,
