@@ -575,6 +575,18 @@
 - [x] 审核发现：项目状态声称 380 项清单已完成 361 项，但当前 todo.md 常规清单共有 384 个复选框、其中 362 个已勾选，且未说明排除源码分层分析清单等条目的统计口径，读者无法按文件复算该结论（README.md:82、README.zh.md:82、todo.md:1）。(属实：审核时全文件复选框 384 个、已勾 362 个——顶层 380 项中已勾 361 个，另「源码分层分析」嵌套 4 项中已勾 1 个，README 的 361/380 只数顶层且未说明口径；已改 README.md:82、README.zh.md:82 为「386 项已完成 364 项」并注明「按该文件全部复选框计数」，未完成分类同步去掉已清空的评审发现、补支付渠道与源码分层项；证据:本提交, `grep -c '^\s*- \[x\]'`=364、`grep -c '^\s*- \[.\]'`=386 可复算, docs-only 免编译)
 - [x] 审核发现：深审复核记录将 457 同时列入「外部条件均未解除」与「已关闭并勾选」两组，且其开头标称共 18 项的编号集合实为 19 个条目，容易误读为 18 个仍 BLOCKED 项（todo.md:571）。(属实：原集合 383/384/442-446/448/449/451-456/467/470/475 漏了仍 BLOCKED 的 447（CouponService.cs:169-208 优惠券双用），实际「待处理」BLOCKED 集为 19 项；且「其中 457…关闭并勾选」的「其中」把组外的 457 误置组内。已改 todo.md:571：集合改为 383/384/442-449/451-456/467/470/475 共 19 项、MySQL 组补 447 及 CouponService 证据、457 改述为「不在本组：经 94ea425+faa0b60 已关闭并勾选」；证据:本提交, todo.md:571, docs-only 免编译)
 
+## 覆盖率盘点：批次1（2026-11-11）
+
+- 基线口径：`dotnet test server/Doggo.slnx --collect:"XPlat Code Coverage"`，5 个测试工程 572 测试全绿（commit 740f7df），按 (文件,行号) 取各报告最大命中合并；行覆盖**不计入** EF 迁移产物（`Persistence/Migrations/*.Designer.cs`、`DoggoDbContextModelSnapshot.cs` 与迁移 Up/Down，共 51010 行）。
+- 模块行覆盖（不含迁移产物）：Doggo.Api 89.8%（3252/3621）、Doggo.Domain 90.8%（621/684）、Doggo.Infrastructure 93.7%（3213/3428）、Doggo.PriceCrawler 86.0%（694/807）、Doggo.Scraper 70.9%（568/801）；合计 89.4%（8348/9341）。
+- 批次1 完成：测试基建修复（ApiFactory 改轮询文件监视器，测试 host 不再占用共享 inotify 池——本机共享池被并发测试挤爆曾致 Api 41-55 假红，commit 50cae00）；CouponEndpoints 47.9%→91.5%、SignEndpoints 53.4%→89.7%（55431a4）；PriceCrawlStores 26.5%→97.9%、WebhookIdempotencyStore 64.9%→95.7%（b7e9c07，其中修出真实缺陷：RedisWebhookIdempotencyStore 只 catch RedisException，multiplexer 被 dispose 后 SE.Redis 抛 ObjectDisposedException，文档承诺的降级不生效——已补 catch 并加 CI redis 服务容器跑真实集成测试）；AdminContentEndpoints 76.7%→97.7%（acbc5c1）；settings 端点补测（740f7df）。
+- 确实不可测项与真实原因（数字为未覆盖行数）：
+  - EF 迁移产物 51010 行：`dotnet ef` 工具生成；Designer.cs 与 Snapshot 是设计时模型副本，Up/Down 只在真实数据库应用迁移时执行——InMemory 测试不跑迁移，且对真实 MySQL 的验证正是深审 BLOCKED 项（443-449/451-456/467/470）的外部条件。
+  - 组合根装配：Doggo.Scraper/Program.cs（33）、ScraperWorker（29）、Doggo.PriceCrawler/PriceCrawlerWorker（29）、PriceCrawlerServiceCollectionExtensions（32）、Doggo.Api/Program.cs 未覆盖 29 行——DI 注册、主机启动与后台循环 timer，行为由真实进程启动触发，无独立分支可单测；为凑行覆盖抽生产 seam 属"改生产行为"，不做。
+  - 三方浏览器集成：Doggo.Scraper/News/PlaywrightPageFetcher（35）——真实 Playwright 页面抓取，本地/CI 无浏览器断言路径。
+  - 建模未用的脚手架实体：Doggo.Domain/System/SystemEntities.cs 39/43 行——AdminAccount/角色/权限/IP 白名单/登录日志/短链/通知渠道/客服二维码等实体已建模型与迁移，但尚无任何端点或服务读写（对应后台功能未实现），构造并读属性凑行覆盖无行为意义；对应功能落地时随功能测试覆盖。
+- 剩余可测缺口（批次2 候选，未覆盖行数）：Api 端点校验/错误分支 Case 67、Order 55、Auth 28、Roll 26、TradeUrl 25、Program 29、AdminProduct 22、AdminStats 16、AdminSystem 17、AdminUser 11、Vapor 12、Coin 8、AdminOrder 4；Infrastructure CaseOpeningWebhookHandler 18、VaporModels 14、VaporClient 18、CouponService 23、RollService 29、SteamOpenIdService 13、DoggoDbContext 19、WechatSessionClient 5；Domain NewsEntities 8、AliasMethod 8、IPaymentProvider 3；PriceCrawler Scheduler 15、RobotsChecker 14、Ingestor 7、ConfiguredHtmlSiteAdapter 8；Scraper SteamAppNewsAdapter 20、RssSourceAdapter 18、ScraperScheduler 14、HtmlSanitizer 13、NewsSourceSeeder 52、HtmlSourceAdapter 8、NewsStore 6、NewsFingerprint 5。
+
 ## 源码分层分析 2026-11-07
 
 - 抽象层清单：
