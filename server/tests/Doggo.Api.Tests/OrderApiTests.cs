@@ -303,10 +303,11 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         });
         await db.SaveChangesAsync();
 
+        // The client no longer supplies items: the offer is built from the order's prizes
+        // server-side, so the request carries only the destination trade url.
         var response = await client.PostAsJsonAsync($"/api/orders/{orderId}/retrieval", new
         {
-            tradeUrlId,
-            itemsToGive = new[] { new { assetId = "12345", appId = "730", classId = "493", instanceId = "0" } }
+            tradeUrlId
         });
         Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
 

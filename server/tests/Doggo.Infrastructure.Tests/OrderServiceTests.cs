@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Doggo.Domain.Analytics;
+using Doggo.Domain.Cases;
 using Doggo.Domain.Orders;
 using Doggo.Domain.Products;
 using Doggo.Domain.Users;
@@ -139,6 +140,27 @@ public class OrderServiceTests
         db.UserTradeUrls.Add(link);
         await db.SaveChangesAsync();
         return link;
+    }
+
+    private static async Task SeedPrizeAsync(DoggoDbContext db, Guid orderId)
+    {
+        db.UserPrizes.Add(new UserPrize
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = UserId,
+            OrderId = orderId,
+            Source = PrizeSource.SelfOpen,
+            AssetId = "12345",
+            ClassId = "493",
+            InstanceId = "0",
+            MarketHashName = "AK-47 | Redline",
+            Quality = CaseQuality.Covert,
+            Exterior = "Field-Tested",
+            Rarity = "Covert",
+            IconUrl = "https://cdn.test/icon.png",
+            PriceCents = 10000
+        });
+        await db.SaveChangesAsync();
     }
 
     private static CreateOrderCommand Command(Guid productId, PaymentProvider payType = PaymentProvider.Alipay) =>
@@ -859,10 +881,11 @@ public class OrderServiceTests
         var result = await orders.CreateOrderAsync(Command(product.Id));
         await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), null);
 
-        var (accepted, offerId, error) = await orders.SubmitRetrievalAsync(result.OrderId, link.Id,
-        [
-            new VaporTradeAsset("12345", "730", "493", "0")
-        ]);
+        // The order's prize is the only asset the retrieval may offer; the caller supplies
+        // nothing (a client-supplied asset list was the forged-offer vector).
+        await SeedPrizeAsync(db, result.OrderId);
+
+        var (accepted, offerId, error) = await orders.SubmitRetrievalAsync(result.OrderId, link.Id);
 
         Assert.True(accepted);
         Assert.Equal("76561198000000001", offerId);
@@ -887,6 +910,27 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task SubmitRetrieval_rejects_an_order_with_no_prizes()
+    {
+        using var db = CreateDb();
+        var captured = new List<string>();
+        var (orders, _) = CreateService(db, VaporStub(capturedBodies: captured));
+        var product = await SeedProductAsync(db);
+        var link = await SeedTradeUrlAsync(db);
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+        await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), null);
+
+        var (accepted, offerId, error) = await orders.SubmitRetrievalAsync(result.OrderId, link.Id);
+
+        Assert.False(accepted);
+        Assert.Null(offerId);
+        Assert.Contains("no prizes", error);
+        // The order is untouched and vapor never saw a dispatch.
+        Assert.Equal(OrderStatus.PendingSettlement, (await db.UserOrders.SingleAsync()).Status);
+        Assert.Empty(captured);
+    }
+
+    [Fact]
     public async Task SubmitRetrieval_rejects_when_vapor_is_unconfigured()
     {
         using var db = CreateDb();
@@ -900,7 +944,7 @@ public class OrderServiceTests
         var result = await orders.CreateOrderAsync(Command(product.Id));
         await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), null);
 
-        var (accepted, offerId, error) = await plain.SubmitRetrievalAsync(result.OrderId, link.Id, []);
+        var (accepted, offerId, error) = await plain.SubmitRetrievalAsync(result.OrderId, link.Id);
 
         Assert.False(accepted);
         Assert.Null(offerId);
@@ -918,7 +962,7 @@ public class OrderServiceTests
         var result = await orders.CreateOrderAsync(Command(product.Id));
         await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), null);
 
-        var (accepted, _, error) = await orders.SubmitRetrievalAsync(result.OrderId, link.Id, []);
+        var (accepted, _, error) = await orders.SubmitRetrievalAsync(result.OrderId, link.Id);
 
         Assert.False(accepted);
         Assert.Contains("validation", error);
@@ -934,8 +978,9 @@ public class OrderServiceTests
         var link = await SeedTradeUrlAsync(db);
         var result = await orders.CreateOrderAsync(Command(product.Id));
         await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), null);
+        await SeedPrizeAsync(db, result.OrderId);
 
-        var (accepted, _, error) = await orders.SubmitRetrievalAsync(result.OrderId, link.Id, []);
+        var (accepted, _, error) = await orders.SubmitRetrievalAsync(result.OrderId, link.Id);
 
         Assert.False(accepted);
         Assert.Contains("trade server offline", error);
@@ -954,8 +999,9 @@ public class OrderServiceTests
         var link = await SeedTradeUrlAsync(db);
         var result = await orders.CreateOrderAsync(Command(product.Id));
         await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), null);
+        await SeedPrizeAsync(db, result.OrderId);
 
-        var (accepted, _, error) = await orders.SubmitRetrievalAsync(result.OrderId, link.Id, []);
+        var (accepted, _, error) = await orders.SubmitRetrievalAsync(result.OrderId, link.Id);
 
         Assert.False(accepted);
         Assert.Contains("no trade offer id", error);

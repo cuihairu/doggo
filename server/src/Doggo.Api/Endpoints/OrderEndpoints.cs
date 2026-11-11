@@ -216,10 +216,11 @@ public static class OrderEndpoints
 
             try
             {
+                // Items are resolved server-side from the order's prizes; the client only picks
+                // the trade url to deliver them to.
                 var (accepted, offerId, error) = await orders.SubmitRetrievalAsync(
                     id,
                     request.TradeUrlId,
-                    [.. request.ItemsToGive.Select(item => new VaporTradeAsset(item.AssetId, item.AppId, item.ClassId, item.InstanceId))],
                     cancellationToken);
 
                 return accepted
@@ -288,9 +289,7 @@ public sealed record CreateOrderRequest(
 
 public sealed record RefundRequest(string Reason);
 
-public sealed record RetrievalRequest(Guid TradeUrlId, List<RetrievalItem> ItemsToGive);
-
-public sealed record RetrievalItem(string AssetId, string AppId, string ClassId, string InstanceId);
+public sealed record RetrievalRequest(Guid TradeUrlId);
 
 public sealed record RetrievalFailRequest(string Reason);
 

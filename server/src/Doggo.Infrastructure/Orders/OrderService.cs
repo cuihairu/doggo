@@ -63,6 +63,9 @@ public sealed partial class OrderService(
     Analytics.IAnalyticsRecorder analytics,
     ILogger<OrderService> logger)
 {
+    /// <summary>Retrieval is CS2-only today; vapor falls back to CS2 inventory defaults.</summary>
+    private const string Cs2AppId = "730";
+
     private readonly OrderOptions _options = options.Value;
 
     public async Task<CreateOrderResult> CreateOrderAsync(CreateOrderCommand command, CancellationToken cancellationToken = default)
@@ -429,11 +432,12 @@ public sealed partial class OrderService(
     /// Starts retrieval for a paid order: PendingSettlement/PendingRetrieval → Retrieving,
     /// then dispatches a vapor trade offer. Failures roll the order back to PendingRetrieval
     /// with the error recorded for the retry policy.
+    /// The trade offer items are resolved server-side from the order's prizes, never from a
+    /// client-supplied list: a client could otherwise offer an asset it does not own.
     /// </summary>
     public async Task<(bool Accepted, string? OfferId, string? Error)> SubmitRetrievalAsync(
         Guid orderId,
         Guid tradeUrlId,
-        IReadOnlyList<VaporTradeAsset> itemsToGive,
         CancellationToken cancellationToken = default)
     {
         var order = await LoadOrderAsync(orderId, cancellationToken);
@@ -457,6 +461,17 @@ public sealed partial class OrderService(
         if (!vapor.IsConfigured)
         {
             return (false, null, "vapor is not configured; retrieval is unavailable.");
+        }
+
+        // The order's won prizes are the only assets a retrieval may offer. Retrieval is
+        // CS2-only today (vapor falls back to CS2 inventory defaults), so the app id is fixed.
+        var itemsToGive = await db.UserPrizes.AsNoTracking()
+            .Where(p => p.OrderId == orderId)
+            .Select(p => new VaporTradeAsset(p.AssetId, Cs2AppId, p.ClassId, p.InstanceId))
+            .ToListAsync(cancellationToken);
+        if (itemsToGive.Count == 0)
+        {
+            return (false, null, "Order has no prizes to send in the retrieval trade.");
         }
 
         // Move to Retrieving before the dispatch so a concurrent sweep cannot refund the
@@ -773,6 +788,7 @@ public sealed partial class OrderService(
 }
 
 /// <summary>Asset reference for a trade offer, resolved from prize inventory by callers.</summary>
+/// <summary>One prize carried into a retrieval trade offer; AppId is the CS2 app id for now.</summary>
 public sealed record VaporTradeAsset(string AssetId, string AppId, string ClassId, string InstanceId);
 
 internal sealed record TradeOfferPayload(
