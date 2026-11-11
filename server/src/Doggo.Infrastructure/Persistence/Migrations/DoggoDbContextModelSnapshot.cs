@@ -2327,6 +2327,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("MakeupOrderNo")
+                        .IsUnique();
+
                     b.HasIndex("UserId", "CycleId");
 
                     b.HasIndex("UserId", "SignedDate")

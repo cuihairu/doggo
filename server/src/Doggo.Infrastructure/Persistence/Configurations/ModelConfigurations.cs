@@ -63,6 +63,8 @@ public class SignRecordConfiguration : IEntityTypeConfiguration<SignRecord>
         // several days).
         builder.HasIndex(x => new { x.UserId, x.SignedDate }).IsUnique();
         builder.HasIndex(x => new { x.UserId, x.CycleId });
+        // One makeup per completed order; MySQL lets plain (non-makeup) rows share NULL here.
+        builder.HasIndex(x => x.MakeupOrderNo).IsUnique();
 
         // MySql.EntityFrameworkCore materializes DATE columns as DateTime and chokes on
         // DateOnly, so convert explicitly and keep the date column type.

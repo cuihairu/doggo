@@ -96,7 +96,25 @@ public sealed partial class SignService(DoggoDbContext db, CoinService coins, IO
             MakeupOrderNo = isMakeup ? makeupOrderNo : null
         };
         db.SignRecords.Add(record);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException) when (isMakeup)
+        {
+            // Two concurrent makeup signs with the same order both pass the reuse pre-check;
+            // the unique index settles the race. If the order number is taken now, reject as
+            // reused (the whole save — coins included — rolled back); anything else is real.
+            var reused = await db.SignRecords.AsNoTracking()
+                .AnyAsync(s => s.MakeupOrderNo == makeupOrderNo, cancellationToken);
+            if (reused)
+            {
+                db.ChangeTracker.Clear();
+                throw new SignValidationException("This order was already used for a makeup sign.");
+            }
+
+            throw;
+        }
 
         var cycleTotal = await db.SignRecords
             .Where(s => s.UserId == userId && s.CycleId == cycleId)
