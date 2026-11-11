@@ -160,7 +160,8 @@ public class RollRoomParticipant : Entity
 {
     public Guid RoomId { get; set; }
     public Guid UserId { get; set; }
-    public string? EntryRef { get; set; }
+    /// <summary>Empty for rules that do not carry a reference (e.g. login entry); keeps the (room, user, entry) unique index effective, since MySQL treats NULLs as distinct.</summary>
+    public string EntryRef { get; set; } = string.Empty;
     public DateTime JoinedAtUtc { get; set; }
     public Guid? WonPrizeId { get; set; }
     public DateTime? ClaimedAtUtc { get; set; }

@@ -175,6 +175,10 @@ public class RollRoomParticipantConfiguration : IEntityTypeConfiguration<RollRoo
     public void Configure(EntityTypeBuilder<RollRoomParticipant> builder)
     {
         builder.HasIndex(x => new { x.RoomId, x.UserId });
+        // EntryRef is empty (never null) for rules without a reference, so this index also
+        // enforces one entry per user for them and one per order for the per-purchase rules.
+        builder.HasIndex(x => new { x.RoomId, x.UserId, x.EntryRef }).IsUnique();
+        builder.Property(x => x.EntryRef).HasMaxLength(128);
         // Two concurrent claims for the same winner both read ClaimedAtUtc null; the token
         // makes the second writer's save fail so coins are granted exactly once.
         builder.Property(x => x.Version).IsConcurrencyToken();

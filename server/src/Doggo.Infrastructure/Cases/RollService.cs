@@ -100,14 +100,36 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
         entryRef = string.IsNullOrWhiteSpace(entryRef) ? null : entryRef.Trim();
         await ValidateRuleAsync(room, entryRef, userId, cancellationToken);
 
+        // Entries carry an empty reference when the rule has none, so the (room, user, entry)
+        // unique index below also covers the per-user rules (MySQL treats NULLs as distinct).
         db.RollRoomParticipants.Add(new RollRoomParticipant
         {
             RoomId = room.Id,
             UserId = userId,
-            EntryRef = entryRef,
+            EntryRef = entryRef ?? string.Empty,
             JoinedAtUtc = DateTime.UtcNow
         });
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Two concurrent joins can both pass the pre-check; the unique index settles the
+            // race. If the row exists now, this join is the duplicate and keeps the same
+            // rejection as the pre-check; anything else is a real store failure.
+            var duplicate = await db.RollRoomParticipants.AsNoTracking()
+                .AnyAsync(p => p.RoomId == room.Id
+                               && p.UserId == userId
+                               && p.EntryRef == (entryRef ?? string.Empty), cancellationToken);
+            if (duplicate)
+            {
+                db.ChangeTracker.Clear();
+                throw new RollValidationException("This user already joined the room.");
+            }
+
+            throw;
+        }
 
         var count = await db.RollRoomParticipants.AsNoTracking()
             .CountAsync(p => p.RoomId == room.Id, cancellationToken);

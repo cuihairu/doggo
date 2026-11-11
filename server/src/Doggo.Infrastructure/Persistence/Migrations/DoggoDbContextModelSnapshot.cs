@@ -294,8 +294,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("EntryRef")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)");
 
                     b.Property<DateTime>("JoinedAtUtc")
                         .HasColumnType("datetime(6)");
@@ -319,6 +320,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("RoomId", "UserId");
+
+                    b.HasIndex("RoomId", "UserId", "EntryRef")
+                        .IsUnique();
 
                     b.ToTable("RollRoomParticipants");
                 });

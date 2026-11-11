@@ -83,7 +83,7 @@ public class RollServiceTests
             Id = Guid.CreateVersion7(),
             RoomId = roomId,
             UserId = userId,
-            EntryRef = entryRef,
+            EntryRef = entryRef ?? string.Empty,
             JoinedAtUtc = DateTime.UtcNow
         };
         db.RollRoomParticipants.Add(participant);
@@ -187,6 +187,22 @@ public class RollServiceTests
 
         var joined = await service.JoinRoomAsync(roomId, UserId, "CODE-1");
         Assert.Equal(1, joined.EntryCount);
+    }
+
+    [Fact]
+    public async Task JoinRoomAsync_PerPurchase_AllowsEntriesWithDistinctOrders()
+    {
+        // The (room, user, entry) unique index enforces one entry per order without
+        // collapsing a user's separate qualifying orders into a single entry.
+        await using var db = CreateDb();
+        var template = await SeedTemplateAsync(db, RollRuleType.PerPurchase);
+        var service = CreateService(db);
+        var room = (await service.CreateRoomFromTemplateAsync(template.Id)).RoomId;
+
+        var first = await SeedOrderAsync(db, UserId, OrderStatus.Completed);
+        var second = await SeedOrderAsync(db, UserId, OrderStatus.Completed);
+        Assert.Equal(1, (await service.JoinRoomAsync(room, UserId, first.Id.ToString())).EntryCount);
+        Assert.Equal(2, (await service.JoinRoomAsync(room, UserId, second.Id.ToString())).EntryCount);
     }
 
     [Fact]
