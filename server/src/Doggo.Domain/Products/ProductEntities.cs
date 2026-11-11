@@ -86,6 +86,8 @@ public class PromotionPlan : Entity
     public DateTime? StartAtUtc { get; set; }
     public DateTime? EndAtUtc { get; set; }
     public bool Enabled { get; set; } = true;
+    /// <summary>Manual concurrency token bumped on every stock move; concurrent stale claims fail the write.</summary>
+    public long Version { get; set; } = 1;
 }
 
 public class QuantityOption : Entity

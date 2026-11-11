@@ -90,6 +90,17 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
     public void Configure(EntityTypeBuilder<Product> builder) => builder.HasIndex(x => x.ClassId);
 }
 
+public class PromotionPlanConfiguration : IEntityTypeConfiguration<PromotionPlan>
+{
+    public void Configure(EntityTypeBuilder<PromotionPlan> builder)
+    {
+        builder.HasIndex(x => x.ProductId);
+        // Two concurrent order claims both read stock > 0; the token makes the second
+        // claimer's write fail so stock is never oversold.
+        builder.Property(x => x.Version).IsConcurrencyToken();
+    }
+}
+
 public class ExchangeRateConfiguration : IEntityTypeConfiguration<ExchangeRate>
 {
     public void Configure(EntityTypeBuilder<ExchangeRate> builder)

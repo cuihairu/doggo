@@ -575,36 +575,54 @@ public sealed partial class OrderService(
 
     private async Task<PromotionPlan?> ClaimPromotionAsync(CreateOrderCommand command, CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
-        var promotion = await db.PromotionPlans
-            .Where(p => p.ProductId == command.ProductId
-                        && p.Enabled
-                        && p.Stock > 0
-                        && (p.StartAtUtc == null || p.StartAtUtc <= now)
-                        && (p.EndAtUtc == null || p.EndAtUtc >= now))
-            .OrderBy(p => p.DiscountPriceCents)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (promotion is null || promotion.Stock <= 0)
+        // The version token makes a stale stock write fail; the retry re-reads and re-checks
+        // stock instead of overselling the last unit, and gives up once nothing is left.
+        for (var attempt = 1; attempt <= 3; attempt++)
         {
-            return null;
-        }
+            var now = DateTime.UtcNow;
+            var promotion = await db.PromotionPlans
+                .Where(p => p.ProductId == command.ProductId
+                            && p.Enabled
+                            && p.Stock > 0
+                            && (p.StartAtUtc == null || p.StartAtUtc <= now)
+                            && (p.EndAtUtc == null || p.EndAtUtc >= now))
+                .OrderBy(p => p.DiscountPriceCents)
+                .FirstOrDefaultAsync(cancellationToken);
 
-        if (promotion.PerUserLimit > 0)
-        {
-            var used = await db.UserOrders.AsNoTracking()
-                .CountAsync(o => o.UserId == command.UserId
-                                 && o.PromotionId == promotion.Id
-                                 && o.Status != OrderStatus.Cancelled, cancellationToken);
-            if (used >= promotion.PerUserLimit)
+            if (promotion is null || promotion.Stock <= 0)
             {
                 return null;
             }
+
+            if (promotion.PerUserLimit > 0)
+            {
+                var used = await db.UserOrders.AsNoTracking()
+                    .CountAsync(o => o.UserId == command.UserId
+                                     && o.PromotionId == promotion.Id
+                                     && o.Status != OrderStatus.Cancelled, cancellationToken);
+                if (used >= promotion.PerUserLimit)
+                {
+                    return null;
+                }
+            }
+
+            promotion.Stock--;
+            promotion.Version++;
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return promotion;
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                foreach (var entry in ex.Entries)
+                {
+                    entry.State = EntityState.Detached;
+                }
+            }
         }
 
-        promotion.Stock--;
-        await db.SaveChangesAsync(cancellationToken);
-        return promotion;
+        return null;
     }
 
     private async Task RestorePromotionAsync(Guid? promotionId, CancellationToken cancellationToken)
@@ -614,14 +632,30 @@ public sealed partial class OrderService(
             return;
         }
 
-        var promotion = await db.PromotionPlans.FirstOrDefaultAsync(p => p.Id == promotionId, cancellationToken);
-        if (promotion is null)
+        for (var attempt = 1; attempt <= 3; attempt++)
         {
-            return;
+            var promotion = await db.PromotionPlans.FirstOrDefaultAsync(p => p.Id == promotionId, cancellationToken);
+            if (promotion is null)
+            {
+                return;
+            }
+
+            promotion.Stock++;
+            promotion.Version++;
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Another stock move won the row; re-read its stock and give the unit back on
+                // top of the fresh value.
+                db.ChangeTracker.Clear();
+            }
         }
 
-        promotion.Stock++;
-        await db.SaveChangesAsync(cancellationToken);
+        LogPromotionRestoreSkipped(logger, promotionId.Value);
     }
 
     private async Task RollbackRetrievalAsync(UserOrder order, string reason, CancellationToken cancellationToken)
@@ -773,6 +807,9 @@ public sealed partial class OrderService(
 
     [LoggerMessage(Level = LogLevel.Error, Message = "deduction restore failed for order {OrderNo} ({Reason})")]
     private static partial void LogRestoreFailed(ILogger logger, Exception ex, string orderNo, string reason);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "promotion {PromotionId} stock restore skipped after repeated conflicts")]
+    private static partial void LogPromotionRestoreSkipped(ILogger logger, Guid promotionId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "{Count} stuck orders refunded")]
     private static partial void LogStuckRefunded(ILogger logger, int count);

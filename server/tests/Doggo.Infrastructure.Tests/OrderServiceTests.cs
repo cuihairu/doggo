@@ -33,9 +33,11 @@ public class OrderServiceTests
         }
     }
 
-    private static DoggoDbContext CreateDb() =>
+    private static DoggoDbContext CreateDb() => CreateDb($"order-service-tests-{Guid.NewGuid():N}");
+
+    private static DoggoDbContext CreateDb(string store) =>
         new(new DbContextOptionsBuilder<DoggoDbContext>()
-            .UseInMemoryDatabase($"order-service-tests-{Guid.NewGuid():N}")
+            .UseInMemoryDatabase(store)
             .Options);
 
     private static (OrderService Orders, StubHandler Handler) CreateService(
@@ -534,6 +536,42 @@ public class OrderServiceTests
         Assert.Equal(10000, second.TotalPriceCents);
         Assert.False(second.PromotionApplied);
         Assert.Equal(4, (await db.PromotionPlans.SingleAsync()).Stock);
+    }
+
+    [Fact]
+    public async Task Create_stale_promotion_read_does_not_oversell_the_last_unit()
+    {
+        var store = $"order-promotion-race-{Guid.NewGuid():N}";
+        using var db = CreateDb(store);
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 10000);
+
+        var promotion = new PromotionPlan
+        {
+            Id = Guid.CreateVersion7(),
+            ProductId = product.Id,
+            DiscountPriceCents = 7000,
+            Stock = 1,
+            Enabled = true
+        };
+        db.PromotionPlans.Add(promotion);
+        await db.SaveChangesAsync();
+
+        // A rival order takes the last unit first; db still holds the stale promotion
+        // (Stock 1, Version 1) tracked from seeding, so this order's claim write conflicts
+        // and the retry must re-read the stock instead of overselling.
+        using var rival = CreateDb(store);
+        var rivalPromotion = await rival.PromotionPlans.SingleAsync(p => p.Id == promotion.Id);
+        rivalPromotion.Stock--;
+        rivalPromotion.Version++;
+        await rival.SaveChangesAsync();
+
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+
+        Assert.False(result.PromotionApplied);
+        Assert.Equal(10000, result.TotalPriceCents);
+        Assert.Null((await db.UserOrders.SingleAsync()).PromotionId);
+        Assert.Equal(0, (await rival.PromotionPlans.SingleAsync()).Stock);
     }
 
     [Fact]
