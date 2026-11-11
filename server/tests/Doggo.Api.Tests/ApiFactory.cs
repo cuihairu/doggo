@@ -16,6 +16,15 @@ namespace Doggo.Api.Tests;
 /// </summary>
 public class ApiFactory : WebApplicationFactory<Program>
 {
+    static ApiFactory()
+    {
+        // Every booted host registers appsettings.json with reloadOnChange, costing one
+        // inotify instance from the per-user pool (128 on this dev box, shared with other
+        // sessions and users). Tests never hot-reload config, so switch the file provider
+        // to polling and keep parallel host builds off that pool.
+        Environment.SetEnvironmentVariable("DOTNET_USE_POLLING_FILE_WATCHER", "true");
+    }
+
     // Unique per factory instance: xunit creates one fixture per test class, and the EF
     // InMemory store is global per name, so a shared name would let classes wipe each other.
     private readonly string _databaseName = $"doggo-api-tests-{Guid.NewGuid():N}";
