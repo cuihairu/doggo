@@ -63,6 +63,17 @@ public class InviteRewardLogConfiguration : IEntityTypeConfiguration<InviteRewar
         builder.HasIndex(x => x.InviteeUserId).IsUnique();
 }
 
+public class UserCouponConfiguration : IEntityTypeConfiguration<UserCoupon>
+{
+    public void Configure(EntityTypeBuilder<UserCoupon> builder)
+    {
+        builder.HasIndex(x => new { x.UserId, x.CouponId });
+        // Two concurrent orders both read the coupon unused; the token makes the second
+        // apply's write fail so the coupon is never charged to two orders.
+        builder.Property(x => x.Version).IsConcurrencyToken();
+    }
+}
+
 public class SignRecordConfiguration : IEntityTypeConfiguration<SignRecord>
 {
     public void Configure(EntityTypeBuilder<SignRecord> builder)

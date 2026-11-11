@@ -159,6 +159,8 @@ public class UserCoupon : Entity
     public UserCouponStatus Status { get; set; } = UserCouponStatus.Unused;
     public Guid? UsedOrderId { get; set; }
     public DateTime? ValidToUtc { get; set; }
+    /// <summary>Manual concurrency token bumped on every use/restore; concurrent stale applies fail the write.</summary>
+    public long Version { get; set; } = 1;
 }
 
 /// <summary>Product a scope=Products coupon can be applied to.</summary>

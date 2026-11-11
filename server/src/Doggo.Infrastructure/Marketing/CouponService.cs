@@ -205,7 +205,29 @@ public sealed partial class CouponService(DoggoDbContext db, CoinService coins, 
 
         userCoupon.Status = UserCouponStatus.Used;
         userCoupon.UsedOrderId = orderId;
-        await db.SaveChangesAsync(cancellationToken);
+        userCoupon.Version++;
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Two concurrent orders both pass the unused pre-check; the version token settles
+            // the race. If the coupon is used now, reject like the pre-check; anything else
+            // is an unexpected write conflict and keeps throwing.
+            var usedByRival = await db.UserCoupons.AsNoTracking()
+                .Where(uc => uc.Id == userCoupon.Id)
+                .Select(uc => uc.Status)
+                .FirstOrDefaultAsync(cancellationToken) == UserCouponStatus.Used;
+            if (usedByRival)
+            {
+                db.ChangeTracker.Clear();
+                throw new CouponValidationException("This coupon is already used.");
+            }
+
+            throw;
+        }
+
         LogApplied(coupon.Title, userId, deduction);
         return deduction;
     }
@@ -220,10 +242,34 @@ public sealed partial class CouponService(DoggoDbContext db, CoinService coins, 
             return;
         }
 
-        used.Status = UserCouponStatus.Unused;
-        used.UsedOrderId = null;
-        await db.SaveChangesAsync(cancellationToken);
-        LogRestored(used.Id, orderId);
+        // Bump the token on restore too so a stale apply never re-uses a coupon this
+        // restore freed; a conflicting restore is retried and then given up as best-effort
+        // (it must not replace the caller's own failure).
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            var restored = await db.UserCoupons
+                .FirstOrDefaultAsync(uc => uc.UsedOrderId == orderId && uc.Status == UserCouponStatus.Used, cancellationToken);
+            if (restored is null)
+            {
+                return;
+            }
+
+            restored.Status = UserCouponStatus.Unused;
+            restored.UsedOrderId = null;
+            restored.Version++;
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                LogRestored(restored.Id, orderId);
+                return;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                db.ChangeTracker.Clear();
+            }
+        }
+
+        LogRestoreSkipped(orderId);
     }
 
     /// <summary>Issues one coupon instance and stamps the shared validity window onto it.</summary>
@@ -271,4 +317,7 @@ public sealed partial class CouponService(DoggoDbContext db, CoinService coins, 
 
     [LoggerMessage(Level = LogLevel.Information, Message = "coupon {UserCouponId} restored for order {OrderId}")]
     private partial void LogRestored(Guid userCouponId, Guid orderId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "coupon restore skipped for order {OrderId} after repeated conflicts")]
+    private partial void LogRestoreSkipped(Guid orderId);
 }

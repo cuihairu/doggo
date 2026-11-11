@@ -11,9 +11,11 @@ public class CouponServiceTests
 {
     private static readonly Guid UserId = Guid.CreateVersion7();
 
-    private static DoggoDbContext CreateDb() =>
+    private static DoggoDbContext CreateDb() => CreateDb($"coupon-service-tests-{Guid.NewGuid():N}");
+
+    private static DoggoDbContext CreateDb(string store) =>
         new(new DbContextOptionsBuilder<DoggoDbContext>()
-            .UseInMemoryDatabase($"coupon-service-tests-{Guid.NewGuid():N}")
+            .UseInMemoryDatabase(store)
             .Options);
 
     private static (CouponService Coupons, CoinService Ledger) CreateServices(DoggoDbContext db)
@@ -190,6 +192,29 @@ public class CouponServiceTests
         await Assert.ThrowsAsync<CouponValidationException>(
             () => coupons.ApplyCouponAsync(UserId, claimed.Id, product.Id, 1000, Guid.CreateVersion7()));
         Assert.Equal(UserCouponStatus.Used, (await db.UserCoupons.SingleAsync(uc => uc.Id == claimed.Id)).Status);
+    }
+
+    [Fact]
+    public async Task Apply_racing_another_order_does_not_double_use_the_coupon()
+    {
+        var store = $"coupon-race-{Guid.NewGuid():N}";
+        await using var db = CreateDb(store);
+        var (coupons, _) = CreateServices(db);
+        var coupon = await SeedCouponAsync(db);
+        var claimed = await coupons.ClaimCouponAsync(UserId, coupon.Id);
+
+        // A rival order consumes the coupon first; db still tracks the stale unused coupon
+        // (Status Unused, Version 1) from the claim, so this apply's write conflicts.
+        await using var rival = CreateDb(store);
+        var rivalCoupon = await rival.UserCoupons.SingleAsync(uc => uc.Id == claimed.Id);
+        rivalCoupon.Status = UserCouponStatus.Used;
+        rivalCoupon.UsedOrderId = Guid.CreateVersion7();
+        rivalCoupon.Version++;
+        await rival.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<CouponValidationException>(
+            () => coupons.ApplyCouponAsync(UserId, claimed.Id, coupon.Id, 1000, Guid.CreateVersion7()));
+        Assert.Equal("This coupon is already used.", ex.Message);
     }
 
     [Fact]

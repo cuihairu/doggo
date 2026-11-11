@@ -2550,7 +2550,13 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ValidToUtc")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CouponId");
 
                     b.ToTable("UserCoupons");
                 });
