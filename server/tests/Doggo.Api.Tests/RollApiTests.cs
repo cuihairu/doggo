@@ -3,7 +3,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Doggo.Domain.Cases;
 using Doggo.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Doggo.Api.Tests;
@@ -32,19 +34,52 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
         return (client, me.GetProperty("id").GetGuid());
     }
 
+    /// <summary>Registers a user, flags it admin, and logs back in so the token carries the role claim.</summary>
+    private async Task<(HttpClient Client, Guid UserId)> AuthorizedAdminAsync()
+    {
+        var (client, userId) = await AuthorizedAsync();
+        string phone;
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            var account = await db.UserAccounts.SingleAsync(u => u.Id == userId);
+            account.IsAdmin = true;
+            phone = account.Phone;
+            await db.SaveChangesAsync();
+        }
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            account = phone,
+            password = "super-secret-1"
+        });
+        login.EnsureSuccessStatusCode();
+        var tokens = JsonDocument.Parse(await login.Content.ReadAsStringAsync()).RootElement;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", tokens.GetProperty("accessToken").GetString());
+        return (client, userId);
+    }
+
+    /// <summary>Creates a room via the user-facing POST; the template itself is admin-gated and seeded directly.</summary>
     private async Task<Guid> CreateRoomAsync(HttpClient client)
     {
-        var createTemplate = await client.PostAsync("/api/roll/templates", Json(new
+        Guid templateId;
+        using (var scope = Factory.Services.CreateScope())
         {
-            title = "Daily roll",
-            ruleType = 1, // LoginEntry
-            durationMinutes = 60,
-            entryDeadlineMinutes = 5,
-            maxPrizeValueCents = 10000
-        }));
-        createTemplate.EnsureSuccessStatusCode();
-        using var templateDoc = JsonDocument.Parse(await createTemplate.Content.ReadAsStringAsync());
-        var templateId = templateDoc.RootElement.GetProperty("id").GetGuid();
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            var template = new RollRoomTemplate
+            {
+                Id = Guid.CreateVersion7(),
+                Title = "Daily roll",
+                RuleType = RollRuleType.LoginEntry,
+                DurationMinutes = 60,
+                EntryDeadlineMinutes = 5,
+                MaxPrizeValueCents = 10000
+            };
+            db.RollRoomTemplates.Add(template);
+            await db.SaveChangesAsync();
+            templateId = template.Id;
+        }
 
         var createRoom = await client.PostAsync("/api/roll/rooms", Json(new { templateId }));
         createRoom.EnsureSuccessStatusCode();
@@ -52,9 +87,9 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
         return roomDoc.RootElement.GetProperty("roomId").GetGuid();
     }
 
-    private async Task SeedPrizeAsync(HttpClient client, Guid roomId)
+    private async Task SeedPrizeAsync(HttpClient admin, Guid roomId)
     {
-        var response = await client.PostAsync($"/api/roll/rooms/{roomId}/prizes", Json(new object[]
+        var response = await admin.PostAsync($"/api/roll/rooms/{roomId}/prizes", Json(new object[]
         {
             new { type = 1, coinAmount = 100, weight = 1, title = "Coins", imageUrl = "https://img.example/coins.png" },
             new { type = 0, coinAmount = 0, weight = 1, title = "Knife", imageUrl = "https://img.example/knife.png" }
@@ -66,8 +101,9 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
     public async Task Room_lifecycle_create_join_draw_claim_runs_through_the_api()
     {
         var (client, userId) = await AuthorizedAsync();
+        var (admin, _) = await AuthorizedAdminAsync();
         var roomId = await CreateRoomAsync(client);
-        await SeedPrizeAsync(client, roomId);
+        await SeedPrizeAsync(admin, roomId);
 
         var running = await client.GetStringAsync("/api/roll/rooms");
         using (var runningDoc = JsonDocument.Parse(running))
@@ -119,8 +155,9 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
         var missing = await client.PostAsync($"/api/roll/rooms/{Guid.CreateVersion7()}/join", Json(new { entryRef = (string?)null }));
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
 
+        var (admin, _) = await AuthorizedAdminAsync();
         var roomId = await CreateRoomAsync(client);
-        await SeedPrizeAsync(client, roomId);
+        await SeedPrizeAsync(admin, roomId);
 
         var first = await client.PostAsync($"/api/roll/rooms/{roomId}/join", Json(new { entryRef = (string?)null }));
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
@@ -134,8 +171,9 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
     {
         // The winner (client A) joins and wins; a different user (client B) cannot claim.
         var (winner, winnerId) = await AuthorizedAsync();
+        var (admin, _) = await AuthorizedAdminAsync();
         var roomId = await CreateRoomAsync(winner);
-        await SeedPrizeAsync(winner, roomId);
+        await SeedPrizeAsync(admin, roomId);
         await winner.PostAsync($"/api/roll/rooms/{roomId}/join", Json(new { entryRef = (string?)null }));
         await winner.PostAsync($"/api/roll/rooms/{roomId}/draw", content: null);
 
@@ -153,5 +191,44 @@ public class RollApiTests(ApiFactory factory) : ApiTestBase(factory)
         var response = await client.PostAsync("/api/roll/rooms", Json(new { templateId = Guid.CreateVersion7() }));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Template_and_prize_seeding_require_an_admin()
+    {
+        var (user, _) = await AuthorizedAsync();
+
+        var template = await user.PostAsync("/api/roll/templates", Json(new
+        {
+            title = "Daily roll",
+            ruleType = 1,
+            durationMinutes = 60,
+            entryDeadlineMinutes = 5,
+            maxPrizeValueCents = 10000
+        }));
+        Assert.Equal(HttpStatusCode.Forbidden, template.StatusCode);
+
+        var roomId = await CreateRoomAsync(user);
+        var prizes = await user.PostAsync($"/api/roll/rooms/{roomId}/prizes", Json(new object[]
+        {
+            new { type = 1, coinAmount = 100, weight = 1, title = "Coins", imageUrl = "https://img.example/coins.png" }
+        }));
+        Assert.Equal(HttpStatusCode.Forbidden, prizes.StatusCode);
+
+        var (admin, _) = await AuthorizedAdminAsync();
+        var adminTemplate = await admin.PostAsync("/api/roll/templates", Json(new
+        {
+            title = "Admin roll",
+            ruleType = 1,
+            durationMinutes = 60,
+            entryDeadlineMinutes = 5,
+            maxPrizeValueCents = 10000
+        }));
+        Assert.Equal(HttpStatusCode.Created, adminTemplate.StatusCode);
+        var adminPrizes = await admin.PostAsync($"/api/roll/rooms/{roomId}/prizes", Json(new object[]
+        {
+            new { type = 1, coinAmount = 100, weight = 1, title = "Coins", imageUrl = "https://img.example/coins.png" }
+        }));
+        Assert.Equal(HttpStatusCode.OK, adminPrizes.StatusCode);
     }
 }

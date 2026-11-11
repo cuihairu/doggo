@@ -21,17 +21,12 @@ public static class RollEndpoints
                 .ToListAsync(cancellationToken));
         });
 
+        // Templates shape the prizes and pacing of a roll room; only an admin defines them.
         templates.MapPost("/", async (
             [FromBody] CreateTemplateRequest request,
-            ClaimsPrincipal principal,
             DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
-            if (principal.CurrentUserId() is null)
-            {
-                return Results.Unauthorized();
-            }
-
             var template = new RollRoomTemplate
             {
                 Title = request.Title,
@@ -43,7 +38,7 @@ public static class RollEndpoints
             db.RollRoomTemplates.Add(template);
             await db.SaveChangesAsync(cancellationToken);
             return Results.Created($"/api/roll/templates/{template.Id}", template);
-        });
+        }).RequireAuthorization("Admin");
 
         var rooms = app.MapGroup("/api/roll/rooms");
 
@@ -56,23 +51,17 @@ public static class RollEndpoints
             return Results.Ok(await RoomsToViewsAsync(db, running, cancellationToken));
         });
 
-        // Rewards are seeded per room here so the create/join/draw/claim flow can be
-        // exercised without a separate administration surface.
+        // Room rewards decide who wins what; only an admin seeds them. A user who could
+        // add a prize to a room they did not create could rig the draw.
         rooms.MapPost("/{id:guid}/prizes", async (
             Guid id,
             [FromBody] IReadOnlyList<RollPrizeRequest> request,
-            ClaimsPrincipal principal,
             DoggoDbContext db,
             CancellationToken cancellationToken) =>
         {
-            if (principal.CurrentUserId() is null)
-            {
-                return Results.Unauthorized();
-            }
-
             await AddPrizesAsync(db, id, request, cancellationToken);
             return Results.Ok(new { roomId = id, prizes = request.Count });
-        });
+        }).RequireAuthorization("Admin");
 
         rooms.MapGet("/{id:guid}", async (Guid id, DoggoDbContext db, CancellationToken cancellationToken) =>
         {
