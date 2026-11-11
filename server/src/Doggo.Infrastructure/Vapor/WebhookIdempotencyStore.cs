@@ -134,7 +134,7 @@ public sealed partial class RedisWebhookIdempotencyStore(
             var value = await database.StringGetAsync(key).ConfigureAwait(false);
             return value == CompletedValue ? WebhookClaimResult.ReplayCompleted : WebhookClaimResult.InFlight;
         }
-        catch (RedisException ex)
+        catch (Exception ex) when (ex is RedisException or ObjectDisposedException)
         {
             LogFallback(ex.Message);
             var result = await _fallback.TryClaimAsync(key, processingTtl, completedTtl, cancellationToken).ConfigureAwait(false);
@@ -163,7 +163,7 @@ public sealed partial class RedisWebhookIdempotencyStore(
             var database = redis.GetDatabase();
             await database.StringSetAsync(key, CompletedValue, completedTtl, When.Exists).ConfigureAwait(false);
         }
-        catch (RedisException ex)
+        catch (Exception ex) when (ex is RedisException or ObjectDisposedException)
         {
             LogFallback(ex.Message);
         }
@@ -186,7 +186,7 @@ public sealed partial class RedisWebhookIdempotencyStore(
             var database = redis.GetDatabase();
             await database.KeyDeleteAsync(key).ConfigureAwait(false);
         }
-        catch (RedisException ex)
+        catch (Exception ex) when (ex is RedisException or ObjectDisposedException)
         {
             // The Redis key survives in the Processing state; its short TTL lets a later retry
             // reprocess instead of being misjudged as a settled replay.
