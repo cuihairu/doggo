@@ -40,6 +40,40 @@ public class OrderServiceTests
             .UseInMemoryDatabase(store)
             .Options);
 
+    private static DbContextOptions<DoggoDbContext> CreateOptions(string store) =>
+        new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store)
+            .Options;
+
+    /// <summary>
+    /// Simulates a rival delivery committing the same idempotency key while this instance's
+    /// save is in flight: the next SaveChanges writes the rival's rows from a sibling context
+    /// and then fails with a store-level conflict. The InMemory pre-check cannot be
+    /// interleaved from a single-threaded test, so only the save failure itself is injected;
+    /// the catch path's re-check runs against genuinely committed rows.
+    /// </summary>
+    private sealed class RivalCommittingDbContext(DbContextOptions<DoggoDbContext> options, string store)
+        : DoggoDbContext(options)
+    {
+        public bool CommitRivalOnNextSave { get; set; }
+
+        public Action<DoggoDbContext>? OnRivalSave { get; set; }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            if (CommitRivalOnNextSave)
+            {
+                CommitRivalOnNextSave = false;
+                await using var rival = CreateDb(store);
+                OnRivalSave?.Invoke(rival);
+                await rival.SaveChangesAsync(cancellationToken);
+                throw new DbUpdateException("duplicate entry", new InvalidOperationException("1062"));
+            }
+
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+    }
+
     private static (OrderService Orders, StubHandler Handler) CreateService(
         DoggoDbContext db,
         Func<HttpRequestMessage, Task<HttpResponseMessage>>? vaporResponder = null)
@@ -741,6 +775,74 @@ public class OrderServiceTests
         Assert.Equal(PaymentProvider.Alipay, order.PayType);
         Assert.Equal(1, await db.PaymentRecords.CountAsync());
         Assert.Equal(PaymentStatus.Success, (await db.PaymentRecords.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task PaymentCallback_concurrent_duplicate_settles_as_replay()
+    {
+        var store = $"order-payment-dup-{Guid.NewGuid():N}";
+        await using var db = new RivalCommittingDbContext(CreateOptions(store), store);
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 10000);
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+
+        var callback = Callback(result.OrderId);
+        // The rival delivery wins the unique idempotency index while this save is in flight.
+        db.CommitRivalOnNextSave = true;
+        db.OnRivalSave = rival =>
+        {
+            var rivalOrder = rival.UserOrders.Single(o => o.Id == result.OrderId);
+            rivalOrder.Status = OrderStatus.PendingSettlement;
+            rivalOrder.PaidAtUtc = DateTime.UtcNow;
+            rival.PaymentRecords.Add(new PaymentRecord
+            {
+                Id = Guid.CreateVersion7(),
+                OrderId = result.OrderId,
+                Provider = PaymentProvider.Alipay,
+                ProviderTradeNo = "RIVAL-1",
+                IdempotencyKey = callback.IdempotencyKey,
+                AmountCents = callback.AmountCents,
+                Status = PaymentStatus.Success,
+                CallbackPayload = "{payload}",
+                PaidAtUtc = DateTime.UtcNow
+            });
+        };
+
+        Assert.False(await orders.ApplyPaymentCallbackAsync(result.OrderId, callback, "{payload}"));
+
+        var settled = await db.UserOrders.AsNoTracking().SingleAsync(o => o.Id == result.OrderId);
+        Assert.Equal(OrderStatus.PendingSettlement, settled.Status);
+        Assert.Equal(10000, settled.TotalCostCents);
+        Assert.Equal(1, await db.PaymentRecords.AsNoTracking().CountAsync(r => r.Status == PaymentStatus.Success));
+    }
+
+    [Fact]
+    public async Task PaymentCallback_concurrent_duplicate_of_a_rejection_stays_a_replay()
+    {
+        var store = $"order-payment-rej-{Guid.NewGuid():N}";
+        await using var db = new RivalCommittingDbContext(CreateOptions(store), store);
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 10000);
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+
+        var callback = Callback(result.OrderId, 500, success: false);
+        db.CommitRivalOnNextSave = true;
+        db.OnRivalSave = rival => rival.PaymentRecords.Add(new PaymentRecord
+        {
+            Id = Guid.CreateVersion7(),
+            OrderId = result.OrderId,
+            Provider = PaymentProvider.Alipay,
+            ProviderTradeNo = "RIVAL-1",
+            IdempotencyKey = callback.IdempotencyKey,
+            AmountCents = callback.AmountCents,
+            Status = PaymentStatus.Failed,
+            CallbackPayload = callback.Message
+        });
+
+        Assert.False(await orders.ApplyPaymentCallbackAsync(result.OrderId, callback, null));
+
+        Assert.Equal(1, await db.PaymentRecords.AsNoTracking().CountAsync());
+        Assert.Equal(OrderStatus.PendingPayment, (await db.UserOrders.AsNoTracking().SingleAsync()).Status);
     }
 
     [Fact]

@@ -222,18 +222,7 @@ public sealed partial class OrderService(
         if (!callback.Success || order.Status != OrderStatus.PendingPayment
             || callback.AmountCents != order.TotalCostCents)
         {
-            db.PaymentRecords.Add(new PaymentRecord
-            {
-                Id = Guid.CreateVersion7(),
-                OrderId = orderId,
-                Provider = payment.Provider,
-                ProviderTradeNo = callback.ProviderTradeNo,
-                IdempotencyKey = callback.IdempotencyKey,
-                AmountCents = callback.AmountCents,
-                Status = PaymentStatus.Failed,
-                CallbackPayload = payload ?? callback.Message
-            });
-            await db.SaveChangesAsync(cancellationToken);
+            await SaveFailedRecordAsync(callback, payload, orderId, cancellationToken);
             return false;
         }
 
@@ -261,10 +250,67 @@ public sealed partial class OrderService(
         // fourth step, written only on the first successful callback.
         analytics.EnqueueOrderPaid(order, record);
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Two concurrent deliveries of the same callback both passed the read check;
+            // the unique index settles the race. If the key is recorded now, this delivery
+            // is an already-processed replay and its in-memory moves are discarded; anything
+            // else is a real store failure and keeps throwing.
+            if (await db.PaymentRecords.AsNoTracking()
+                .AnyAsync(r => r.IdempotencyKey == callback.IdempotencyKey, cancellationToken))
+            {
+                db.ChangeTracker.Clear();
+                LogDuplicateCallback(logger, callback.IdempotencyKey);
+                return false;
+            }
+
+            throw;
+        }
 
         LogPaymentApplied(logger, order.OrderNo, callback.AmountCents);
         return true;
+    }
+
+    /// <summary>
+    /// Records the rejected callback for the audit trail. A concurrent delivery of the same
+    /// callback can win the unique index on the idempotency key; that makes this write a
+    /// replay, which is swallowed instead of surfacing as a 500.
+    /// </summary>
+    private async Task SaveFailedRecordAsync(
+        PaymentCallbackResult callback, string? payload, Guid orderId, CancellationToken cancellationToken)
+    {
+        db.PaymentRecords.Add(new PaymentRecord
+        {
+            Id = Guid.CreateVersion7(),
+            OrderId = orderId,
+            Provider = payment.Provider,
+            ProviderTradeNo = callback.ProviderTradeNo,
+            IdempotencyKey = callback.IdempotencyKey,
+            AmountCents = callback.AmountCents,
+            Status = PaymentStatus.Failed,
+            CallbackPayload = payload ?? callback.Message
+        });
+
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            if (await db.PaymentRecords.AsNoTracking()
+                .AnyAsync(r => r.IdempotencyKey == callback.IdempotencyKey, cancellationToken))
+            {
+                db.ChangeTracker.Clear();
+                LogDuplicateCallback(logger, callback.IdempotencyKey);
+                return;
+            }
+
+            throw;
+        }
     }
 
     /// <summary>Cancels an unpaid order and returns the promotion unit it held.</summary>
