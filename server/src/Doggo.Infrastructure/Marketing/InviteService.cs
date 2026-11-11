@@ -50,7 +50,27 @@ public sealed partial class InviteService(
             CoinReward = reward,
             Note = $"order:{orderId}"
         });
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Two concurrent first orders both pass the paid pre-check; the invitee-unique
+            // index settles the race. If the invitee is paid now, this call is the loser and
+            // returns already-paid (the whole save — coins included — rolled back); anything
+            // else is a real store failure and keeps throwing.
+            var paidByRival = await db.InviteRewardLogs.AsNoTracking()
+                .AnyAsync(l => l.InviteeUserId == inviteeUserId, cancellationToken);
+            if (paidByRival)
+            {
+                db.ChangeTracker.Clear();
+                return false;
+            }
+
+            throw;
+        }
+
         LogRewarded(inviterId, inviteeUserId, reward);
         return true;
     }

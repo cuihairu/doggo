@@ -2245,6 +2245,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("InviteeUserId")
+                        .IsUnique();
+
                     b.ToTable("InviteRewardLogs");
                 });
 

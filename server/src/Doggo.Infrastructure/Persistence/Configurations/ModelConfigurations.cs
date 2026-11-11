@@ -55,6 +55,14 @@ public class UserRedeemRecordConfiguration : IEntityTypeConfiguration<UserRedeem
         builder.HasIndex(x => new { x.RedeemCodeId, x.UserId }).IsUnique();
 }
 
+public class InviteRewardLogConfiguration : IEntityTypeConfiguration<InviteRewardLog>
+{
+    public void Configure(EntityTypeBuilder<InviteRewardLog> builder) =>
+        // The invitee-unique log row is the pay-once guard; the index backs the pre-check
+        // against two concurrent first orders racing the grant.
+        builder.HasIndex(x => x.InviteeUserId).IsUnique();
+}
+
 public class SignRecordConfiguration : IEntityTypeConfiguration<SignRecord>
 {
     public void Configure(EntityTypeBuilder<SignRecord> builder)
