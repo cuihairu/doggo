@@ -224,17 +224,31 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
 
         if (participant.ClaimedAtUtc is not null)
         {
+            // Replayed claims hand back the same result without granting again. A claim that
+            // reserved the slot but crashed before finalizing the room is completed here.
+            if (room.Status == RollRoomStatus.Claiming)
+            {
+                RollRoomStateMachine.RequireTransition(RollRoomStatus.Claiming, RollRoomStatus.Finished);
+                room.Status = RollRoomStatus.Finished;
+                await db.SaveChangesAsync(cancellationToken);
+            }
             return new ClaimResult(room.Id, userId, prize.Type, prize.CoinAmount, prize.UserPrizeId);
         }
 
+        // Reserve the claim slot before granting anything. Two concurrent claims for the same
+        // winner both read ClaimedAtUtc null; the participant Version concurrency token makes
+        // the second writer's save fail, so the prize is granted exactly once.
         RollRoomStateMachine.RequireTransition(room.Status, RollRoomStatus.Claiming);
         room.Status = RollRoomStatus.Claiming;
+        participant.ClaimedAtUtc = DateTime.UtcNow;
+        participant.Version++;
 
         Guid? userPrizeId = null;
         if (prize.Type == RollPrizeType.InventoryItem)
         {
             // The prize inventory item is delivered through the retrieval flow; here the
-            // prize record is issued so the user sees it in "my prizes" right away.
+            // prize record is issued so the user sees it in "my prizes" right away. It is
+            // persisted with the claim save so a crash cannot reserve the slot without the prize.
             var userPrize = new UserPrize
             {
                 Id = Guid.CreateVersion7(),
@@ -254,12 +268,27 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
             userPrizeId = userPrize.Id;
             prize.UserPrizeId = userPrizeId; // replayed claims hand back the same record
         }
-        else
+
+        try
         {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Another request claimed first and grants the prize; return its result without
+            // granting again, keeping a double payout out of the race.
+            var claimedPrize = await db.RollRoomPrizes.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == participant.WonPrizeId, cancellationToken);
+            return new ClaimResult(room.Id, userId, prize.Type, prize.CoinAmount, claimedPrize?.UserPrizeId);
+        }
+
+        if (prize.Type != RollPrizeType.InventoryItem)
+        {
+            // Coin grants are a separate ledger write and deliberately come after the slot is
+            // secured: a claim that loses the race never reaches the grant.
             await GrantCoinsAsync(userId, prize.CoinAmount, room.Id, cancellationToken);
         }
 
-        participant.ClaimedAtUtc = DateTime.UtcNow;
         RollRoomStateMachine.RequireTransition(RollRoomStatus.Claiming, RollRoomStatus.Finished);
         room.Status = RollRoomStatus.Finished;
         await db.SaveChangesAsync(cancellationToken);

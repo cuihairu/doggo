@@ -164,4 +164,6 @@ public class RollRoomParticipant : Entity
     public DateTime JoinedAtUtc { get; set; }
     public Guid? WonPrizeId { get; set; }
     public DateTime? ClaimedAtUtc { get; set; }
+    /// <summary>Manual concurrency token bumped on every participant mutation; concurrent stale reads fail the write.</summary>
+    public long Version { get; set; } = 1;
 }

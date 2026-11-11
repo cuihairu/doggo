@@ -161,8 +161,13 @@ public class UserPrizeConfiguration : IEntityTypeConfiguration<UserPrize>
 
 public class RollRoomParticipantConfiguration : IEntityTypeConfiguration<RollRoomParticipant>
 {
-    public void Configure(EntityTypeBuilder<RollRoomParticipant> builder) =>
+    public void Configure(EntityTypeBuilder<RollRoomParticipant> builder)
+    {
         builder.HasIndex(x => new { x.RoomId, x.UserId });
+        // Two concurrent claims for the same winner both read ClaimedAtUtc null; the token
+        // makes the second writer's save fail so coins are granted exactly once.
+        builder.Property(x => x.Version).IsConcurrencyToken();
+    }
 }
 
 public class NewsSourceConfiguration : IEntityTypeConfiguration<NewsSource>

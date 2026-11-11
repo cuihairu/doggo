@@ -5,6 +5,7 @@ using Doggo.Infrastructure.Cases;
 using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Doggo.Infrastructure.Tests;
@@ -21,6 +22,26 @@ public class RollServiceTests
 
     private static RollService CreateService(DoggoDbContext db) =>
         new(db, new CoinService(db, NullLogger<CoinService>.Instance), NullLogger<RollService>.Instance);
+
+    /// <summary>
+    /// Simulates the losing side of a concurrent claim: its next write hits a concurrency
+    /// conflict. EF's InMemory provider does not enforce concurrency tokens, so the conflict
+    /// itself is injected here to exercise the claim-slot race handling.
+    /// </summary>
+    private sealed class ConcurrencyConflictDbContext(DbContextOptions<DoggoDbContext> options) : DoggoDbContext(options)
+    {
+        public bool ThrowOnNextSave { get; set; }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnNextSave)
+            {
+                ThrowOnNextSave = false;
+                throw new DbUpdateConcurrencyException("concurrent claim", Array.Empty<IUpdateEntry>());
+            }
+            return base.SaveChangesAsync(cancellationToken);
+        }
+    }
 
     private static async Task<RollRoomTemplate> SeedTemplateAsync(
         DoggoDbContext db, RollRuleType rule = RollRuleType.LoginEntry, bool enabled = true)
@@ -371,6 +392,32 @@ public class RollServiceTests
 
         var claim = await service.ClaimAsync(roomId, winnerId);
         Assert.Equal(100, claim.CoinAmount);
+    }
+
+    [Fact]
+    public async Task ClaimAsync_LosingTheSlotRace_DoesNotGrantCoins()
+    {
+        await using var db = new ConcurrencyConflictDbContext(
+            new DbContextOptionsBuilder<DoggoDbContext>()
+                .UseInMemoryDatabase($"roll-race-{Guid.NewGuid():N}")
+                .Options);
+        var template = await SeedTemplateAsync(db);
+        var service = CreateService(db);
+        var roomId = (await service.CreateRoomFromTemplateAsync(template.Id)).RoomId;
+        await SeedParticipantAsync(db, roomId, UserId);
+        await SeedPrizeAsync(db, roomId, RollPrizeType.CoinGrant, 250);
+        await service.DrawAsync(roomId);
+
+        // This claim is the losing racer: its claim-slot write hits a concurrency conflict.
+        // The slot is not won, so the coin grant must not happen (the grant runs only after
+        // the claim write succeeds).
+        db.ThrowOnNextSave = true;
+        var claim = await service.ClaimAsync(roomId, UserId);
+
+        Assert.Equal(250, claim.CoinAmount);
+        Assert.Equal(
+            0,
+            await db.UserCoins.Where(c => c.UserId == UserId).Select(c => c.Balance).SingleOrDefaultAsync());
     }
 
     [Fact]
