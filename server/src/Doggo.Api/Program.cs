@@ -96,7 +96,9 @@ builder.Services.AddOptions<SignOptions>().Bind(builder.Configuration.GetSection
 builder.Services.AddScoped<CaseOpeningWebhookHandler>();
 
 // Payment channels land with the deployment milestone; mock covers development and tests.
-builder.Services.AddSingleton<IPaymentProvider, MockPaymentProvider>();
+// A production host must not resolve to the mock provider (it verifies no callback), so the
+// registration fails fast there instead of silently accepting forged payment callbacks.
+builder.Services.AddPaymentProvider(builder.Configuration, builder.Environment);
 
 // Funnel analytics: recorder shares the scoped DbContext for same-batch order events;
 // /api/events ingest is anonymous but rate limited per visitor.

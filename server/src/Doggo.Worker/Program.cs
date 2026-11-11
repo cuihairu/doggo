@@ -48,7 +48,7 @@ builder.Services.AddScoped<InviteService>();
 builder.Services.AddScoped<SignService>();
 builder.Services.AddOptions<InviteOptions>().Bind(builder.Configuration.GetSection(InviteOptions.SectionName));
 builder.Services.AddOptions<SignOptions>().Bind(builder.Configuration.GetSection(SignOptions.SectionName));
-builder.Services.AddSingleton<IPaymentProvider, MockPaymentProvider>();
+builder.Services.AddPaymentProvider(builder.Configuration, builder.Environment);
 builder.Services.AddHostedService<MarketSyncWorker>();
 builder.Services.AddHostedService<OrderTimeoutWorker>();
 builder.Services.AddHostedService<OrderReconciliationWorker>();
