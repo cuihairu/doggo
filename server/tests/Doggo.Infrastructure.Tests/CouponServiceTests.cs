@@ -101,6 +101,35 @@ public class CouponServiceTests
     }
 
     [Fact]
+    public async Task Redeem_racing_a_duplicate_does_not_credit_twice()
+    {
+        var store = $"redeem-race-{Guid.NewGuid():N}";
+        await using var db = new RivalWinsDbContext(store, new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store).Options);
+        var (coupons, _) = CreateServices(db);
+        var redeemCode = await SeedCoinCodeAsync(db);
+
+        // The rival's redemption lands while this call is in flight; the loser's coins and
+        // count bump must roll back with the record.
+        db.OnRivalSave = rival => rival.UserRedeemRecords.Add(new UserRedeemRecord
+        {
+            Id = Guid.CreateVersion7(),
+            RedeemCodeId = redeemCode.Id,
+            UserId = UserId,
+            RedeemedAtUtc = DateTime.UtcNow
+        });
+
+        var ex = await Assert.ThrowsAsync<CouponValidationException>(() => coupons.RedeemAsync(UserId, "COIN100"));
+        Assert.Equal("You have already redeemed this code.", ex.Message);
+
+        await using var fresh = new DoggoDbContext(new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store).Options);
+        Assert.Empty(await fresh.UserCoins.ToListAsync());
+        Assert.Equal(0, (await fresh.RedeemCodes.SingleAsync()).RedeemedCount);
+        Assert.Single(await fresh.UserRedeemRecords.ToListAsync());
+    }
+
+    [Fact]
     public async Task Redeem_coupon_code_issues_a_coupon_instance()
     {
         await using var db = CreateDb();

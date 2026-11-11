@@ -112,6 +112,8 @@ public class UserCoin : Entity
 {
     public Guid UserId { get; set; }
     public long Balance { get; set; }
+    /// <summary>Manual concurrency token bumped on every balance move; concurrent stale spends fail the write.</summary>
+    public long Version { get; set; } = 1;
 }
 
 /// <summary>Grant batch: coins expire per batch and are spent FIFO by expiry.</summary>

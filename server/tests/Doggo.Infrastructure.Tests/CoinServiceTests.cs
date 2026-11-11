@@ -10,9 +10,11 @@ public class CoinServiceTests
 {
     private static readonly Guid UserId = Guid.CreateVersion7();
 
-    private static DoggoDbContext CreateDb() =>
+    private static DoggoDbContext CreateDb() => CreateDb($"coin-service-tests-{Guid.NewGuid():N}");
+
+    private static DoggoDbContext CreateDb(string store) =>
         new(new DbContextOptionsBuilder<DoggoDbContext>()
-            .UseInMemoryDatabase($"coin-service-tests-{Guid.NewGuid():N}")
+            .UseInMemoryDatabase(store)
             .Options);
 
     private static CoinService CreateService(DoggoDbContext db) =>
@@ -97,6 +99,50 @@ public class CoinServiceTests
 
         await Assert.ThrowsAsync<CoinValidationException>(
             () => CreateService(db).SpendAsync(UserId, 10, "order", "order-1"));
+    }
+
+    [Fact]
+    public async Task Spend_racing_a_bigger_spend_rejects_instead_of_overdrafting()
+    {
+        var store = $"coin-spend-race-{Guid.NewGuid():N}";
+        await using var db = CreateDb(store);
+        var coins = CreateService(db);
+        await coins.GrantAsync(UserId, 100, "promo", null);
+
+        // A rival spend of 80 commits first; db still tracks the stale account (Balance 100,
+        // Version 2) from the grant, so this spend's write conflicts and re-reads: 20 left
+        // cannot cover 30, and the balance must stay at what the rival left.
+        await using var rival = CreateDb(store);
+        await CreateService(rival).SpendAsync(UserId, 80, "order", "rival-1");
+
+        var ex = await Assert.ThrowsAsync<CoinValidationException>(
+            () => coins.SpendAsync(UserId, 30, "order", "order-1"));
+        Assert.Equal("Insufficient coin balance.", ex.Message);
+
+        await using var fresh = CreateDb(store);
+        Assert.Equal(20, (await fresh.UserCoins.SingleAsync()).Balance);
+        Assert.Equal(20, (await fresh.UserCoinBatches.SingleAsync()).RemainingAmount);
+    }
+
+    [Fact]
+    public async Task Spend_racing_a_rival_settles_on_the_fresh_balance()
+    {
+        var store = $"coin-settle-race-{Guid.NewGuid():N}";
+        await using var db = CreateDb(store);
+        var coins = CreateService(db);
+        await coins.GrantAsync(UserId, 100, "promo", null);
+
+        // The rival spends 80 first; this spend fits the remaining 20 once the conflict
+        // forces a re-read, and the two spends together deduct exactly 100.
+        await using var rival = CreateDb(store);
+        await CreateService(rival).SpendAsync(UserId, 80, "order", "rival-1");
+
+        var balance = await coins.SpendAsync(UserId, 15, "order", "order-1");
+
+        Assert.Equal(5, balance);
+        await using var fresh = CreateDb(store);
+        Assert.Equal(5, (await fresh.UserCoins.SingleAsync()).Balance);
+        Assert.Equal(5, (await fresh.UserCoinBatches.SingleAsync()).RemainingAmount);
     }
 
     [Fact]

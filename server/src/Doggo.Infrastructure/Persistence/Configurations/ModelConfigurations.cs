@@ -40,7 +40,13 @@ public class UserSteamProfileConfiguration : IEntityTypeConfiguration<UserSteamP
 
 public class UserCoinConfiguration : IEntityTypeConfiguration<UserCoin>
 {
-    public void Configure(EntityTypeBuilder<UserCoin> builder) => builder.HasIndex(x => x.UserId).IsUnique();
+    public void Configure(EntityTypeBuilder<UserCoin> builder)
+    {
+        builder.HasIndex(x => x.UserId).IsUnique();
+        // Concurrent balance moves both read the balance; the token makes the second writer's
+        // save fail so a spend never deducts from a stale balance (overspend or lost coin).
+        builder.Property(x => x.Version).IsConcurrencyToken();
+    }
 }
 
 public class RedeemCodeConfiguration : IEntityTypeConfiguration<RedeemCode>

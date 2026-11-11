@@ -26,8 +26,9 @@ public sealed partial class CoinService(DoggoDbContext db, ILogger<CoinService> 
         return new CoinBalance(account?.Balance ?? 0, DateTime.UtcNow);
     }
 
-    /// <summary>Adds coins as one batch; expiry is optional.</summary>
-    public async Task<long> GrantAsync(
+    /// <summary>Tracks a grant without saving; the caller's single SaveChanges commits the
+    /// coins together with its guard rows, so a lost guard race rolls the coins back too.</summary>
+    public async Task<long> TrackGrantAsync(
         Guid userId, long amount, string sourceType, string? sourceRef, DateTime? expiresAtUtc = null, CancellationToken cancellationToken = default)
     {
         if (amount <= 0)
@@ -38,11 +39,12 @@ public sealed partial class CoinService(DoggoDbContext db, ILogger<CoinService> 
         var account = await db.UserCoins.FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
         if (account is null)
         {
-            account = new UserCoin { UserId = userId, Balance = 0 };
+            account = new UserCoin { UserId = userId, Balance = 0, Version = 1 };
             db.UserCoins.Add(account);
         }
 
         account.Balance += amount;
+        account.Version++;
         db.UserCoinBatches.Add(new UserCoinBatch
         {
             Id = Guid.CreateVersion7(),
@@ -63,14 +65,51 @@ public sealed partial class CoinService(DoggoDbContext db, ILogger<CoinService> 
             RefType = sourceType,
             RefId = sourceRef
         });
-        await db.SaveChangesAsync(cancellationToken);
-        LogGranted(userId, amount, account.Balance, sourceType);
         return account.Balance;
+    }
+
+    /// <summary>Adds coins as one batch; expiry is optional. Concurrent credits re-read the
+    /// balance on conflict so a grant is never lost.</summary>
+    public async Task<long> GrantAsync(
+        Guid userId, long amount, string sourceType, string? sourceRef, DateTime? expiresAtUtc = null, CancellationToken cancellationToken = default)
+    {
+        // Two concurrent grants read the same balance; the version token makes the second
+        // write fail so a credit is not lost. A create race loses to the unique user index
+        // and retries against the winner's account.
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            var balance = await TrackGrantAsync(userId, amount, sourceType, sourceRef, expiresAtUtc, cancellationToken);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                LogGranted(userId, amount, balance, sourceType);
+                return balance;
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < 3)
+            {
+                db.ChangeTracker.Clear();
+            }
+            catch (DbUpdateException)
+            {
+                // Lost a create race to the unique user index; retry against the winner's
+                // account. A store error that is not that race keeps throwing.
+                if (!await db.UserCoins.AsNoTracking().AnyAsync(c => c.UserId == userId, cancellationToken))
+                {
+                    throw;
+                }
+
+                db.ChangeTracker.Clear();
+            }
+        }
+
+        throw new CoinValidationException("The coin balance changed, please retry.");
     }
 
     /// <summary>
     /// Spends coins FIFO: earliest-expiring remaining batches are consumed first. The whole
     /// spend is rejected when the balance is insufficient; nothing is deducted partially.
+    /// A concurrent spend fails the stale write, and the retry re-reads the balance and
+    /// batches so two spends can never both succeed against one balance.
     /// </summary>
     public async Task<long> SpendAsync(Guid userId, long amount, string refType, string? refId, CancellationToken cancellationToken = default)
     {
@@ -79,50 +118,63 @@ public sealed partial class CoinService(DoggoDbContext db, ILogger<CoinService> 
             throw new CoinValidationException("Coin amount must be positive.");
         }
 
-        var account = await db.UserCoins.FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken)
-                      ?? throw new CoinValidationException("No coin balance for this user.");
-
-        var batches = await db.UserCoinBatches
-            .Where(b => b.UserId == userId && b.RemainingAmount > 0)
-            .ToListAsync(cancellationToken);
-        // Null expiry (never expires) sorts last: spend the dying coins first.
-        var ordered = batches
-            .OrderBy(b => b.ExpiresAtUtc ?? DateTime.MaxValue)
-            .ThenBy(b => b.CreatedAtUtc)
-            .ToList();
-
-        if (ordered.Sum(b => b.RemainingAmount) < amount)
+        for (var attempt = 1; attempt <= 3; attempt++)
         {
-            throw new CoinValidationException("Insufficient coin balance.");
-        }
+            var account = await db.UserCoins.FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken)
+                          ?? throw new CoinValidationException("No coin balance for this user.");
 
-        var left = amount;
-        foreach (var batch in ordered)
-        {
-            if (left == 0)
+            var batches = await db.UserCoinBatches
+                .Where(b => b.UserId == userId && b.RemainingAmount > 0)
+                .ToListAsync(cancellationToken);
+            // Null expiry (never expires) sorts last: spend the dying coins first.
+            var ordered = batches
+                .OrderBy(b => b.ExpiresAtUtc ?? DateTime.MaxValue)
+                .ThenBy(b => b.CreatedAtUtc)
+                .ToList();
+
+            if (ordered.Sum(b => b.RemainingAmount) < amount)
             {
-                break;
+                throw new CoinValidationException("Insufficient coin balance.");
             }
 
-            var take = Math.Min(batch.RemainingAmount, left);
-            batch.RemainingAmount -= take;
-            left -= take;
+            var left = amount;
+            foreach (var batch in ordered)
+            {
+                if (left == 0)
+                {
+                    break;
+                }
+
+                var take = Math.Min(batch.RemainingAmount, left);
+                batch.RemainingAmount -= take;
+                left -= take;
+            }
+
+            account.Balance -= amount;
+            account.Version++;
+            db.UserCoinLogs.Add(new UserCoinLog
+            {
+                Id = Guid.CreateVersion7(),
+                UserId = userId,
+                Type = CoinLogType.Spend,
+                Delta = -amount,
+                BalanceAfter = account.Balance,
+                RefType = refType,
+                RefId = refId
+            });
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                LogSpent(userId, amount, account.Balance, refType);
+                return account.Balance;
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < 3)
+            {
+                db.ChangeTracker.Clear();
+            }
         }
 
-        account.Balance -= amount;
-        db.UserCoinLogs.Add(new UserCoinLog
-        {
-            Id = Guid.CreateVersion7(),
-            UserId = userId,
-            Type = CoinLogType.Spend,
-            Delta = -amount,
-            BalanceAfter = account.Balance,
-            RefType = refType,
-            RefId = refId
-        });
-        await db.SaveChangesAsync(cancellationToken);
-        LogSpent(userId, amount, account.Balance, refType);
-        return account.Balance;
+        throw new CoinValidationException("The coin balance changed, please retry.");
     }
 
     /// <summary>Puts coins back as a fresh non-expiring batch (refunds and corrections).</summary>
@@ -155,6 +207,7 @@ public sealed partial class CoinService(DoggoDbContext db, ILogger<CoinService> 
             }
 
             account.Balance = Math.Max(0, account.Balance - total);
+            account.Version++;
             db.UserCoinLogs.Add(new UserCoinLog
             {
                 Id = Guid.CreateVersion7(),
@@ -169,7 +222,16 @@ public sealed partial class CoinService(DoggoDbContext db, ILogger<CoinService> 
 
         if (due.Count > 0)
         {
-            await db.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // A concurrent grant/spend moved the balance mid-sweep; drop the stale writes
+                // — the batches stay due — and let the next sweep expire them.
+                db.ChangeTracker.Clear();
+            }
         }
 
         return due.Count;

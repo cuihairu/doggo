@@ -85,7 +85,9 @@ public sealed partial class SignService(DoggoDbContext db, CoinService coins, IO
         }
 
         var reward = options.Value.CoinReward;
-        var balance = await coins.GrantAsync(userId, reward, isMakeup ? "sign_makeup" : "sign", date.ToString("O"), null, cancellationToken);
+        // Coins and the sign row save in one call, so whichever guard the unique index
+        // settles, the loser's coins roll back with it.
+        var balance = await coins.TrackGrantAsync(userId, reward, isMakeup ? "sign_makeup" : "sign", date.ToString("O"), null, cancellationToken);
         var record = new SignRecord
         {
             Id = Guid.CreateVersion7(),
@@ -100,17 +102,28 @@ public sealed partial class SignService(DoggoDbContext db, CoinService coins, IO
         {
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException) when (isMakeup)
+        catch (DbUpdateException)
         {
-            // Two concurrent makeup signs with the same order both pass the reuse pre-check;
-            // the unique index settles the race. If the order number is taken now, reject as
-            // reused (the whole save — coins included — rolled back); anything else is real.
-            var reused = await db.SignRecords.AsNoTracking()
-                .AnyAsync(s => s.MakeupOrderNo == makeupOrderNo, cancellationToken);
-            if (reused)
+            // Two concurrent makeup signs with the same order, or two signs for the same
+            // day, both pass their pre-checks; the unique indexes settle the races. Reject
+            // the loser with the same message as the pre-check; anything else is real.
+            if (isMakeup)
+            {
+                var reused = await db.SignRecords.AsNoTracking()
+                    .AnyAsync(s => s.MakeupOrderNo == makeupOrderNo, cancellationToken);
+                if (reused)
+                {
+                    db.ChangeTracker.Clear();
+                    throw new SignValidationException("This order was already used for a makeup sign.");
+                }
+            }
+
+            var alreadySigned = await db.SignRecords.AsNoTracking()
+                .AnyAsync(s => s.UserId == userId && s.SignedDate == date, cancellationToken);
+            if (alreadySigned)
             {
                 db.ChangeTracker.Clear();
-                throw new SignValidationException("This order was already used for a makeup sign.");
+                throw new SignValidationException("This day is already signed.");
             }
 
             throw;

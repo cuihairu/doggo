@@ -41,7 +41,8 @@ public sealed partial class InviteService(
             return false;
         }
 
-        await coins.GrantAsync(inviterId, reward, "invite_reward", inviteeUserId.ToString(), null, cancellationToken);
+        // Coins and the log row save in one call, so a lost race rolls the coins back too.
+        await coins.TrackGrantAsync(inviterId, reward, "invite_reward", inviteeUserId.ToString(), null, cancellationToken);
         db.InviteRewardLogs.Add(new InviteRewardLog
         {
             Id = Guid.CreateVersion7(),
@@ -58,8 +59,8 @@ public sealed partial class InviteService(
         {
             // Two concurrent first orders both pass the paid pre-check; the invitee-unique
             // index settles the race. If the invitee is paid now, this call is the loser and
-            // returns already-paid (the whole save — coins included — rolled back); anything
-            // else is a real store failure and keeps throwing.
+            // returns already-paid (coins and log rolled back together); anything else is a
+            // real store failure and keeps throwing.
             var paidByRival = await db.InviteRewardLogs.AsNoTracking()
                 .AnyAsync(l => l.InviteeUserId == inviteeUserId, cancellationToken);
             if (paidByRival)

@@ -77,7 +77,7 @@ public sealed partial class CouponService(DoggoDbContext db, CoinService coins, 
                 throw new CouponValidationException("This redeem code carries no coins.");
             }
 
-            var balance = await coins.GrantAsync(userId, redeemCode.CoinAmount, "redeem_code", redeemCode.Id.ToString(), null, cancellationToken);
+            var balance = await coins.TrackGrantAsync(userId, redeemCode.CoinAmount, "redeem_code", redeemCode.Id.ToString(), null, cancellationToken);
             result = new RedeemResult(RedeemCodeType.Coin, redeemCode.CoinAmount, null, string.Empty, balance);
         }
         else
@@ -90,7 +90,7 @@ public sealed partial class CouponService(DoggoDbContext db, CoinService coins, 
                 throw new CouponValidationException("The coupon behind this code is unavailable.");
             }
 
-            await IssueCouponAsync(userId, coupon, cancellationToken);
+            await TrackIssueCouponAsync(userId, coupon, cancellationToken);
             var balanceAfter = (await coins.GetBalanceAsync(userId, cancellationToken)).Balance;
             result = new RedeemResult(RedeemCodeType.Coupon, 0, coupon.Id, coupon.Title, balanceAfter);
         }
@@ -103,7 +103,26 @@ public sealed partial class CouponService(DoggoDbContext db, CoinService coins, 
             UserId = userId,
             RedeemedAtUtc = DateTime.UtcNow
         });
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Two concurrent redemptions of the same code by the same user both pass the
+            // already-redeemed pre-check; the (code, user) unique index settles the race and
+            // the loser's coins or coupon instance roll back with the record.
+            var alreadyRedeemed = await db.UserRedeemRecords.AsNoTracking()
+                .AnyAsync(r => r.RedeemCodeId == redeemCode.Id && r.UserId == userId, cancellationToken);
+            if (alreadyRedeemed)
+            {
+                db.ChangeTracker.Clear();
+                throw new CouponValidationException("You have already redeemed this code.");
+            }
+
+            throw;
+        }
+
         LogRedeemed(redeemCode.Code, userId, redeemCode.Type);
         return result;
     }
@@ -272,8 +291,9 @@ public sealed partial class CouponService(DoggoDbContext db, CoinService coins, 
         LogRestoreSkipped(orderId);
     }
 
-    /// <summary>Issues one coupon instance and stamps the shared validity window onto it.</summary>
-    private async Task IssueCouponAsync(Guid userId, Coupon coupon, CancellationToken cancellationToken)
+    /// <summary>Tracks one coupon instance (without saving) and stamps the shared validity
+    /// window onto it, so a redeem can commit the instance and its record in one save.</summary>
+    private async Task TrackIssueCouponAsync(Guid userId, Coupon coupon, CancellationToken cancellationToken)
     {
         var owned = await db.UserCoupons.CountAsync(uc => uc.UserId == userId && uc.CouponId == coupon.Id, cancellationToken);
         if (owned >= coupon.PerUserLimit)
@@ -289,6 +309,12 @@ public sealed partial class CouponService(DoggoDbContext db, CoinService coins, 
             Status = UserCouponStatus.Unused,
             ValidToUtc = coupon.ValidToUtc
         });
+    }
+
+    /// <summary>Issues one coupon instance and stamps the shared validity window onto it.</summary>
+    private async Task IssueCouponAsync(Guid userId, Coupon coupon, CancellationToken cancellationToken)
+    {
+        await TrackIssueCouponAsync(userId, coupon, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
     }
 

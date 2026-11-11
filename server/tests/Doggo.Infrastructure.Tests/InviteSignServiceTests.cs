@@ -84,6 +84,59 @@ public class InviteServiceTests
         Assert.False(await CreateService(db).GrantRewardAsync(lone, Guid.CreateVersion7()));
         Assert.Empty(db.InviteRewardLogs);
     }
+
+    [Fact]
+    public async Task Grant_racing_a_concurrent_first_order_does_not_pay_twice()
+    {
+        var store = $"invite-race-{Guid.NewGuid():N}";
+        var (inviterId, inviteeId) = (Guid.CreateVersion7(), Guid.CreateVersion7());
+        await using var db = new RivalWinsDbContext(store, new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store).Options);
+        db.UserAccounts.AddRange(
+            new UserAccount
+            {
+                Id = inviterId,
+                Phone = "13900000004",
+                Email = string.Empty,
+                PasswordHash = "x",
+                Nickname = "inviter",
+                InviteCode = "INVITER2"
+            },
+            new UserAccount
+            {
+                Id = inviteeId,
+                Phone = "13900000005",
+                Email = string.Empty,
+                PasswordHash = "x",
+                Nickname = "invitee",
+                InviteCode = "INVITEE2",
+                InvitedByUserId = inviterId
+            });
+        await db.SaveChangesAsync();
+        var invites = CreateService(db);
+
+        // The rival's first order pays the invitee while this call is in flight; the loser
+        // must not pay again (its coins were never committed).
+        db.OnRivalSave = rival =>
+        {
+            rival.InviteRewardLogs.Add(new InviteRewardLog
+            {
+                Id = Guid.CreateVersion7(),
+                InviterUserId = inviterId,
+                InviteeUserId = inviteeId,
+                CoinReward = 500,
+                Note = "order:rival"
+            });
+            rival.UserCoins.Add(new UserCoin { UserId = inviterId, Balance = 500, Version = 1 });
+        };
+
+        Assert.False(await invites.GrantRewardAsync(inviteeId, Guid.CreateVersion7()));
+
+        await using var fresh = new DoggoDbContext(new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store).Options);
+        Assert.Equal(500, (await fresh.UserCoins.SingleAsync()).Balance);
+        Assert.Single(await fresh.InviteRewardLogs.ToListAsync());
+    }
 }
 
 public class SignServiceTests
@@ -227,5 +280,35 @@ public class SignServiceTests
         Assert.Equal(today, view.Days.Max(d => d.Date));
         Assert.True(view.TodaySigned);
         Assert.Contains(view.Days, d => d.Signed);
+    }
+
+    [Fact]
+    public async Task Signing_racing_a_duplicate_sign_does_not_grant_twice()
+    {
+        var store = $"sign-race-{Guid.NewGuid():N}";
+        await using var db = new RivalWinsDbContext(store, new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store).Options);
+        var (signs, _) = CreateServices(db);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var cycleStart = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
+
+        // The rival's sign for the same day lands while this call is in flight; the loser's
+        // coins must roll back with its record.
+        db.OnRivalSave = rival => rival.SignRecords.Add(new SignRecord
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = UserId,
+            CycleId = cycleStart,
+            SignedDate = today,
+            CoinReward = 50
+        });
+
+        var ex = await Assert.ThrowsAsync<SignValidationException>(() => signs.SignTodayAsync(UserId));
+        Assert.Equal("This day is already signed.", ex.Message);
+
+        await using var fresh = new DoggoDbContext(new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store).Options);
+        Assert.Empty(await fresh.UserCoins.ToListAsync());
+        Assert.Single(await fresh.SignRecords.ToListAsync());
     }
 }
