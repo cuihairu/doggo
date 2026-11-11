@@ -599,6 +599,18 @@
 - [x] 审核发现：任意用户可建 roll 模板（RollEndpoints:24-46）、向任意房间加奖品（:61-75）。(属实：两个 POST 加 RequireAuthorization("Admin")，普通用户 403、管理员 201/200，房间创建/参与/开奖/领取仍开放给普通用户；证据:1ccc604;RollEndpoints.cs:41,64;RollApiTests.cs:197;server dotnet test 581 绿)
 - [x] 审核发现：/rooms/{id}/claim 无状态前置，ClaimAsync 的「已领取」早退排在异常分支之后，且无条件发全额 CoinAmount，并发双 claim 可重复发币。(属实：改为先占用领取位再发奖——状态机 Drawing/Drawn→Claiming、participant.ClaimedAtUtc 置值并 Version++（新增并发令牌，与 GroupBuyingSeat 同模式），奖品 UserPrize 与占用同一保存，保存成功后才 GrantCoinsAsync，最后 Claiming→Finished；并发输家收到 DbUpdateConcurrencyException，不发币只回读奖品，重放经 ClaimedAtUtc 早退幂等；InMemory provider 会对并发令牌检测冲突（后续 2026-11-12 复核确认，测试改为双 context 真实冲突触发，废弃 DbUpdateConcurrencyException 注入包装；真实 MySQL 下负载级竞态验证仍属深审 BLOCKED 443-449 组）；证据:382d3df;RollService.cs:241,244,276,289;CaseEntities.cs:167;ModelConfigurations.cs:169;RollServiceTests.cs:398;server dotnet test 582 绿)
 
+## 审核修复：巡检单 2026-10-20 P1 批次（2026-11-12）
+
+来源：/home/cui/audit-batch2-6repos-2026-11-11.md doggo 节 P1。P1 按余力推进，逐条一个 commit 推送 origin/main；测试总数 582→592。
+
+- [x] 审核发现：PromotionPlan 领取库存「读 Stock>0 → Stock-- → Save」无并发令牌/乐观锁，两个并发订单可同时读过最后一单位库存并都扣减，导致超卖。(属实：PromotionPlan 加 Version 并发令牌，ClaimPromotionAsync 改 3 次尝试循环——冲突后 detach 重读库存复检，无库存返回 null；RestorePromotionAsync 同步 3 次尝试 + 冲突 Clear 重读补回；证据:bb8e7cb;ModelConfigurations.cs:127;OrderService.cs:626,655;server dotnet test 583 绿)
+- [x] 审核发现：支付回调结算保存失败时不区分真实失败与重复回调，重放回调可能把已结算订单再处理。(属实：结算 catch 改先重查幂等键——已存在则按重放返回，否则 rethrow；新增 SaveFailedRecordAsync 同模式；证据:1a3c092;ModelConfigurations.cs:153;OrderService.cs:50;OrderServiceTests.cs;server dotnet test 585 绿)
+- [x] 审核发现：roll 房参与唯一性用 (RoomId, UserId) 非唯一索引 + EntryRef 可空，每订单一参与与每用户一参与规则缺库层约束，并发重复参与会放行。(属实：改 (RoomId, UserId, EntryRef) 唯一索引，EntryRef 空值规范化为 ""（MySQL 唯一索引视 NULL 互异，空串使每用户规则也受覆盖），保存失败重查后抛 RollValidationException；证据:2b510e0;ModelConfigurations.cs:207;RollService.cs:109,124;RollServiceTests.cs;server dotnet test 586 绿)
+- [x] 审核发现：补签按订单号去重只做内存 AnyAsync 预检，无库层约束，两个并发补签用同一订单可双双成功。(属实：SignRecord.MakeupOrderNo 加唯一索引（普通非补签行共享 NULL 不受影响），保存失败重查复用后抛 SignValidationException；证据:7b9fadd;ModelConfigurations.cs:92;SignService.cs:79,112;InviteSignServiceTests.cs;server dotnet test 586 绿)
+- [x] 审核发现：邀请返利以「无重复发放」预检做守卫，无唯一约束，两个并发首单可双双通过预检并各发一次币。(属实：InviteRewardLog.InviteeUserId 加唯一索引作发放守卫，保存失败重查已发后返回 false（失败方整笔回滚）；证据:08caf96;ModelConfigurations.cs:69;InviteService.cs:64;InviteSignServiceTests.cs;server dotnet test 586 绿)
+- [x] 审核发现：优惠券应用「读 Unused → 标记 Used → Save」无并发令牌，两个并发订单可同时用过同一张券。(属实：UserCoupon 加 Version 并发令牌，ApplyCouponAsync 冲突后重查已用则按已用拒绝，RestoreCouponAsync 3 次尝试 + 冲突 Clear；证据:7d663f8;ModelConfigurations.cs:79;CouponService.cs:213,244;CouponServiceTests.cs;server dotnet test 587 绿)
+- [x] 审核发现：CoinService 扣币「读余额→改批次→Save」无并发令牌，orders.Sum 与 account.Balance 可不一致，余额可透支或丢扣。(属实：UserCoin 加 Version 并发令牌，SpendAsync 3 次尝试——冲突后重读余额与批次并复检余额充足，不足抛「Insufficient coin balance.」；GrantAsync/ExpireDueBatchesAsync 同步加令牌与冲突重读；另修同源洞：邀请/补签/兑换码原「先 GrantAsync 独立保存、后守卫行保存」，守卫行输家会白得已提交的币——改新增 TrackGrantAsync 待提交入账，与守卫行同一 SaveChanges 原子提交，输家整笔回滚；证据:05f8efc;ModelConfigurations.cs:48;CoinService.cs;InviteService.cs:44;SignService.cs:88;CouponService.cs:80;CoinServiceTests.cs;InviteSignServiceTests.cs;CouponServiceTests.cs;RivalWinsDbContext.cs;server dotnet test 592 绿)
+
 ## 源码分层分析 2026-11-07
 
 - 抽象层清单：
