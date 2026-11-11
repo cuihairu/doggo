@@ -587,6 +587,18 @@
   - 建模未用的脚手架实体：Doggo.Domain/System/SystemEntities.cs 39/43 行——AdminAccount/角色/权限/IP 白名单/登录日志/短链/通知渠道/客服二维码等实体已建模型与迁移，但尚无任何端点或服务读写（对应后台功能未实现），构造并读属性凑行覆盖无行为意义；对应功能落地时随功能测试覆盖。
 - 剩余可测缺口（批次2 候选，未覆盖行数）：Api 端点校验/错误分支 Case 67、Order 55、Auth 28、Roll 26、TradeUrl 25、Program 29、AdminProduct 22、AdminStats 16、AdminSystem 17、AdminUser 11、Vapor 12、Coin 8、AdminOrder 4；Infrastructure CaseOpeningWebhookHandler 18、VaporModels 14、VaporClient 18、CouponService 23、RollService 29、SteamOpenIdService 13、DoggoDbContext 19、WechatSessionClient 5；Domain NewsEntities 8、AliasMethod 8、IPaymentProvider 3；PriceCrawler Scheduler 15、RobotsChecker 14、Ingestor 7、ConfiguredHtmlSiteAdapter 8；Scraper SteamAppNewsAdapter 20、RssSourceAdapter 18、ScraperScheduler 14、HtmlSanitizer 13、NewsSourceSeeder 52、HtmlSourceAdapter 8、NewsStore 6、NewsFingerprint 5。
 
+## 审核修复：巡检单 2026-10-20 P0 批次（2026-11-12）
+
+来源：/home/cui/audit-batch2-6repos-2026-11-11.md doggo 节 7 条 P0。7 条全部修复，逐条一个 commit 推送 origin/main，CI 全绿（gh run list 2026-11-12 核对：e0ac024/e4b9d7b/b5eaf35/8679e2e/1ccc604/382d3df 六个 run 均 success）；测试总数 575→582。
+
+- [x] 审核发现：Program.cs:99 注册 MockPaymentProvider，其 VerifyCallbackAsync 不验签、RefundAsync 恒返回 true，任何人可 POST /api/payments/callback 把订单标记为已支付。(属实：AddPaymentProvider 改按环境选择 provider，生产环境（非 Development/Testing）遇到 Mock 直接抛异常拒绝启动，回调验签与退款逻辑只在真实 provider 上生效；证据:e0ac024;Program.cs:102;PaymentProviderProductionTests.cs:27;server dotnet test 575 绿)
+- [x] 审核发现：OrderEndpoints /retrieval/complete 只查「订单属于我」，OfferId 由请求体任意指定，可把任意 offer 标成发货完成。(属实：删除该用户端点，改由 vapor webhook order_retrieval/trade_completed 驱动（新增 OrderRetrievalWebhookHandler，挂到 /api/vapor/webhook），CompleteRetrievalAsync 校验订单处于 Retrieving 且 offer 与 order.TradeOfferId 一致，外单 offer 拒绝并保持 Retrieving，重放幂等返回；证据:e4b9d7b;Program.cs:97;OrderService.cs:512,515;VaporWebhookApiTests.cs:184,208,232;OrderServiceTests.cs:1012;server dotnet test 578 绿)
+- [x] 审核发现：/retrieval 的 itemsToGive 由客户端指定，SubmitRetrievalAsync 不与订单 UserPrize 比对，可发走任意资产。(属实：请求体只剩 tradeUrlId，服务端从该订单 UserPrizes 解析 VaporTradeAsset（AppId 固定 CS2 "730"），无奖品的订单拒绝发车，原 dispatch/回滚测试补种子奖品后行为不变；证据:b5eaf35;OrderService.cs:67,438,470;OrderServiceTests.cs:913;server dotnet test 579 绿)
+- [x] 审核发现：CaseEndpoints /seats/{no}/result 与 /advance 普通用户可调，:125-126 的 paid/release 同样开放，可绕过 vapor 直接搬座位状态。(属实：result/advance 端点删除，座位推进改由 vapor webhook case_opening/{opening_result,stock_fetch_started,stock_ready,trade_started,trade_completed} 驱动；paid/release 加 RequireAuthorization("Admin")，外用户 paid/release 403、已删路由 404；证据:8679e2e;CaseEndpoints.cs:125,127;GroupBuyingApiTests.cs:315;server dotnet test 580 绿)
+- [x] 审核发现：POST /api/group-buyings 只需登录，任意用户可创建拼座批次。(属实：加 RequireAuthorization("Admin")，普通用户 403、管理员创建成功；证据:8679e2e;CaseEndpoints.cs:48;GroupBuyingApiTests.cs:315;server dotnet test 580 绿)
+- [x] 审核发现：任意用户可建 roll 模板（RollEndpoints:24-46）、向任意房间加奖品（:61-75）。(属实：两个 POST 加 RequireAuthorization("Admin")，普通用户 403、管理员 201/200，房间创建/参与/开奖/领取仍开放给普通用户；证据:1ccc604;RollEndpoints.cs:41,64;RollApiTests.cs:197;server dotnet test 581 绿)
+- [x] 审核发现：/rooms/{id}/claim 无状态前置，ClaimAsync 的「已领取」早退排在异常分支之后，且无条件发全额 CoinAmount，并发双 claim 可重复发币。(属实：改为先占用领取位再发奖——状态机 Drawing/Drawn→Claiming、participant.ClaimedAtUtc 置值并 Version++（新增并发令牌，与 GroupBuyingSeat 同模式），奖品 UserPrize 与占用同一保存，保存成功后才 GrantCoinsAsync，最后 Claiming→Finished；并发输家收到 DbUpdateConcurrencyException，不发币只回读奖品，重放经 ClaimedAtUtc 早退幂等；InMemory provider 不执行并发令牌检测，真实 MySQL 下的竞态验证仍属深审 BLOCKED（443-449 组），本次以注入 DbUpdateConcurrencyException 验证「输家不发币」次序不变量；证据:382d3df;RollService.cs:241,244,276,289;CaseEntities.cs:167;ModelConfigurations.cs:169;RollServiceTests.cs:398;server dotnet test 582 绿)
+
 ## 源码分层分析 2026-11-07
 
 - 抽象层清单：
