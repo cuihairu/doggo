@@ -5,7 +5,7 @@ using Doggo.Infrastructure.Cases;
 using Doggo.Infrastructure.Marketing;
 using Doggo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Update;
+
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Doggo.Infrastructure.Tests;
@@ -15,33 +15,16 @@ public class RollServiceTests
     private static readonly Guid UserId = Guid.CreateVersion7();
     private static readonly Guid OtherUserId = Guid.CreateVersion7();
 
-    private static DoggoDbContext CreateDb() =>
+    private static DoggoDbContext CreateDb() => CreateDb($"roll-service-tests-{Guid.NewGuid():N}");
+
+    private static DoggoDbContext CreateDb(string store) =>
         new(new DbContextOptionsBuilder<DoggoDbContext>()
-            .UseInMemoryDatabase($"roll-service-tests-{Guid.NewGuid():N}")
+            .UseInMemoryDatabase(store)
             .Options);
 
     private static RollService CreateService(DoggoDbContext db) =>
         new(db, new CoinService(db, NullLogger<CoinService>.Instance), NullLogger<RollService>.Instance);
 
-    /// <summary>
-    /// Simulates the losing side of a concurrent claim: its next write hits a concurrency
-    /// conflict. EF's InMemory provider does not enforce concurrency tokens, so the conflict
-    /// itself is injected here to exercise the claim-slot race handling.
-    /// </summary>
-    private sealed class ConcurrencyConflictDbContext(DbContextOptions<DoggoDbContext> options) : DoggoDbContext(options)
-    {
-        public bool ThrowOnNextSave { get; set; }
-
-        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            if (ThrowOnNextSave)
-            {
-                ThrowOnNextSave = false;
-                throw new DbUpdateConcurrencyException("concurrent claim", Array.Empty<IUpdateEntry>());
-            }
-            return base.SaveChangesAsync(cancellationToken);
-        }
-    }
 
     private static async Task<RollRoomTemplate> SeedTemplateAsync(
         DoggoDbContext db, RollRuleType rule = RollRuleType.LoginEntry, bool enabled = true)
@@ -397,10 +380,8 @@ public class RollServiceTests
     [Fact]
     public async Task ClaimAsync_LosingTheSlotRace_DoesNotGrantCoins()
     {
-        await using var db = new ConcurrencyConflictDbContext(
-            new DbContextOptionsBuilder<DoggoDbContext>()
-                .UseInMemoryDatabase($"roll-race-{Guid.NewGuid():N}")
-                .Options);
+        var store = $"roll-race-{Guid.NewGuid():N}";
+        await using var db = CreateDb(store);
         var template = await SeedTemplateAsync(db);
         var service = CreateService(db);
         var roomId = (await service.CreateRoomFromTemplateAsync(template.Id)).RoomId;
@@ -408,10 +389,17 @@ public class RollServiceTests
         await SeedPrizeAsync(db, roomId, RollPrizeType.CoinGrant, 250);
         await service.DrawAsync(roomId);
 
-        // This claim is the losing racer: its claim-slot write hits a concurrency conflict.
-        // The slot is not won, so the coin grant must not happen (the grant runs only after
-        // the claim write succeeds).
-        db.ThrowOnNextSave = true;
+        // The rival claim wins the slot from its own context; db still holds the stale
+        // participant (ClaimedAtUtc null, Version 1) tracked from the draw, so this
+        // claim's slot write hits a real concurrency conflict. The slot is not won, so
+        // the coin grant must not happen (the grant runs only after the claim write
+        // succeeds).
+        await using var rival = CreateDb(store);
+        var rivalParticipant = await rival.RollRoomParticipants.SingleAsync(p => p.RoomId == roomId);
+        rivalParticipant.ClaimedAtUtc = DateTime.UtcNow;
+        rivalParticipant.Version++;
+        await rival.SaveChangesAsync();
+
         var claim = await service.ClaimAsync(roomId, UserId);
 
         Assert.Equal(250, claim.CoinAmount);
