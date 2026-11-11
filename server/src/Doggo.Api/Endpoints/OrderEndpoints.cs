@@ -232,24 +232,9 @@ public static class OrderEndpoints
             }
         });
 
-        group.MapPost("/{id:guid}/retrieval/complete", async (
-            Guid id,
-            [FromBody] RetrievalCompleteRequest request,
-            ClaimsPrincipal principal,
-            [FromServices] OrderService orders,
-            [FromServices] Doggo.Infrastructure.Persistence.DoggoDbContext db,
-            CancellationToken cancellationToken) =>
-        {
-            var denied = await GuardOwnerAsync(db, id, principal, cancellationToken);
-            if (denied is not null)
-            {
-                return denied;
-            }
-
-            var completed = await orders.CompleteRetrievalAsync(id, request.OfferId, cancellationToken);
-            return Results.Ok(new { completed });
-        });
-
+        // Completion is callback driven (vapor webhook /api/vapor/webhook,
+        // order_retrieval/trade_completed): a client-supplied offer id could settle an order
+        // without the trade actually being accepted and pay the invite reward on a fake win.
         group.MapPost("/{id:guid}/retrieval/fail", async (
             Guid id,
             [FromBody] RetrievalFailRequest request,
@@ -306,8 +291,6 @@ public sealed record RefundRequest(string Reason);
 public sealed record RetrievalRequest(Guid TradeUrlId, List<RetrievalItem> ItemsToGive);
 
 public sealed record RetrievalItem(string AssetId, string AppId, string ClassId, string InstanceId);
-
-public sealed record RetrievalCompleteRequest(string OfferId);
 
 public sealed record RetrievalFailRequest(string Reason);
 

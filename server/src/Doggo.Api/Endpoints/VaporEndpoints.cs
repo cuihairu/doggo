@@ -22,6 +22,7 @@ public static class VaporEndpoints
         IOptions<VaporOptions> optionsAccessor,
         IWebhookIdempotencyStore idempotency,
         CaseOpeningWebhookHandler caseOpening,
+        OrderRetrievalWebhookHandler orderRetrieval,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -103,6 +104,7 @@ public static class VaporEndpoints
         try
         {
             await caseOpening.HandleAsync(envelope, cancellationToken);
+            await orderRetrieval.HandleAsync(envelope, cancellationToken);
         }
         catch
         {

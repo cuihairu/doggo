@@ -94,6 +94,7 @@ builder.Services.AddScoped<SignService>();
 builder.Services.AddOptions<InviteOptions>().Bind(builder.Configuration.GetSection(InviteOptions.SectionName));
 builder.Services.AddOptions<SignOptions>().Bind(builder.Configuration.GetSection(SignOptions.SectionName));
 builder.Services.AddScoped<CaseOpeningWebhookHandler>();
+builder.Services.AddScoped<OrderRetrievalWebhookHandler>();
 
 // Payment channels land with the deployment milestone; mock covers development and tests.
 // A production host must not resolve to the mock provider (it verifies no callback), so the

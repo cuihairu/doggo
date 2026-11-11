@@ -489,11 +489,15 @@ public sealed partial class OrderService(
         return (true, offerId, null);
     }
 
-    /// <summary>Completes an order whose trade offer was accepted (callback driven).</summary>
+    /// <summary>
+    /// Completes an order whose trade offer was accepted. Callback driven: the offer id must be
+    /// the one this deployment dispatched for the order, so a foreign or stale callback cannot
+    /// settle a retrieval it does not own (and thereby pay the invite reward).
+    /// </summary>
     public async Task<bool> CompleteRetrievalAsync(Guid orderId, string offerId, CancellationToken cancellationToken = default)
     {
         var order = await LoadOrderAsync(orderId, cancellationToken);
-        if (order.Status != OrderStatus.Retrieving)
+        if (order.Status != OrderStatus.Retrieving || order.TradeOfferId != offerId)
         {
             return false;
         }

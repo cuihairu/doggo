@@ -963,7 +963,7 @@ public class OrderServiceTests
     }
 
     [Fact]
-    public async Task CompleteRetrieval_only_from_retrieving()
+    public async Task CompleteRetrieval_only_from_retrieving_with_the_dispatched_offer()
     {
         using var db = CreateDb();
         var (orders, _) = CreateService(db);
@@ -974,7 +974,13 @@ public class OrderServiceTests
 
         await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), null);
         await SetOrderAsync(db, result.OrderId, OrderStatus.Retrieving);
+        // A dispatch recorded the offer it sent to vapor; the callback must carry that offer id.
+        var retrieving = await db.UserOrders.SingleAsync(o => o.Id == result.OrderId);
+        retrieving.TradeOfferId = "offer-2";
+        await db.SaveChangesAsync();
 
+        // A stale or foreign offer cannot complete an order it does not own.
+        Assert.False(await orders.CompleteRetrievalAsync(result.OrderId, "offer-1"));
         Assert.True(await orders.CompleteRetrievalAsync(result.OrderId, "offer-2"));
         Assert.False(await orders.CompleteRetrievalAsync(result.OrderId, "offer-2"));
 
