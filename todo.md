@@ -601,7 +601,7 @@
 
 ## 审核修复：巡检单 2026-10-20 P1 批次（2026-11-12）
 
-来源：/home/cui/audit-batch2-6repos-2026-11-11.md doggo 节 P1。P1 按余力推进，逐条一个 commit 推送 origin/main；测试总数 582→592。
+来源：/home/cui/audit-batch2-6repos-2026-11-11.md doggo 节 P1。P1 按余力推进，逐条一个 commit 推送 origin/main；测试总数 582→595。
 
 - [x] 审核发现：PromotionPlan 领取库存「读 Stock>0 → Stock-- → Save」无并发令牌/乐观锁，两个并发订单可同时读过最后一单位库存并都扣减，导致超卖。(属实：PromotionPlan 加 Version 并发令牌，ClaimPromotionAsync 改 3 次尝试循环——冲突后 detach 重读库存复检，无库存返回 null；RestorePromotionAsync 同步 3 次尝试 + 冲突 Clear 重读补回；证据:bb8e7cb;ModelConfigurations.cs:127;OrderService.cs:626,655;server dotnet test 583 绿)
 - [x] 审核发现：支付回调结算保存失败时不区分真实失败与重复回调，重放回调可能把已结算订单再处理。(属实：结算 catch 改先重查幂等键——已存在则按重放返回，否则 rethrow；新增 SaveFailedRecordAsync 同模式；证据:1a3c092;ModelConfigurations.cs:153;OrderService.cs:50;OrderServiceTests.cs;server dotnet test 585 绿)
@@ -610,6 +610,9 @@
 - [x] 审核发现：邀请返利以「无重复发放」预检做守卫，无唯一约束，两个并发首单可双双通过预检并各发一次币。(属实：InviteRewardLog.InviteeUserId 加唯一索引作发放守卫，保存失败重查已发后返回 false（失败方整笔回滚）；证据:08caf96;ModelConfigurations.cs:69;InviteService.cs:64;InviteSignServiceTests.cs;server dotnet test 586 绿)
 - [x] 审核发现：优惠券应用「读 Unused → 标记 Used → Save」无并发令牌，两个并发订单可同时用过同一张券。(属实：UserCoupon 加 Version 并发令牌，ApplyCouponAsync 冲突后重查已用则按已用拒绝，RestoreCouponAsync 3 次尝试 + 冲突 Clear；证据:7d663f8;ModelConfigurations.cs:79;CouponService.cs:213,244;CouponServiceTests.cs;server dotnet test 587 绿)
 - [x] 审核发现：CoinService 扣币「读余额→改批次→Save」无并发令牌，orders.Sum 与 account.Balance 可不一致，余额可透支或丢扣。(属实：UserCoin 加 Version 并发令牌，SpendAsync 3 次尝试——冲突后重读余额与批次并复检余额充足，不足抛「Insufficient coin balance.」；GrantAsync/ExpireDueBatchesAsync 同步加令牌与冲突重读；另修同源洞：邀请/补签/兑换码原「先 GrantAsync 独立保存、后守卫行保存」，守卫行输家会白得已提交的币——改新增 TrackGrantAsync 待提交入账，与守卫行同一 SaveChanges 原子提交，输家整笔回滚；证据:05f8efc;ModelConfigurations.cs:48;CoinService.cs;InviteService.cs:44;SignService.cs:88;CouponService.cs:80;CoinServiceTests.cs;InviteSignServiceTests.cs;CouponServiceTests.cs;RivalWinsDbContext.cs;server dotnet test 592 绿)
+- [x] 审核发现：每个请求（含静态 404、健康检查、webhook）都在 finally 里开 scope 同步写一行 UserVisitLog。(属实：/healthz、/api/events、/api/vapor/webhook、/api/payments/callback 四前缀排除不记；写入改 fire-and-forget 有界队列（VisitLogSink，满则丢弃计数）+ 后台 VisitLogBatchWorker 批量落库（≤200 行或 2 秒一刷，单 SaveChanges），请求路径不再触库；证据:e3d3179;VisitLogMiddleware.cs:15,45;VisitLogSink.cs:19,43;Program.cs:34;VisitLogClientTests.cs;server dotnet test 593 绿)
+- [x] 审核发现：用户可自行退款的接口存在，OrderEndpoint /refund 仅校验归属，结合第 1 条 mock provider「自己退款给自己」全链路成立。(属实：mock provider 已由 P0-1 在生产禁用，链路已断；退款属真实资金操作，按审核建议限制为后台操作——/refund 加 RequireAuthorization("Admin") 并去掉归属校验（管理员非下单人），用户侧退款 403 且订单状态不变，管理员可代退；2026-11-12 用户明确选择此项产品决策；证据:296e30b;OrderEndpoints.cs:34,198;OrderApiTests.cs:248;server dotnet test 594 绿)
+- [x] 审核发现：GroupBuyingService SaveSeatAsync 把 DbUpdateConcurrencyException 包成业务异常但未回滚 context，后续同一 scope 内继续 SaveChanges 会重复抛。(属实：冲突后先 ChangeTracker.Clear() 再抛 SeatConcurrencyException，输掉的写全部丢弃，同一 scope 内重试重读新状态成功；「LoadSeatAsync 忽略 userId 再 EnsureSeatOwnedAsync 中间无锁」一节经复核无需改——EnsureSeatOwnedAsync 每次经 join 重读归属（非用陈旧实体），加载后的陈旧写由座位 Version 并发令牌兜底失败；证据:44d64e3;GroupBuyingService.cs:440,418-426;GroupBuyingServiceTests.cs:372;server dotnet test 595 绿)
 
 ## 源码分层分析 2026-11-07
 
