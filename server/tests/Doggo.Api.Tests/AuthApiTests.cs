@@ -181,11 +181,29 @@ public class AuthApiTests(ApiFactory factory) : ApiTestBase(factory)
 
         await client.GetAsync("/api/auth/me");
 
-        using var scope = Factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
-        var visits = await db.UserVisitLogs.ToListAsync();
-        Assert.NotEmpty(visits);
-        Assert.Contains(visits, v => v.Path == "/api/auth/me");
-        Assert.Contains(visits, v => v.VisitorKey.Length == 32);
+        // The visit log is written off the request path by the batch worker
+        // (VisitLogSink/VisitLogBatchWorker, e3d3179), so the row is not
+        // necessarily flushed when the response returns. Poll until it lands,
+        // matching VisitLogClientTests.
+        UserVisitLog? log = null;
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            using var scope = Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            log = await db.UserVisitLogs.AsNoTracking()
+                .Where(v => v.Path == "/api/auth/me")
+                .OrderByDescending(v => v.CreatedAtUtc)
+                .FirstOrDefaultAsync();
+            if (log is not null)
+            {
+                break;
+            }
+
+            await Task.Delay(50);
+        }
+
+        Assert.NotNull(log);
+        Assert.Equal(32, log!.VisitorKey.Length);
     }
 }
