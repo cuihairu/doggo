@@ -633,3 +633,9 @@
   - Doggo.Infrastructure 反向引用 Doggo.PriceCrawler，而 PriceCrawler 又只依赖 Domain，这使基础层与采集实现层互相纠缠；管理台审查端点也被放置在采集库里。（server/src/Doggo.Infrastructure/Doggo.Infrastructure.csproj:16）
   - VisitLogMiddleware 属于 HTTP 边缘行为，却放在 Doggo.Api 根目录；EventRateLimiter 属于事件接入策略，却放在 EventEndpoints.cs 内，边缘横切面缺少独立归属。（server/src/Doggo.Api/Program.cs:132）
   - Doggo.Scraper 进程同时挂载 PriceCrawler 库，程序集名表达资讯，进程实际承担两类采集生命周期；分离依赖未造成部署困难，但命名未表达运行组合。（server/src/Doggo.Scraper/Program.cs:38）
+## Codex 深审发现（2026-11-12，luna profile 近5 commit 审核，0C/2M/3m，待修）
+
+- [ ] [M] ClaimSeatAsync 并发清理同型残留（server/src/Doggo.Infrastructure/Cases/GroupBuyingService.cs:202-210）——DbUpdateConcurrencyException 处理与已修项同型
+- [ ] [M] 订单退款双入口收敛（server/src/Doggo.Api/Endpoints/OrderEndpoints.cs:196、AdminOrderEndpoints.cs:44）——业务逻辑重复暴露
+- [ ] [m] CI 基础设施 Redis 硬依赖解耦（.github/workflows/daily.yml:47、DoggoInfrastructureExtensions.cs:36）
+- [ ] [m] todo.md:613 测试总数验证标注环境限制
