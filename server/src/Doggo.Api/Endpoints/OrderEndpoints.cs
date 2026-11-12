@@ -30,6 +30,24 @@ public static class OrderEndpoints
         return owner == userId.Value ? null : Results.NotFound();
     }
 
+    /// <summary>Refunds a paid order (admin only): the buyer is not checked, support refunds for them.</summary>
+    private static async Task<IResult> RefundOrder(
+        Guid id,
+        [FromBody] RefundRequest request,
+        [FromServices] OrderService orders,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var refunded = await orders.RefundOrderAsync(id, request.Reason, cancellationToken);
+            return Results.Ok(new { refunded });
+        }
+        catch (OrderNotFoundException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
+        }
+    }
+
     public static void MapOrderEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/orders")
@@ -175,30 +193,9 @@ public static class OrderEndpoints
             }
         });
 
-        group.MapPost("/{id:guid}/refund", async (
-            Guid id,
-            [FromBody] RefundRequest request,
-            ClaimsPrincipal principal,
-            [FromServices] OrderService orders,
-            [FromServices] Doggo.Infrastructure.Persistence.DoggoDbContext db,
-            CancellationToken cancellationToken) =>
-        {
-            var denied = await GuardOwnerAsync(db, id, principal, cancellationToken);
-            if (denied is not null)
-            {
-                return denied;
-            }
-
-            try
-            {
-                var refunded = await orders.RefundOrderAsync(id, request.Reason, cancellationToken);
-                return Results.Ok(new { refunded });
-            }
-            catch (OrderNotFoundException ex)
-            {
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
-            }
-        });
+        // A refund returns real money: it is a back-office action driven by support, so only
+        // admins run it and the owner check is skipped (the admin is not the order's buyer).
+        group.MapPost("/{id:guid}/refund", RefundOrder).RequireAuthorization("Admin");
 
         group.MapPost("/{id:guid}/retrieval", async (
             Guid id,

@@ -169,6 +169,32 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
             message = success ? null : "insufficient balance"
         });
 
+    /// <summary>Refunds through a freshly logged-in admin: refunds are back-office only,
+    /// so the order's owner (still logged in on the shared test client) cannot.</summary>
+    private async Task<HttpResponseMessage> RefundAsAdminAsync(Guid orderId, string reason)
+    {
+        var admin = Factory.CreateClient();
+        var account = $"139{Random.Shared.Next(100000, 999999):D6}";
+        var response = await admin.PostAsJsonAsync("/api/auth/register", new { account, password = "super-secret-1" });
+        response.EnsureSuccessStatusCode();
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
+            var row = await db.UserAccounts.SingleAsync(u => u.Phone == account);
+            row.IsAdmin = true;
+            await db.SaveChangesAsync();
+        }
+
+        // A fresh login reads IsAdmin live and mints the role claim into the token.
+        var login = await admin.PostAsJsonAsync("/api/auth/login", new { account, password = "super-secret-1" });
+        login.EnsureSuccessStatusCode();
+        var logged = JsonDocument.Parse(await login.Content.ReadAsStringAsync()).RootElement.Clone();
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", logged.GetProperty("accessToken").GetString());
+
+        return await admin.PostAsJsonAsync($"/api/orders/{orderId}/refund", new { reason });
+    }
+
     [Fact]
     public async Task Full_flow_create_pay_callback_refund()
     {
@@ -210,13 +236,31 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         using var cancelView = JsonDocument.Parse(await cancel.Content.ReadAsStringAsync());
         Assert.False(cancelView.RootElement.GetProperty("cancelled").GetBoolean());
 
-        var refund = await client.PostAsJsonAsync($"/api/orders/{orderId}/refund", new { reason = "customer complaint" });
-        refund.EnsureSuccessStatusCode();
+        var refund = await RefundAsAdminAsync(orderId, "customer complaint");
         using var refundView = JsonDocument.Parse(await refund.Content.ReadAsStringAsync());
         Assert.True(refundView.RootElement.GetProperty("refunded").GetBoolean());
 
         var final = await GetOrderAsync(client, orderId);
         Assert.Equal((int)OrderStatus.Refunded, final.GetProperty("status").GetInt32());
+    }
+
+    [Fact]
+    public async Task Refund_by_the_order_owner_is_forbidden()
+    {
+        var product = await SeedCrateAsync(finalPriceCents: 10000);
+        var (client, userId) = await AuthorizedAsync();
+
+        var created = await CreateOrderAsync(client, userId, product.Id);
+        var orderId = created.GetProperty("orderId").GetGuid();
+        var pay = await client.PostAsync($"/api/orders/{orderId}/pay", content: null);
+        pay.EnsureSuccessStatusCode();
+        (await PayCallbackAsync(client, orderId, 10000)).EnsureSuccessStatusCode();
+
+        var refund = await client.PostAsJsonAsync($"/api/orders/{orderId}/refund", new { reason = "customer complaint" });
+
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, refund.StatusCode);
+        var pending = await GetOrderAsync(client, orderId);
+        Assert.Equal((int)OrderStatus.PendingSettlement, pending.GetProperty("status").GetInt32());
     }
 
     [Fact]
