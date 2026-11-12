@@ -434,6 +434,10 @@ public sealed partial class GroupBuyingService(
         }
         catch (DbUpdateConcurrencyException ex)
         {
+            // The conflicting write already landed; drop this context's stale writes so a
+            // follow-up save in the same scope re-reads fresh state instead of rethrowing
+            // the same conflict forever.
+            db.ChangeTracker.Clear();
             throw new SeatConcurrencyException("The seat changed concurrently; reload and retry.", ex);
         }
     }

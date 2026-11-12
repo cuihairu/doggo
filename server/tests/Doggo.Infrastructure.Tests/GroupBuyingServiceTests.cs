@@ -369,6 +369,36 @@ public class GroupBuyingServiceTests
     }
 
     [Fact]
+    public async Task Seat_conflict_clears_the_context_so_a_retry_in_the_same_scope_works()
+    {
+        var store = $"gb-seat-retry-{Guid.NewGuid():N}";
+        var seed = CreateDb(store);
+        var batch = await SeedBatchAsync(seed);
+        var order = await SeedValidOrderAsync(seed, batch.ProductId);
+        seed.ChangeTracker.Clear();
+        await seed.DisposeAsync();
+
+        using var db = CreateDb(store);
+        var (service, _) = CreateService(db);
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, order.Id));
+
+        // An unrelated concurrent touch bumps the seat version while db still holds the
+        // claimed seat (Locked, stale version), so the next save conflicts.
+        using var rivalDb = CreateDb(store);
+        var rival = rivalDb.GroupBuyingSeats.First(s => s.GroupBuyingId == batch.Id);
+        rival.Version++;
+        await rivalDb.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<SeatConcurrencyException>(
+            () => service.MarkSeatPaidAsync(batch.Id, 1, UserId));
+
+        // The losing writes were dropped, so the same scope can retry right away: the fresh
+        // read (Locked, bumped version) pays without rethrowing the old conflict.
+        Assert.All(db.ChangeTracker.Entries(), e => Assert.NotEqual(EntityState.Modified, e.State));
+        Assert.Equal(1, await service.MarkSeatPaidAsync(batch.Id, 1, UserId));
+    }
+
+    [Fact]
     public async Task Mutations_reject_foreign_user_seats_inside_the_service()
     {
         var otherUserId = Guid.CreateVersion7();
