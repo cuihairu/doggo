@@ -30,6 +30,8 @@ builder.Services.AddOptions<AuthOptions>().Bind(builder.Configuration.GetSection
 // Singleton: issuance and validation must share one signing key, including the ephemeral
 // per-boot fallback when no Auth:SecretKey is configured.
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddSingleton<VisitLogSink>();
+builder.Services.AddHostedService<VisitLogBatchWorker>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddHttpClient<SteamOpenIdService>();
 builder.Services.Configure<WechatOptions>(builder.Configuration.GetSection(WechatOptions.SectionName));

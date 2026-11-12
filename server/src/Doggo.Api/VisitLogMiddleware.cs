@@ -1,20 +1,25 @@
 using System.Security.Claims;
 using Doggo.Domain.Users;
 using Doggo.Infrastructure.Analytics;
-using Doggo.Infrastructure.Persistence;
-using Microsoft.Extensions.Logging;
 
 namespace Doggo.Api;
 
 /// <summary>
-/// Writes one UserVisitLog row per request (after authentication, so the user id is known
-/// when a valid token was presented). Failures are logged and never break the response.
+/// Enqueues one UserVisitLog entry per request (after authentication, so the user id is known
+/// when a valid token was presented). The write itself is batched and off the request path by
+/// <see cref="VisitLogBatchWorker"/>, and health checks, analytics ingest and webhook traffic
+/// are skipped — they are not visits. A failure can never break the response.
 /// </summary>
-public sealed partial class VisitLogMiddleware(
-    RequestDelegate next,
-    IServiceScopeFactory scopeFactory,
-    ILogger<VisitLogMiddleware> logger)
+public sealed class VisitLogMiddleware(RequestDelegate next, VisitLogSink sink)
 {
+    private static readonly string[] ExcludedPrefixes =
+    [
+        "/healthz",
+        "/api/events",
+        "/api/vapor/webhook",
+        "/api/payments/callback"
+    ];
+
     public async Task InvokeAsync(HttpContext context)
     {
         try
@@ -23,32 +28,21 @@ public sealed partial class VisitLogMiddleware(
         }
         finally
         {
-            await WriteVisitLogAsync(context);
+            if (ShouldLog(context.Request.Path.Value))
+            {
+                sink.TryAdd(new VisitLogEntry(
+                    DateOnly.FromDateTime(DateTime.UtcNow),
+                    IsGuid(context.User.FindFirstValue("sub"), out var userId) ? userId : null,
+                    VisitorKey(context),
+                    context.Request.Path.Value ?? string.Empty,
+                    AnalyticsClients.ParseClient(context.Request.Headers[AnalyticsClients.ClientHeader])));
+            }
         }
     }
 
-    private async Task WriteVisitLogAsync(HttpContext context)
-    {
-        try
-        {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<DoggoDbContext>();
-            db.UserVisitLogs.Add(new UserVisitLog
-            {
-                Id = Guid.CreateVersion7(),
-                Date = DateOnly.FromDateTime(DateTime.UtcNow),
-                UserId = IsGuid(context.User.FindFirstValue("sub"), out var userId) ? userId : null,
-                VisitorKey = VisitorKey(context),
-                Path = context.Request.Path.Value ?? string.Empty,
-                Client = AnalyticsClients.ParseClient(context.Request.Headers[AnalyticsClients.ClientHeader])
-            });
-            await db.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            LogWriteFailed(context.Request.Path.Value, ex.Message);
-        }
-    }
+    private static bool ShouldLog(string? path) =>
+        path is { Length: > 0 }
+        && !ExcludedPrefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
 
     private static bool IsGuid(string? value, out Guid userId) => Guid.TryParse(value, out userId);
 
@@ -57,7 +51,4 @@ public sealed partial class VisitLogMiddleware(
         VisitorKeys.Compute(
             context.Connection.RemoteIpAddress?.ToString(),
             context.Request.Headers.UserAgent.ToString());
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "visit log for {Path} failed: {Reason}")]
-    private partial void LogWriteFailed(string? path, string reason);
 }
