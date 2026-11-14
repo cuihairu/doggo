@@ -80,8 +80,9 @@ crontab -e   # 17 3 * * * /usr/local/bin/doggo-backup.sh >> /var/log/doggo-backu
 Restore:
 
 ```bash
-docker exec -i doggo-mysql sh -c \
-  'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" doggo' < /var/backups/doggo/daily/doggo-XXXX.sql.gz
+# Dumps are gzip-compressed; gunzip on the host before the stream reaches mysql.
+gunzip -c /var/backups/doggo/daily/doggo-XXXX.sql.gz | \
+  docker exec -i doggo-mysql sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" doggo'
 ```
 
 Redis data is cache/queue in nature and is not backed up durably; the only stateful data is in MySQL. Consider syncing the backup directory off-host as well (rclone/rsync).
@@ -98,6 +99,6 @@ docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --
 
 ## Continuous delivery
 
-The `images` job in `.github/workflows/daily.yml` builds five images every day and pushes them to `ghcr.io/<owner>/doggo-{api,scraper,worker,web,admin}:nightly` (auto-skipped when there are no commits for 48 hours). To roll to the server automatically, set the repository variable `DEPLOY_ENABLED=true` and the `DEPLOY_SSH_HOST` / `DEPLOY_SSH_USER` / `DEPLOY_SSH_KEY` secrets; the `deploy` job then sshes to the target machine and runs `compose pull && up -d`.
+The `images` job in `.github/workflows/daily.yml` builds five images every day and pushes them to `ghcr.io/<owner>/doggo-{api,scraper,worker,web,admin}`, each tagged `nightly` plus a content-addressed `sha-<sha>` of the build (auto-skipped when there are no commits for 48 hours). To roll to the server automatically, set the repository variable `DEPLOY_ENABLED=true` and the `DEPLOY_SSH_HOST` / `DEPLOY_SSH_USER` / `DEPLOY_SSH_KEY` secrets; the `deploy` job then sshes to the target machine and runs `compose pull && up -d`.
 
 `nightly` is a rolling tag: no version-number tags and no GitHub Release. A formal release happens only after the user supplies a version number.

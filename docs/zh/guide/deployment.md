@@ -80,8 +80,9 @@ crontab -e   # 17 3 * * * /usr/local/bin/doggo-backup.sh >> /var/log/doggo-backu
 恢复:
 
 ```bash
-docker exec -i doggo-mysql sh -c \
-  'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" doggo' < /var/backups/doggo/daily/doggo-XXXX.sql.gz
+# 备份文件是 gzip 压缩的,先解压再交给 mysql。
+gunzip -c /var/backups/doggo/daily/doggo-XXXX.sql.gz | \
+  docker exec -i doggo-mysql sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" doggo'
 ```
 
 Redis 数据是缓存/队列性质,不做持久化备份;唯一状态数据在 MySQL。备份目录建议再做一次异地同步(rclone/rsync)。
@@ -98,6 +99,6 @@ docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --
 
 ## 持续交付
 
-`.github/workflows/daily.yml` 的 `images` job 每日构建五个镜像推到 `ghcr.io/<owner>/doggo-{api,scraper,worker,web,admin}:nightly`(48 小时无提交自动跳过)。要自动滚动到服务器:设仓库变量 `DEPLOY_ENABLED=true` 与 `DEPLOY_SSH_HOST`/`DEPLOY_SSH_USER`/`DEPLOY_SSH_KEY` 三个 secret,`deploy` job 会 ssh 到目标机执行 `compose pull && up -d`。
+`.github/workflows/daily.yml` 的 `images` job 每日构建五个镜像推到 `ghcr.io/<owner>/doggo-{api,scraper,worker,web,admin}`,每个镜像同时打 `nightly` 与内容寻址的 `sha-<sha>` 两个 tag(48 小时无提交自动跳过)。要自动滚动到服务器:设仓库变量 `DEPLOY_ENABLED=true` 与 `DEPLOY_SSH_HOST`/`DEPLOY_SSH_USER`/`DEPLOY_SSH_KEY` 三个 secret,`deploy` job 会 ssh 到目标机执行 `compose pull && up -d`。
 
 `nightly` 是滚动 tag,不做版本号 tag、不发 GitHub Release;发正式版由用户手动给出版本号后另行操作。
