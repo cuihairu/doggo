@@ -10,7 +10,7 @@ doggo 已有的统计设施只回答"卖了多少",回答不了"用户在哪一�
 | 既有设施 | 位置 | 能回答 | 不能回答 |
 | --- | --- | --- | --- |
 | UserVisitLog | `server/src/Doggo.Api/VisitLogMiddleware.cs` | 全站服务端 PV/UV(每请求一行,finally 写入,失败只记日志) | 客户端行为(点击、意图),无端/渠道维度 |
-| `/api/admin/stats` 系列 | `server/src/Doggo.Api/Endpoints/AdminEndpoints.cs` | 概览计数、14 日走势、商品排行 | 每步转化与流失 |
+| `/api/admin/stats` 系列 | `server/src/Doggo.Api/Endpoints/AdminStatsEndpoints.cs` | 概览计数、14 日走势、商品排行 | 每步转化与流失 |
 | UserOrder / PaymentRecord | `server/src/Doggo.Domain/Orders/` | 订单与支付结果(权威) | 下单前的流失 |
 
 四端客户端:web(React + Vite)、小程序(Taro)、手机端(Taro RN)、admin(React 后台)。miniapp/mobile 共用 `@doggo/shared`(`shared/src/client.ts`,Taro request 封装 + kvGet/kvSet 本地存储),web 有独立的 `web/src/api/client.ts`(fetch 封装)。
@@ -300,7 +300,7 @@ public sealed partial class FunnelAggregateWorker(
 | 窗口 | 第 1 步起 7 天内完成的后续步才计入该实例 |
 | 步骤 UV | 该实例走到第 k 步,则该实例计入第 k 步 |
 | 归日 | 实例归属**第 1 步发生日**(UTC),行内四步 UV 同源,转化率同行可除 |
-| 转化率 | 第 k+1 步 UV / 第 k 步 UV;流失率 = 1 − 转化率 |
+| 转化率 | 第 k 步 UV / **第 1 步** UV(四步转化率都以第 1 步为分母,`AdminStatsEndpoints` 按 `rate = Rate(uv[i], uv[0])` 计算);流失率 = 1 − 转化率 |
 
 归日取舍:按第 1 步归日后,"漏斗页某日支付 UV"与"订单报表当日支付数"不等价(前者含前几日进漏斗的人),这是刻意的——漏斗页要的是"同批人的转化",跨行相除才有意义;日历日口径的支付数在 `/api/admin/stats/trend` 已有,两者并存、用途不同。不采用"按会话内严格漏斗"口径:用户离开再回来(换会话)完成下单是常态,按会话会系统性低估后两步转化。
 
@@ -364,15 +364,15 @@ admin.MapGet("/funnel", async (
           "step": "order_created",
           "label": "下单",
           "uv": 900,
-          "rate": 0.25,
-          "dropRate": 0.75
+          "rate": 0.075,
+          "dropRate": 0.925
         },
         {
           "step": "order_paid",
           "label": "支付",
           "uv": 540,
-          "rate": 0.6,
-          "dropRate": 0.4
+          "rate": 0.045,
+          "dropRate": 0.955
         }
       ]
     },

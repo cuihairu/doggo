@@ -10,7 +10,7 @@ doggo's existing statistics only answer "how much was sold", not "where users dr
 | Existing facility | Location | Answers | Cannot answer |
 | --- | --- | --- | --- |
 | UserVisitLog | `server/src/Doggo.Api/VisitLogMiddleware.cs` | whole-site server-side PV/UV (one row per request, written in finally, failures only logged) | client-side behaviour (clicks, intent), no client/channel dimension |
-| `/api/admin/stats` family | `server/src/Doggo.Api/Endpoints/AdminEndpoints.cs` | overview counters, 14-day trends, product ranking | per-step conversion and drop-off |
+| `/api/admin/stats` family | `server/src/Doggo.Api/Endpoints/AdminStatsEndpoints.cs` | overview counters, 14-day trends, product ranking | per-step conversion and drop-off |
 | UserOrder / PaymentRecord | `server/src/Doggo.Domain/Orders/` | orders and payment results (authoritative) | drop-off before ordering |
 
 The four clients: web (React + Vite), miniapp (Taro), mobile (Taro RN), admin (React back office). miniapp/mobile share `@doggo/shared` (`shared/src/client.ts`, a Taro request wrapper + kvGet/kvSet local storage), web has its own `web/src/api/client.ts` (a fetch wrapper).
@@ -312,7 +312,7 @@ public sealed partial class FunnelAggregateWorker(
 | Window | a later step counts toward an instance only if completed within 7 days of step 1 |
 | Step UV | if an instance reaches step k, that instance counts toward step k |
 | Day attribution | an instance belongs to **step 1's occurrence day** (UTC); the four step UVs in the row share the same source, so rates within a row are directly comparable |
-| Conversion rate | step k+1 UV / step k UV; drop-off rate = 1 − conversion rate |
+| Conversion rate | step k UV / **step 1** UV (all four rates are against step 1, computed by `AdminStatsEndpoints`: `rate = Rate(uv[i], uv[0])`); drop-off rate = 1 − conversion rate |
 
 Rationale for day attribution: after attributing by step 1, "the funnel page's paid UV on a day" is not equivalent to "the order report's paid count for that day" (the former includes people who entered the funnel on previous days) — deliberate, because the funnel page wants "the same cohort's conversion", where cross-row division means something; the calendar-day paid count already exists in `/api/admin/stats/trend`, and the two coexist for different purposes. A "strictly in-session funnel" rule is not adopted: users leaving and returning (a session switch) to complete an order is the norm, so session-based counting systematically undercounts the last two steps' conversion.
 
@@ -376,15 +376,15 @@ Response sketch (when `groupBy=client`):
           "step": "order_created",
           "label": "下单",
           "uv": 900,
-          "rate": 0.25,
-          "dropRate": 0.75
+          "rate": 0.075,
+          "dropRate": 0.925
         },
         {
           "step": "order_paid",
           "label": "支付",
           "uv": 540,
-          "rate": 0.6,
-          "dropRate": 0.4
+          "rate": 0.045,
+          "dropRate": 0.955
         }
       ]
     },
