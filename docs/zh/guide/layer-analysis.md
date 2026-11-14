@@ -17,7 +17,7 @@
 
 - **职责**：持有事务边界、EF 映射、跨表用例、外部 Steam/OpenID/微信客户端和运营不变式。
 - **实现**：`DoggoInfrastructureExtensions` 在 `server/src/Doggo.Infrastructure/DoggoInfrastructureExtensions.cs:11` 注册 MySQL 与 Redis；`DoggoDbContext` 在 `server/src/Doggo.Infrastructure/Persistence/DoggoDbContext.cs:15` 暴露域集合并重写审计；应用服务包括 `OrderService`（`server/src/Doggo.Infrastructure/Orders/OrderService.cs:55`）、`GroupBuyingService`（`server/src/Doggo.Infrastructure/Cases/GroupBuyingService.cs:33`）、`RollService`（`server/src/Doggo.Infrastructure/Cases/RollService.cs:31`）、`MarketStore`（`server/src/Doggo.Infrastructure/Market/MarketStore.cs:19`）。
-- **配置 schema**：连接字符串在 `server/src/Doggo.Infrastructure/DoggoInfrastructureExtensions.cs:13` 读取；`AuthOptions` 声明于 `server/src/Doggo.Infrastructure/Auth/AuthOptions.cs:7`；`VaporOptions` 声明于 `server/src/Doggo.Infrastructure/Vapor/VaporOptions.cs:4`；`WechatOptions` 声明于 `server/src/Doggo.Infrastructure/Auth/WechatSessionClient.cs:21`；邀请与签到选项分别声明于 `server/src/Doggo.Infrastructure/Marketing/InviteOptions.cs:5` 和 `server/src/Doggo.Infrastructure/Marketing/SignOptions.cs:5`。
+- **配置 schema**：连接字符串在 `server/src/Doggo.Infrastructure/DoggoInfrastructureExtensions.cs:17` 读取；`AuthOptions` 声明于 `server/src/Doggo.Infrastructure/Auth/AuthOptions.cs:7`；`VaporOptions` 声明于 `server/src/Doggo.Infrastructure/Vapor/VaporOptions.cs:4`；`WechatOptions` 声明于 `server/src/Doggo.Infrastructure/Auth/WechatSessionClient.cs:21`；邀请与签到选项分别声明于 `server/src/Doggo.Infrastructure/Marketing/InviteOptions.cs:5` 和 `server/src/Doggo.Infrastructure/Marketing/SignOptions.cs:5`。
 - **专属协议/文案**：无。
 - **状态/调用面**：MySQL 持有权威业务与漏斗状态；Redis 持有 Vapor Webhook 幂等认领，见 `server/src/Doggo.Infrastructure/Vapor/WebhookIdempotencyStore.cs:51`；资讯、行情、商品、用户、订单、漏斗均不使用进程内存持久状态。L3/L4 进程内调用应用服务；L2 经 EF Core 调 MySQL，经 StackExchange.Redis 调 Redis，经 HTTP 调 Steam/OpenID、微信或 Vapor。
 - **生命周期**：各宿主把 `DoggoDbContext` 与用例服务注册为 scoped；Vapor 与幂等客户端分别是 HTTP client 或 singleton；MySQL 数据跨部署存活，Redis 失败时幂等认领退化为进程内记录。
@@ -25,7 +25,7 @@
 ### L3 对接与编排层
 
 - **职责**：为浏览器、小程序、RN App 和管理台提供一个独立部署的 REST 面；完成认证、端点授权、访问日志和应用服务编排。
-- **实现**：`Program` 在 `server/src/Doggo.Api/Program.cs:25` 组装安全、客户端和存储；端点注册从前缀开始，见 `server/src/Doggo.Api/Program.cs:134`；`VisitLogMiddleware` 在 `server/src/Doggo.Api/VisitLogMiddleware.cs:13` 的 `finally` 中写访问日志；管理台角色检查在 `server/src/Doggo.Api/Endpoints/AdminEndpoints.cs:27` 这类端点映射内声明。
+- **实现**：`Program` 在 `server/src/Doggo.Api/Program.cs:25` 组装安全、客户端和存储；端点注册从前缀开始，见 `server/src/Doggo.Api/Program.cs:139`；`VisitLogMiddleware` 在 `server/src/Doggo.Api/VisitLogMiddleware.cs:13` 的 `finally` 中写访问日志；管理台角色检查在 `server/src/Doggo.Api/Endpoints/AdminEndpoints.cs:27` 这类端点映射内声明。
 - **配置 schema**：`AuthOptions`、`WechatOptions`、`VaporOptions`、`InviteOptions`、`SignOptions` 在 `server/src/Doggo.Api/Program.cs:29` 绑定所属节；OpenAPI 仅 Development 暴露，见 `server/src/Doggo.Api/Program.cs:125`。
 - **专属协议/文案**：公共协议是 REST，分布在端点文件而不是单一 schema 文件。分组包括 `/api/auth`、`/api/products`、`/api/orders`、`/api/group-buyings`、`/api/roll`、`/api/events`、`/api/admin`；`/api/vapor/webhook` 定义入站 Vapor 协议，见 `server/src/Doggo.Api/Endpoints/VaporEndpoints.cs:10`；此处不挂静态 UI 文案。
 - **状态/调用面**：基本无状态。简单管理查询直接读 MySQL，事务用例调用 L2；事件限流器有意为进程内存，见 `server/src/Doggo.Api/Endpoints/EventEndpoints.cs:195`。Web/管理台走同源 HTTP；小程序与 RN 经 `shared/src/client.ts:112` 以 JSON 和 Bearer 调用；Vapor 推送签名 Webhook，失败时释放 Redis 幂等认领以便重试。
@@ -69,10 +69,10 @@
 
 ## 为什么这样拆
 
-1. **把不变式与部署 I/O 分开**。领域类型和纯规则编译进所有服务端宿主，但不能绑定 EF、MySQL 或 ASP.NET Core。引用图可见：`server/src/Doggo.Domain/Doggo.Domain.csproj:1` 没有 PackageReference，而 `server/src/Doggo.Infrastructure/DoggoInfrastructureExtensions.cs:19` 引入 MySQL 与 Redis。
-2. **让每个业务操作有唯一事务所有者**。应用服务持有 scoped `DoggoDbContext`、业务写入和审计副作用，而不是让端点各自发明事务行为。`server/src/Doggo.Infrastructure/Analytics/AnalyticsRecorder.cs:13` 明确加入调用方 SaveChanges 批次，`server/src/Doggo.Infrastructure/Orders/OrderService.cs:68` 持有订单状态迁移。
+1. **把不变式与部署 I/O 分开**。领域类型和纯规则编译进所有服务端宿主，但不能绑定 EF、MySQL 或 ASP.NET Core。引用图可见：`server/src/Doggo.Domain/Doggo.Domain.csproj:1` 没有 PackageReference，而 `server/src/Doggo.Infrastructure/DoggoInfrastructureExtensions.cs:34` 引入 MySQL 与 Redis。
+2. **让每个业务操作有唯一事务所有者**。应用服务持有 scoped `DoggoDbContext`、业务写入和审计副作用，而不是让端点各自发明事务行为。`server/src/Doggo.Infrastructure/Analytics/AnalyticsRecorder.cs:13` 明确加入调用方 SaveChanges 批次，`server/src/Doggo.Infrastructure/Orders/OrderService.cs:55` 持有订单状态迁移。
 3. **让请求编排无状态并可独立扩容**。API 宿主不绑定持久队列或 UI store；简单投影直接读库，事务工作委托应用服务。扩 API 实例不会切分业务状态；`server/src/Doggo.Api/Program.cs:153` 显式检查两个后端。
-4. **把周期工作从请求延迟与 API 可用性解耦**。行情任务、订单超时/对账、抽奖、积分过期、漏斗聚合、保留期清理都是注册于 `server/src/Doggo.Worker/Program.cs:48` 的 `BackgroundService`；移除 API 不影响补偿，部署也把 Worker 放成独立进程，见 `deploy/docker-compose.prod.yml:90`。
+4. **把周期工作从请求延迟与 API 可用性解耦**。行情任务、订单超时/对账、抽奖、金币过期、漏斗聚合、保留期清理都是注册于 `server/src/Doggo.Worker/Program.cs:48` 的 `BackgroundService`；移除 API 不影响补偿，部署也把 Worker 放成独立进程，见 `deploy/docker-compose.prod.yml:90`。
 5. **隔离不可信源采集与合规**。重试、熔断、robots、超时和站点并发不同于普通请求处理。价格配置在 `server/src/Doggo.PriceCrawler/PriceCrawlerOptions.cs:71` 明确携带 retry/circuit/robots/site 策略；资讯源失败与熔断状态持久在 `server/src/Doggo.Scraper/News/ScraperScheduler.cs:47`。
 6. **让客户端体验按平台特化，共享一条线上契约**。Web 用 Cookie，Taro 用 storage 加 Bearer，各端可选构建/运行时栈却调用同一 REST 面；`shared/src/client.ts:23` 明确注入 storage 是因 RN 行为不同。这样可以不把 React DOM、Ant Design Pro、微信与 RN 塞进一个运行时。
 7. **让共享运行资源只在部署面拥有一次**。数据库/缓存凭据、迁移顺序、代理路由和容器依赖集中声明在 `deploy/docker-compose.prod.yml:35`；应用代码不发明环境相关连接或启动顺序。共享 Taro 客户端也优于复制请求/认证/漏斗行为，因为 `miniapp/src/api/endpoints.ts:5` 明确复用它。

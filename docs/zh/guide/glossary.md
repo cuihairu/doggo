@@ -11,8 +11,8 @@
 | 别名抽样法 | Alias method | 用于选择箱内奖品的常数时间离散分布抽样算法。 | `server/src/Doggo.Domain/Cases/AliasMethod.cs:9` |
 | 价格规则 | Price rules | 生效价、数量阶梯、套餐选项优先级和返现计算。 | `server/src/Doggo.Domain/Products/PriceCalculator.cs:23` |
 | 漏斗事件字典 | Analytics event dictionary | 服务端接受的事件名与属性键白名单，以及 schema 版本。 | `server/src/Doggo.Domain/Analytics/AnalyticsEventDictionary.cs:9` |
-| 持久化与应用服务层 | Persistence and application-services layer | scoped EF/事务用例、映射、外部认证/Steam 客户端和跨表业务操作。 | `server/src/Doggo.Infrastructure/DoggoInfrastructureExtensions.cs:11` |
-| 应用数据库上下文 | Application database context | 暴露全部 MySQL 域集合并应用审计变更的 EF Core 工作单元。 | `server/src/Doggo.Infrastructure/Persistence/DoggoDbContext.cs:15` |
+| 持久化与应用服务层 | Persistence and application-services layer | scoped EF/事务用例、映射、外部认证/Steam 客户端和跨表业务操作。 | `server/src/Doggo.Infrastructure/DoggoInfrastructureExtensions.cs:15` |
+| 应用数据库上下文 | Application database context | 暴露全部 MySQL 域集合并应用审计变更的 EF Core 工作单元。 | `server/src/Doggo.Infrastructure/Persistence/DoggoDbContext.cs:19` |
 | 模型配置 | Model configurations | 所有持久域的 EF 表、键、索引、转换和 JSON 列映射声明。 | `server/src/Doggo.Infrastructure/Persistence/Configurations/ModelConfigurations.cs:1` |
 | 订单服务 | Order service | 创建、支付回调、取消、退款、提货、过期和对账的事务所有者。 | `server/src/Doggo.Infrastructure/Orders/OrderService.cs:55` |
 | 拼箱服务 | Group-buying service | 箱套餐座位、归属检查、乐观并发、开箱、奖品和 Vapor 回滚的事务所有者。 | `server/src/Doggo.Infrastructure/Cases/GroupBuyingService.cs:33` |
@@ -23,12 +23,12 @@
 | 幂等认领存储 | Idempotency-claim store | 用 Redis SET NX 阻断 Webhook 重放的认领；Redis 不可用时退化为进程内记录。 | `server/src/Doggo.Infrastructure/Vapor/WebhookIdempotencyStore.cs:11` |
 | 漏斗记录器 | Analytics recorder | 加入业务 SaveChanges 批次或在白名单过滤后持久匿名事件行的统一记录器。 | `server/src/Doggo.Infrastructure/Analytics/AnalyticsRecorder.cs:17` |
 | 对接与编排层 | Service orchestration layer | 独立部署的 REST/认证/访问日志宿主，把外部调用转换为应用服务调用。 | `server/src/Doggo.Api/Program.cs:25` |
-| 端点地图 | Endpoint map | 拥有 REST 面、请求 DTO、授权和响应形态的 ASP.NET Core 路由分组模块。 | `server/src/Doggo.Api/Endpoints/OrderEndpoints.cs:33` |
-| 管理端点 | Admin endpoints | 覆盖内容、目录、订单、用户、抽奖房、价格审查、设置和统计的 admin-only 后台面。 | `server/src/Doggo.Api/Endpoints/AdminEndpoints.cs:27` |
+| 端点地图 | Endpoint map | 拥有 REST 面、请求 DTO、授权和响应形态的 ASP.NET Core 路由分组模块。 | `server/src/Doggo.Api/Endpoints/OrderEndpoints.cs:51` |
+| 管理端点 | Admin endpoints | 覆盖内容、目录、订单、用户、抽奖房、价格审查、设置和统计的 admin-only 后台面。 | `server/src/Doggo.Api/Endpoints/AdminEndpoints.cs:18` |
 | 访问日志中间件 | Visit-log middleware | 响应后写一条访问记录且不让 HTTP 响应失败的中间件。 | `server/src/Doggo.Api/VisitLogMiddleware.cs:13` |
 | 事件限流器 | Event rate limiter | 面向匿名漏斗批次的进程内固定窗口限流器。 | `server/src/Doggo.Api/Endpoints/EventEndpoints.cs:195` |
 | Vapor Webhook 端点 | Vapor webhook endpoint | API 的入站 `/api/vapor/webhook` 协议适配与认领/释放编排。 | `server/src/Doggo.Api/Endpoints/VaporEndpoints.cs:10` |
-| 调度与异步层 | Scheduling and async layer | 独立执行行情、订单、抽奖、积分、漏斗和保留期工作的后台宿主。 | `server/src/Doggo.Worker/Program.cs:18` |
+| 调度与异步层 | Scheduling and async layer | 独立执行行情、订单、抽奖、金币、漏斗和保留期工作的后台宿主。 | `server/src/Doggo.Worker/Program.cs:18` |
 | 市场同步 Worker | Market-sync worker | 创建/轮询 Vapor 任务并把结果挂牌折叠为持久行情状态的定时任务。 | `server/src/Doggo.Worker/Market/MarketSyncWorker.cs:17` |
 | 对账 Worker | Reconciliation worker | 补偿卡住的支付、退款和提货的周期任务。 | `server/src/Doggo.Worker/Orders/OrderReconciliationWorker.cs:13` |
 | 漏斗聚合 Worker | Funnel-aggregation worker | 在事件明细保留前做 T-1 漏斗日统计重算。 | `server/src/Doggo.Worker/Analytics/FunnelAggregateWorker.cs:12` |
