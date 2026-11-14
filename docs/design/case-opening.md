@@ -26,7 +26,7 @@ The legacy platform issued commands over Redis Stream (`open_crate` / `open_all_
 | trading | the trade-offer action (`send_trade_offer`, asset item keys `asset_id` / `app_id`) |
 | password_auth / enable_guard | credential and SteamGuard session management |
 
-Integration from the Doggo side: actions are started through the vapor REST API and result events are subscribed via webhooks / SSE; results are linked back to the local prize record by order number. Checked against the vapor source on 2026-10-14: its notifications currently cover only the `job` / `session` / `auth` categories with no case-opening domain event yet, so seat results are back-filled through the `/api/group-buyings/{id}/seats/{seatNo}/result` endpoint; the `case_opening` event category on the webhook side is kept as a doggo-side convention until vapor provides domain events.
+Integration from the Doggo side: actions are started through the vapor REST API and result events are subscribed via webhooks / SSE; results are linked back to the local prize record by order number. Checked against the vapor source on 2026-10-14: its notifications currently cover only the `job` / `session` / `auth` categories with no case-opening domain event yet, so the `case_opening` webhook category (`opening_result` plus the `stock_fetch_started` / `stock_ready` / `trade_started` / `trade_completed` chain) is a doggo-side convention handled by `CaseOpeningWebhookHandler`; the earlier client-facing seat-result endpoint was removed once the webhook drove those transitions, so seat results arrive only through the webhook.
 
 ## State machines
 

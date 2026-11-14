@@ -59,7 +59,7 @@ Doggo 采用 monorepo 组织,按职责拆分为多个服务模块,全部基于 C
 ## 基础设施
 
 - **数据库**:MySQL(主存储,utf8mb4)
-- **缓存**:Redis(热点行情、资讯列表、会话)
+- **缓存**:Redis(Webhook 幂等声明,Redis 不可达时回退进程内实现;健康探针;行情与资讯列表直接读 MySQL)
 - **部署**:Docker Compose 一键编排;GitHub Actions CI/CD
 - **可观测**:结构化日志(Prometheus 指标为计划项,暂未接入)
 

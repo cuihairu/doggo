@@ -73,13 +73,14 @@ doggo/
 ├── miniapp/       # WeChat mini program (Taro + React)
 ├── mobile/        # mobile app (Taro + React)
 ├── deploy/        # Docker Compose, nginx configs
+├── shared/        # shared client API library for the miniapp and mobile apps
 ├── LICENSE        # Apache License 2.0
 └── README.md
 ```
 
 ## Status
 
-Implemented so far: the server (news, market, orders, cases, auth with Steam and WeChat login), admin console, WeChat miniapp, the Android app and the Docker deploy stack. [todo.md](todo.md) tracks the remaining work: 364 of 386 checklist items are done (counted over every checkbox in that file), and the open ones are two external dependencies (the vapor integration and the miniapp review), a payment-channel rollout decision, deep-audit concurrency/consistency items blocked pending a real MySQL environment, and three source-layering items blocked on migration decisions, listed in that file. Tests run on every push (see `.github/workflows/ci.yml`) and nightly images publish to GHCR. Issues and pull requests are welcome.
+Implemented so far: the server (news, market, orders, cases, auth with Steam and WeChat login), admin console, WeChat miniapp, the Android app and the Docker deploy stack. [todo.md](todo.md) tracks the remaining work: 381 of 408 checklist items are done (counted over every checkbox in that file), and the open ones are two external dependencies (the vapor integration and the miniapp review), a payment-channel rollout decision, deep-audit concurrency/consistency items blocked pending a real MySQL environment, and three source-layering items blocked on migration decisions, listed in that file. Tests run on every push (see `.github/workflows/ci.yml`) and nightly images publish to GHCR. Issues and pull requests are welcome.
 
 ## License
 

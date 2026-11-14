@@ -26,7 +26,7 @@
 | trading | 交易报价 action(`send_trade_offer`,资产条目键为 `asset_id` / `app_id`) |
 | password_auth / enable_guard | 凭据与 SteamGuard 会话管理 |
 
-Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook / SSE 订阅结果事件;按订单号关联回本地奖品记录。2026-10-14 核对 vapor 源码:其通知目前只有 `job` / `session` / `auth` 三类,尚无开箱域事件,座位结果经 `/api/group-buyings/{id}/seats/{seatNo}/result` 接口回填;Webhook 侧的 `case_opening` 事件类别保留为 doggo 侧约定,待 vapor 提供域事件后接上。
+Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook / SSE 订阅结果事件;按订单号关联回本地奖品记录。2026-10-14 核对 vapor 源码:其通知目前只有 `job` / `session` / `auth` 三类,尚无开箱域事件;`case_opening` Webhook 事件类别(`opening_result` 及 `stock_fetch_started` / `stock_ready` / `trade_started` / `trade_completed` 链)为 doggo 侧约定,由 `CaseOpeningWebhookHandler` 处理;早期的客户端座位结果回填接口已在 Webhook 接管这些状态迁移后移除,座位结果只经 Webhook 到达。
 
 ## 状态机
 

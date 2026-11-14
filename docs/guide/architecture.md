@@ -59,7 +59,7 @@ The runtime can also be read as five responsibility layers. Their concrete files
 ## Infrastructure
 
 - **Database**: MySQL (primary store, utf8mb4)
-- **Cache**: Redis (hot market data, news lists, sessions)
+- **Cache**: Redis (webhook idempotency claims with an in-process fallback, health probes; market and news lists are served straight from MySQL)
 - **Deployment**: one-command Docker Compose; GitHub Actions CI/CD
 - **Observability**: structured logging (Prometheus metrics are a planned item, not yet wired)
 
