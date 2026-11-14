@@ -639,3 +639,6 @@
 - [ ] [M] 订单退款双入口收敛（server/src/Doggo.Api/Endpoints/OrderEndpoints.cs:196、AdminOrderEndpoints.cs:44）——业务逻辑重复暴露
 - [ ] [m] CI 基础设施 Redis 硬依赖解耦（.github/workflows/daily.yml:47、DoggoInfrastructureExtensions.cs:36）
 - [ ] [m] todo.md:613 测试总数验证标注环境限制
+## 文档站语言自动切换（2026-11-14 舰队 G2 审计轮）
+
+- [ ] [P2] 文档站无浏览器语言自动识别——`/`（en-US）与 `/zh/`（zh-CN）双语成对，但仅靠导航栏翻译切换器手动切换，无 `navigator.language` 探测与跳转、无 `rootLocale` 重定向；「手动切换 + 显式链接」为受规基线，自动识别属增强项，是否全舰队/本仓开启待用户拍板。（docs/.vitepress/config.mts:20-78；docs/.vitepress/theme/index.ts 无重定向逻辑；线上探针 / → 200 en-US 首屏 CJK 4，/zh/ → 200 zh-CN 首屏 CJK 32）
