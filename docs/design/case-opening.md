@@ -11,9 +11,9 @@
 
 | Mode | Flow | Executor |
 | --- | --- | --- |
-| Self-open | The platform hands over account credentials + Steam Guard token → the user opens the case in game → the platform pulls a snapshot and links it to the order → the user requests the item back | the user |
-| Batch proxy-open | A series of cases on an account is sold by seat → payment reserves a seat → the opening is submitted → the bot opens cases in queue (with earlier unopened cases on the same account) → the result callback creates the prize | vapor proxy |
-| One-click open | Opens every case on the account | vapor proxy |
+| Self-open | **Not implemented in the open-source edition** — the flow below is kept for parity with the legacy platform: credential + Steam Guard handover → the user opens the case in game → the platform pulls a snapshot and links it to the order → the user requests the item back. `ServiceMode.SelfOpen` exists and is sold as `ProductStatus.SelfOpenOnly`, but there is no credential handover, guard flow or inventory-snapshot link-back in code | the user |
+| Batch proxy-open | A series of cases on an account is sold by seat → payment reserves a seat → the opening is submitted → vapor opens that one seat (one `case_open` job per seat, carrying the batch `VaporCaseId` and the seat `crateAssetId` / `keyAssetId`) → the result webhook creates the prize | vapor proxy |
+| One-click open | Opens every case on the account — **not supported in the open-source edition**: `open_all_crate` has no vapor counterpart and no code path here | vapor proxy |
 
 ## Integration with vapor
 
@@ -26,7 +26,7 @@ The legacy platform issued commands over Redis Stream (`open_crate` / `open_all_
 | trading | the trade-offer action (`send_trade_offer`, asset item keys `asset_id` / `app_id`) |
 | password_auth / enable_guard | credential and SteamGuard session management |
 
-Integration from the Doggo side: actions are started through the vapor REST API and result events are subscribed via webhooks / SSE; results are linked back to the local prize record by order number. Checked against the vapor source on 2026-10-14: its notifications currently cover only the `job` / `session` / `auth` categories with no case-opening domain event yet, so the `case_opening` webhook category (`opening_result` plus the `stock_fetch_started` / `stock_ready` / `trade_started` / `trade_completed` chain) is a doggo-side convention handled by `CaseOpeningWebhookHandler`; the earlier client-facing seat-result endpoint was removed once the webhook drove those transitions, so seat results arrive only through the webhook.
+Integration from the Doggo side: actions are started through the vapor REST API and result events are subscribed via webhooks (there is no SSE channel in this repo); results are linked back to the local prize record by order number. Checked against the vapor source on 2026-10-14: its notifications currently cover only the `job` / `session` / `auth` categories with no case-opening domain event yet, so the `case_opening` webhook category (`opening_result` plus the `stock_fetch_started` / `stock_ready` / `trade_started` / `trade_completed` chain) is a doggo-side convention handled by `CaseOpeningWebhookHandler`; the earlier client-facing seat-result endpoint was removed once the webhook drove those transitions, so seat results arrive only through the webhook.
 
 ## State machines
 
@@ -56,7 +56,7 @@ Seat record fields: batch lot, seat index, case assetId, key assetId, prize asse
 
 ### Bot account (on the vapor side)
 
-Stocked → inventoried → reviewed → listed → locked → sold → claimed, with bypass states reusable / abnormal / overdue. Doggo does not manage account credentials directly; it queries status through vapor's account API.
+Stocked → inventoried → reviewed → listed → locked → sold → claimed, with bypass states reusable / abnormal / overdue. Doggo does not manage account credentials directly; the vapor client in this repository only dispatches jobs, reads a job back and pulls market listings, so the account stage column has no query endpoint behind it yet.
 
 ## Prize records
 
@@ -66,12 +66,13 @@ Fields persisted for an opening result (the full legacy field set, carried over 
 - Metadata: market hash name, quality (seven rarity grades), appearance (wear tier), `floatValue`, rarity, icon
 - Claim: inspection link, tradeable time
 - Valuation: market price at sale time (from market sync)
-- Links: order number, account, opening time, source (self-open / proxy-open / one-click)
+- Links: order number, account, opening time, `PrizeSource` (`SelfOpen` / `GroupOpen` / `CloudOpen` / `Roll`; the roll-room draw reuses the same prize record with `Roll`)
 
 ## Item claim
 
 1. The user configures Steam trade links (multiple, one default), the platform validates them.
-2. Claim preconditions are checked: all cases / keys in the order are used up, no trade cooldown.
+2. Preconditions checked by `SubmitRetrievalAsync`: the order is still `PendingSettlement` / `PendingRetrieval`, the trade link belongs to this user and is not invalid, vapor is configured, and the order has at least one prize to send.
+   Entry points: `POST /api/orders/{id}/retrieval` (body `{"tradeUrlId": …}`) starts it and moves the order to `Retrieving`; `POST /api/orders/{id}/retrieval/fail` rolls it back with a reason. Settlement itself is driven by the `order_retrieval` / `trade_completed` webhook, never by a client-supplied offer id.
 3. A trade offer is sent (vapor trading action) and confirmation is awaited.
 4. Once the offer is confirmed the order completes; on failure it rolls back to "pending claim" with the error recorded and is retried by the compensation job.
 
@@ -79,7 +80,7 @@ Fields persisted for an opening result (the full legacy field set, carried over 
 
 - Room state machine: creating → running → drawing → draw finished → claiming → finished, auto-rolling to the next round.
 - Participation rules: claim on login, per-order participation, free-plan orders, invite codes (fixed / random), free order when a specific rarity is drawn, and so on; rules can be combined in configuration.
-- Draw: weighted AliasMethod draw over the prizes; prizes come from inventory items (shipped by trade) or from points.
+- Draw: weighted AliasMethod draw over the prizes; prizes come from inventory items (shipped by trade) or from coins.
 - Timed job: expiry draw checks.
 
 ## Concurrency and consistency notes

@@ -11,9 +11,9 @@
 
 | 模式 | 流程 | 执行者 |
 | --- | --- | --- |
-| 自开 | 平台交付账号凭据 + Steam Guard 令牌 → 用户在游戏内开箱 → 平台拉快照与订单关联 → 用户申请取回 | 用户 |
-| 批次代开 | 账号上的一串箱子按座位售卖 → 付款占座 → 提交开箱 → 机器人按队列开箱(带同账号前排未开箱) → 结果回调生成奖品 | vapor 代理 |
-| 一键开箱 | 开掉账号下全部箱子 | vapor 代理 |
+| 自开 | **开源版未实现** —— 以下流程沿用原平台口径保留:凭据 + Steam Guard 交付 → 用户在游戏内开箱 → 平台拉快照与订单关联 → 用户申请取回。`ServiceMode.SelfOpen` 与 `ProductStatus.SelfOpenOnly` 存在,但代码里没有凭据交付、guard 会话与库存快照回填路径 | 用户 |
+| 批次代开 | 账号上的一串箱子按座位售卖 → 付款占座 → 提交开箱 → vapor 只开该座位(每座位一个 `case_open` 任务,携带批次 `VaporCaseId` 与该座位 `crateAssetId` / `keyAssetId`) → 结果 Webhook 生成奖品 | vapor 代理 |
+| 一键开箱 | 开掉账号下全部箱子 —— **开源版不支持**:`open_all_crate` 在 vapor 侧无对应能力,本仓库也无代码路径 | vapor 代理 |
 
 ## 与 vapor 的集成
 
@@ -26,7 +26,7 @@
 | trading | 交易报价 action(`send_trade_offer`,资产条目键为 `asset_id` / `app_id`) |
 | password_auth / enable_guard | 凭据与 SteamGuard 会话管理 |
 
-Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook / SSE 订阅结果事件;按订单号关联回本地奖品记录。2026-10-14 核对 vapor 源码:其通知目前只有 `job` / `session` / `auth` 三类,尚无开箱域事件;`case_opening` Webhook 事件类别(`opening_result` 及 `stock_fetch_started` / `stock_ready` / `trade_started` / `trade_completed` 链)为 doggo 侧约定,由 `CaseOpeningWebhookHandler` 处理;早期的客户端座位结果回填接口已在 Webhook 接管这些状态迁移后移除,座位结果只经 Webhook 到达。
+Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook 订阅结果事件(本仓库没有 SSE 通道);按订单号关联回本地奖品记录。2026-10-14 核对 vapor 源码:其通知目前只有 `job` / `session` / `auth` 三类,尚无开箱域事件;`case_opening` Webhook 事件类别(`opening_result` 及 `stock_fetch_started` / `stock_ready` / `trade_started` / `trade_completed` 链)为 doggo 侧约定,由 `CaseOpeningWebhookHandler` 处理;早期的客户端座位结果回填接口已在 Webhook 接管这些状态迁移后移除,座位结果只经 Webhook 到达。
 
 ## 状态机
 
@@ -54,7 +54,7 @@ Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook / SSE �
 
 ### 机器人账号(在 vapor 侧)
 
-备货 → 盘点 → 审核 → 上架 → 锁定 → 已售 → 已取回,旁路:可复用 / 异常 / 逾期。Doggo 不直接管理账号凭据,通过 vapor 的账号接口查询状态。
+备货 → 盘点 → 审核 → 上架 → 锁定 → 已售 → 已取回,旁路:可复用 / 异常 / 逾期。Doggo 不直接管理账号凭据;本仓库的 vapor 客户端只会派发任务、回读任务与拉取行情,账号阶段列还没有对应的查询接口。
 
 ## 奖品记录
 
@@ -64,12 +64,13 @@ Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook / SSE �
 - 资料:市场名、品质(七档稀有度)、外观(磨损档)、`floatValue`、稀有度、图标
 - 取回:检查链接、可交易时间
 - 估值:成交时市价(来自行情同步)
-- 关联:订单号、账号、开箱时间、来源(自开/代开/一键)
+- 关联:订单号、账号、开箱时间、`PrizeSource`(`SelfOpen` / `GroupOpen` / `CloudOpen` / `Roll`;roll 房开奖复用同一奖品记录,来源记 `Roll`)
 
 ## 饰品取回
 
 1. 用户配置 Steam 交易链接(多条,可设默认),平台校验有效性;
-2. 校验取回条件:订单内箱子/钥匙已用尽、无交易冷却;
+2. `SubmitRetrievalAsync` 校验前置条件:订单仍为 `PendingSettlement` / `PendingRetrieval`、交易链接属于该用户且未失效、vapor 已配置、订单存在可发送的奖品;
+   入口:`POST /api/orders/{id}/retrieval`(body `{"tradeUrlId": …}`)发起并置为 `Retrieving`、`POST /api/orders/{id}/retrieval/fail` 带原因回退;订单落定由 `order_retrieval` / `trade_completed` Webhook 驱动,不接受客户端提供的 offer id;
 3. 发起交易报价(vapor trading action),等待确认;
 4. 报价确认后订单完成;失败回退"待取回"并记录错误,由补偿任务重试。
 
@@ -77,7 +78,7 @@ Doggo 侧集成方式:通过 vapor REST API 发起动作,通过 Webhook / SSE �
 
 - 房间状态机:创建中 → 进行中 → 开奖中 → 开奖结束 → 领奖 → 结束,自动滚动下一期。
 - 参与规则:登录领取、每单参与、免单套餐、邀请码(固定/随机)、出特定稀有度免单等,规则可组合配置。
-- 开奖:按奖品权重 AliasMethod 抽取;奖品来源为库存饰品(走交易发货)或积分。
+- 开奖:按奖品权重 AliasMethod 抽取;奖品来源为库存饰品(走交易发货)或金币。
 - 定时任务:到期开奖检查。
 
 ## 并发与一致性要点
