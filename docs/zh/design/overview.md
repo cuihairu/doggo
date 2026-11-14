@@ -41,7 +41,7 @@
 | C 端 Web(`web/`) | React + Vite | 用户站 |
 | 管理后台(`admin/`) | Ant Design Pro(UmiJS) | 中后台成熟方案 |
 | 小程序(`miniapp/`) | Taro + React | 一套代码编译到微信/支付宝等小程序 |
-| 手机端(`mobile/`) | Taro + React | 与小程序共享大部分代码,编译到 React Native / H5 |
+| 手机端(`mobile/`) | Taro + React | 与小程序共享大部分代码,编译到 React Native(当前交付 Android APK,未出 H5 目标) |
 | 文档 | VitePress | 本站点 |
 
 ## 仓库布局

@@ -10,9 +10,9 @@ The target data model of the open-source edition, grouped by domain. Fields were
 | UserAccount | Phone / email registration, nickname, avatar, invite code, status; password hash |
 | UserSteamProfile | The user's Steam binding: SteamId, nickname, avatar |
 | UserTradeUrl | User trade links (multiple, default selectable, validation status and error) |
-| UserCoin / UserCoinLog | Point balance and ledger; FIFO consumption, expiry by batch |
+| UserCoin / UserCoinLog | Coin balance and ledger; FIFO consumption, expiry by batch |
 | UserCoupon / Coupon | Coupons: type (threshold discount / percentage), threshold, validity, applicable product scope |
-| RedeemCode | Points / coupon redemption codes, batch generation and redemption |
+| RedeemCode | Coin / coupon redemption codes, batch generation and redemption |
 | UserLoginLog / UserVisit | Login records (IP / UA / result), visit statistics (daily UV / PV) |
 | InviteRewardLog | Invite reward ledger |
 | SignRecord | Cyclic check-in (calendar week) and make-up signing |
@@ -22,7 +22,7 @@ The target data model of the open-source edition, grouped by domain. Fields were
 | Entity | Highlights |
 | --- | --- |
 | Product | Product: type (case / key / bundle), classId, purchase price, reference price, price adjustment, final price, listing status |
-| CasePlan / CasePlanOption | Plans and options: minimum batch quantity, markup rate (for pricing), whether coupons / points can be used, cashback multiplier, quantity tiers |
+| CasePlan / CasePlanOption | Plans and options: minimum batch quantity, markup rate (for pricing), whether coupons / coins can be used, cashback multiplier, quantity tiers |
 | PromotionPlan | Limited promotion: discounted price, stock, per-user limit, daily reset |
 | QuantityOption | Quantity tiers and stock alert threshold |
 | CaseContent | Case contents display: title, quality (seven grades), colour, image, reference price |
@@ -33,7 +33,7 @@ The target data model of the open-source edition, grouped by domain. Fields were
 
 | Entity | Highlights |
 | --- | --- |
-| UserOrder | Entry, product type, plan, the four prices (list / sale / total / cost), points deduction, coupon deduction, cashback, payment channel and callback, trade-link reference, status, serviceMode (self-open / proxy-open) |
+| UserOrder | Entry, product type, plan, the four prices (list / sale / total / cost), coin deduction, coupon deduction, cashback, payment channel and callback, trade-link reference, status, serviceMode (self-open / cloud-open, `ServiceMode.SelfOpen` / `ServiceMode.CloudOpen`) |
 | PaymentRecord | Payment ledger: channel, amount, callback payload, idempotency key |
 | RefundRecord | Refund record |
 
@@ -45,7 +45,7 @@ The target data model of the open-source edition, grouped by domain. Fields were
 | GroupBuyingSeat | Seat: index, case assetId, key assetId, prize assetId, status (selling → … → done) |
 | UserPrize | Prize: assetId / classId / instanceId, market hash name, quality, appearance, floatValue, rarity, icon, inspection link, tradeable time, estimated value, order link, source |
 | UserPrizeLog | Opening log (opening time, account reference, result) |
-| RollRoom (+Config/Participants) | Roll room: template, rules, status, prize configuration (item / points + weights), participants, draw and claim records |
+| RollRoom (+Config/Participants) | Roll room: template, rules, status, prize configuration (item / coin + weights), participants, draw and claim records |
 
 ## News domain (new)
 

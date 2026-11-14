@@ -41,7 +41,7 @@ Rewrite the legacy platform's business capabilities in a unified C# / .NET stack
 | Consumer web (`web/`) | React + Vite | The user site |
 | Admin console (`admin/`) | Ant Design Pro (UmiJS) | A mature mid-to-backend choice |
 | Miniapp (`miniapp/`) | Taro + React | One code base compiling to WeChat / Alipay miniapps |
-| Mobile (`mobile/`) | Taro + React | Shares most code with the miniapp, compiling to React Native / H5 |
+| Mobile (`mobile/`) | Taro + React | Shares most code with the miniapp, building to React Native (an Android APK today; no H5 target is shipped) |
 | Documentation | VitePress | This site |
 
 ## Repository layout
