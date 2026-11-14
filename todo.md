@@ -641,4 +641,4 @@
 - [ ] [m] todo.md:613 测试总数验证标注环境限制
 ## 文档站语言自动切换（2026-11-14 舰队 G2 审计轮）
 
-- [ ] [P2] 文档站无浏览器语言自动识别——`/`（en-US）与 `/zh/`（zh-CN）双语成对，但仅靠导航栏翻译切换器手动切换，无 `navigator.language` 探测与跳转、无 `rootLocale` 重定向；「手动切换 + 显式链接」为受规基线，自动识别属增强项，是否全舰队/本仓开启待用户拍板。（docs/.vitepress/config.mts:20-78；docs/.vitepress/theme/index.ts 无重定向逻辑；线上探针 / → 200 en-US 首屏 CJK 4，/zh/ → 200 zh-CN 首屏 CJK 32）
+- [ ] [P2] 文档站语言自动识别不生效——`docs/index.md`（英文根页）无任何探测脚本；`docs/zh/index.md:43-68` 的 `<script setup>` 虽含 navigator.language 逻辑，但被编译进 /zh/ 页，guard `if (p !== ROOT_PATH ...) return` 恒为真直接返回，主用例「中文浏览器落在 / 跳 /zh/」永不触发；同块点击监听写 localStorage `doggo-lang-auto-picked`，全站无读取方。「手动切换 + 显式链接」为受规基线，自动识别属增强项；修复形为双页对称脚本（root 页 guard ROOT_PATH 跳 /zh/，zh 页对称回跳；舰队已验证形见 pomelo 原始 commit 与 redis-streaming 83ed243），是否启用待用户拍板。（docs/index.md 无 script；docs/zh/index.md:43-68；docs/.vitepress/config.mts:20-78；线上探针 / → 200 en-US 首屏 CJK 4，/zh/ → 200 zh-CN 首屏 CJK 32）
