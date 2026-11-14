@@ -19,13 +19,13 @@ This page records the compliance self-checks done before submitting the WeChat m
 | User agreement | must be hosted by the site | Same as above |
 | `getUserProfile` / phone number | not used | The miniapp only exchanges `wx.login` for an openid; it does not read avatar or nickname (the nickname is typed by hand and may stay empty), does not request phone-number authorisation, and triggers no privacy-API warnings |
 | Location / album and other sensitive permissions | not used | No `getLocation`, `chooseImage`, or similar calls |
-| User data storage | server-side | The openid is stored server-side in `user_accounts.wechat_open_id` (unique index); locally only the JWT accessToken/refreshToken is kept as login state, plus local session and channel keys (`Taro.setStorage`) |
+| User data storage | server-side | The openid is stored server-side in `UserAccounts.WechatOpenId` (unique index `IX_UserAccounts_WechatOpenId`); locally only the JWT accessToken/refreshToken is kept as login state, plus local session and channel keys (`Taro.setStorage`) |
 
 ## Payments and virtual goods
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| WeChat Pay | not integrated | `payOrder` in `miniapp/src/api/endpoints.ts` calls `POST /api/orders/{id}/pay` (balance / points deduction semantics) without invoking `wx.requestPayment`; before integrating `wx.requestPayment`, the virtual-goods category and payment qualifications must be approved first |
+| WeChat Pay | not integrated | `payOrder` in `miniapp/src/api/endpoints.ts` calls `POST /api/orders/{id}/pay` (balance / coin deduction semantics) without invoking `wx.requestPayment`; before integrating `wx.requestPayment`, the virtual-goods category and payment qualifications must be approved first |
 | iOS virtual payment restrictions | no iOS-side payment invoked | If `wx.requestPayment` is integrated later, virtual goods on iOS need a compliant route or the review will be rejected |
 | Case-opening / lottery gameplay | server-generated | Opening results come from server-side order fulfilment (`GET /api/users/{userId}/prizes`); the frontend runs no probability demo. If review classifies it as lottery gameplay, a probability disclosure page must be added per platform requirements |
 
