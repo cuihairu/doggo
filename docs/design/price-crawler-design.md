@@ -58,7 +58,7 @@ Split-off path: `Doggo.PriceCrawler` depends on no `Doggo.Scraper` type, with in
 | Fetch abstraction | `IPageFetcher` / `HttpPageFetcher` | injected and reused directly; timeout/retry logic is already in there |
 | Playwright fetching | `PlaywrightPageFetcher` | pending a decision (see 10.4); if enabled, registered to the crawler |
 | Adapter registry | `SourceAdapterRegistry` | new `SiteAdapterRegistry` in the same pattern (`IEnumerable` injection + dictionary lookup) |
-| Circuit-breaker / failure-count approach | `ScraperScheduler` | same approach reimplemented in the new scheduler; failure counts stored in its own table |
+| Circuit-breaker / failure-count approach | `ScraperScheduler` | same approach reimplemented in the new scheduler; failure counts live in `PriceCrawlSiteState` (`ConsecutiveFailures` / `CircuitOpenUntilUtc`) |
 | Fingerprint dedup approach | `NewsFingerprint` | pattern reference; price dedup is new (different window semantics) |
 | EF / audit conventions | `DoggoDbContext` | new entities follow Guid v7 + `CreatedAtUtc`/`UpdatedAtUtc` + varchar(255) |
 | Dockerfile.worker | PROJECT parameter | unchanged in phase 1; add a PROJECT when splitting off |
@@ -97,24 +97,27 @@ namespace Doggo.PriceCrawler;
 
 public interface ISiteAdapter
 {
-    string SiteKey { get; }                       // 站点标识，如 "example-market"
-    IReadOnlyList<string> SupportedCurrencyCodes { get; } // 站点价格币种（ISO 4217）
-    SiteRateLimit SuggestedRateLimit { get; }     // 适配器建议的间隔/并发/时段
+    string SiteKey { get; }                       // stable site identifier, e.g. "example-market"
+    string AdapterVersion { get; }                // adapter version recorded on captured rows
+    string RobotsUrl { get; }                     // entry URL the scheduler checks against robots.txt
+    IReadOnlyList<string> SupportedCurrencyCodes { get; } // the site's price currency (ISO 4217)
 
-    // 发现：按查询条件找出站点上的外部条目（站内已有 MarketItem 驱动）
-    Task<IReadOnlyList<ExternalItemRef>> DiscoverAsync(DiscoveryQuery query, CancellationToken ct);
+    // discovery: find external entries on the site (driven by in-site MarketItems)
+    Task<IReadOnlyList<ExternalItemRef>> DiscoverAsync(DiscoveryQuery query, CancellationToken cancellationToken);
 
-    // 抓取：按外部标识批量取当前报价
-    Task<IReadOnlyList<ExternalPriceFetch>> FetchPricesAsync(IReadOnlyList<string> externalIds, CancellationToken ct);
+    // fetch: current prices for a batch of external ids
+    Task<IReadOnlyList<ExternalPriceFetch>> FetchPricesAsync(IReadOnlyList<string> externalIds, CancellationToken cancellationToken);
 }
-
-public sealed record SiteRateLimit(int MinIntervalSeconds, int MaxConcurrent, string? AllowedWindowUtc);
 
 public sealed record DiscoveryQuery(string? MarketHashName, string? ClassId, string? Keyword);
 
 public sealed record ExternalItemRef(string ExternalId, string Title, string DetailUrl);
 
-public sealed record ExternalPriceFetch(string ExternalId, long PriceCents, string CurrencyCode, DateTimeOffset ObservedAtUtc);
+// PriceCents is in the site currency's minor unit; the adapter never converts currency.
+// RawPriceText / PageFingerprint are optional provenance for the raw capture table.
+public sealed record ExternalPriceFetch(
+    string ExternalId, long PriceCents, string CurrencyCode, DateTimeOffset ObservedAtUtc,
+    string? RawPriceText = null, string? PageFingerprint = null);
 ```
 
 Conventions:
@@ -161,6 +164,7 @@ Fetch (per-site interval, default 3600s):
 | `PriceCrawlRaw` | raw fetch record (raw price, currency, HTTP status, page fingerprint) |
 | `PriceCrawlSeries` | cleaned price series (raw price + CNY conversion, window dedup, outlier flags) |
 | `PriceCrawlTrend` (optional) | daily trend indicator materialisation table (off by default, see 4.5) |
+| `PriceCrawlSiteState` | per-site scheduler bookkeeping: last run / discover time, consecutive failures, circuit-open deadline, last robots Crawl-delay |
 
 Common conventions (following `DoggoDbContext`): primary keys are Guid v7 generated on the application side; `CreatedAtUtc`/`UpdatedAtUtc` are auto-overwritten by `SaveChanges`; strings default to varchar(255); times are UTC. Entities live in `Doggo.Domain/Price/`, configuration and migrations in `Doggo.Infrastructure` (`ApplyConfigurationsFromAssembly` applies `IEntityTypeConfiguration` automatically).
 
@@ -205,18 +209,18 @@ Note: raw records are append-only, for tracing and reconciliation; retention is 
 | Id | Guid | PK | PK |
 | MapId | Guid | linked mapping | IX(MapId) |
 | MarketItemId | Guid | in-site item (only Confirmed mappings land in the series) | IX(MarketItemId, ObservedAtUtc) |
-| SiteKey | string(32) | site key | UQ(SiteKey, ExternalId, WindowKey) |
+| SiteKey | string(32) | site key | UQ(MapId, WindowKey) |
 | ExternalId | string(255) | item key | same |
 | PriceCents | long | cleaned raw price (site currency, cents) | |
 | CurrencyCode | string(8) | ISO currency | |
 | ConvertedCents | long? | converted CNY price; null when the rate is missing | |
 | ExchangeRate | decimal? | the rate used (original value retained) | |
 | ObservedAtUtc | DateTime | observation time (window-aligned) | |
-| WindowKey | string(32) | dedup window key (yyyyMMddHHmm, aligned by DedupWindowMinutes) | UQ(SiteKey, ExternalId, WindowKey) |
+| WindowKey | string(16) | dedup window key (yyyyMMddHHmm, aligned by DedupWindowMinutes) | UQ(MapId, WindowKey) |
 | IsSuspect | bool | outlier flag (deviation from the rolling median) | |
 | CreatedAtUtc | DateTime | automatic audit | |
 
-Dedup rule: UQ(SiteKey, ExternalId, WindowKey) guarantees at most one row per item per window; "take the last value" is guaranteed by the cleaning pipeline (see chapter 6).
+Dedup rule: UQ(MapId, WindowKey) guarantees at most one row per mapping per window, and "take the last value" is guaranteed by the cleaning pipeline (see chapter 6). ExternalId is not part of the key because a mapping row already pins one external item.
 
 ### 4.5 PriceCrawlTrend (trend indicators, optional materialisation)
 
@@ -253,10 +257,10 @@ Materialise vs compute-at-query-time: the default is **compute at query time** (
 
 | Item | Design |
 | --- | --- |
-| Model | one independent async loop per site (a per-site queue), serial within a site, sites throttled by a global concurrency gate |
+| Model | one loop per scan tick walking the sites in order (**implemented**; not one async loop per site) |
 | Site interval | an independent IntervalMinutes per site (default 60), a config item |
-| Global concurrency | a SemaphoreSlim shared across sites, default 8 (config item) |
-| Staggering | first wake-up delay = site index × spread seconds + random jitter, avoiding on-the-hour concurrency |
+| Global concurrency | designed as a SemaphoreSlim shared across sites, default 8 (config item); **implemented more simply** — no SemaphoreSlim exists, sites run sequentially and `GlobalConcurrentFetches` is validated but not enforced (`PriceCrawlerScheduler.cs:7-11`) |
+| Staggering | designed as first wake-up delay = site index × spread seconds + random jitter; **not implemented** — one `PeriodicTimer` scans all sites on the same tick, so the only stagger is each site's own `IntervalMinutes` due check (`PriceCrawlerWorker.cs:17-20`) |
 | Discovery cadence | once per day per site (default around 04:00 UTC, configurable), decoupled from the fetch loop |
 | Per-site circuit breaker | consecutive failures ≥ threshold → skipped during the cooldown (see 5.2) |
 | Graceful exit | CancellationToken throughout; each round has its own scope, exceptions do not spread to other sites |
@@ -289,7 +293,7 @@ Flow:
 
 ### 5.4 UA declaration and fetch windows
 
-- UA: `DoggoPriceBot/1.0 (+https://<site-domain>/price-crawler; contact: <admin email>)`, configurable; never disguised as a browser.
+- UA: configurable, default `DoggoPriceBot/1.0 (+price-crawler)` (`PriceCrawlerOptions.cs:84`); it must identify the bot and never disguise itself as a browser.
 - Time window: unrestricted by default; an optional NightWindowUtc (e.g. 02:00–06:00) pauses fetching, avoiding the target site's peak. Within the window the site's loop sleeps.
 
 ## 6. Cleaning and dedup rules
@@ -298,7 +302,7 @@ Flow:
 | --- | --- |
 | Parse validation | PriceCents must be > 0 and ≤ the cap (default 10,000,000,000 cents, a config item); otherwise treated as a parse failure — not entering the series, counted in the raw record's HTTP status/errors |
 | Currency normalisation | the site-declared currency → ISO 4217 uppercase three letters; unknown/missing → dropped and counted by default (pending decision 10.6 may change this to keep the original value) |
-| Window dedup | for the same (SiteKey, ExternalId), align the WindowKey by DedupWindowMinutes (default 60); within a window keep the last row (max FetchedAtUtc) |
+| Window dedup | for the same mapping, align the WindowKey by DedupWindowMinutes (default 60); within a window keep the last row (max FetchedAtUtc), enforced by UQ(MapId, WindowKey) |
 | Outliers | deviation beyond ±SuspectThresholdPct (default 50%) from the rolling median (the past N=20 cleaned points) → IsSuspect=true, kept not dropped; excluded from spread reports by default, includable in queries |
 | Conversion | ConvertedCents = round(PriceCents × Rate) (when a rate exists); missing → null |
 | Cross-site | no merging: different sites are different rows; comparisons happen per site dimension |
@@ -369,20 +373,22 @@ var points = await db.PriceCrawlSeries
 Route group `/api/admin/price-crawl` (Admin policy inherited). Implemented (maps list and review, prices series, spread-report), authorised by the Admin policy.
 
 ```
-GET /api/admin/price-crawl/maps?siteKey=&mapStatus=&page=&pageSize=
-→ { total, items: [ { mapId, siteKey, externalId, externalTitle, externalUrl,
-                     marketItemId, marketHashName, mapStatus, matchSource, updatedAtUtc } ] }
+GET /api/admin/price-crawl/maps?status=&skip=&take=        (status empty by default, skip 0, take 50, take capped at 200)
+→ [ { id, siteKey, externalId, externalTitle, externalUrl, marketItemId, mapStatus,
+      matchSource, createdAtUtc, updatedAtUtc } ]          (a bare array: no total page envelope)
 
-GET /api/admin/price-crawl/prices/{marketItemId}?from=&to=&includeSuspect=
+GET /api/admin/price-crawl/prices/{marketItemId}?from=&to=
 → { marketItemId, points: [ { siteKey, observedAtUtc, priceCents, currencyCode,
-                              convertedCents, isSuspect } ] }
+                              convertedCents, isSuspect } ],
+    daily, trend, periodChange7dPct }
+   (suspect points are filtered in the store, so there is no includeSuspect switch)
 
-GET /api/admin/price-crawl/spread-report?from=&to=&siteKey=
-→ { rows: [ { marketItemId, marketHashName, date, crawlCents, stationCents,
-             spreadCents, spreadPct } ] }
+GET /api/admin/price-crawl/spread-report?days=             (days defaults to 7, clamped to 90)
+→ [ { marketItemId, siteCount, minCents, maxCents, spreadCents, spreadPct } ]
+   (the spread is the external min/max range per item over the window, not crawled vs in-site)
 
-POST /api/admin/price-crawl/maps/{mapId}/confirm   { } → 200 { mapId, mapStatus: "Confirmed" }
-POST /api/admin/price-crawl/maps/{mapId}/reject    { } → 200 { mapId, mapStatus: "Rejected" }
+POST /api/admin/price-crawl/maps/{mapId}/confirm   { } → 200 (the map entity, mapStatus Confirmed)
+POST /api/admin/price-crawl/maps/{mapId}/reject    { } → 200 (the map entity, mapStatus Rejected)
 ```
 
 Note: the endpoint extension method `MapPriceCrawlerAdminEndpoints(this IEndpointRouteBuilder)` lives in `Doggo.PriceCrawler`; `Doggo.Api` registers it in one line inside the AdminEndpoints group (or as its own group). Authorisation follows the Admin policy.
@@ -394,7 +400,7 @@ Note: the endpoint extension method `MapPriceCrawlerAdminEndpoints(this IEndpoin
   "PriceCrawler": {
     "Enabled": true,                    // 模块总开关
     "ScanIntervalSeconds": 300,         // 调度器重新检查间隔
-    "GlobalConcurrentFetches": 8,        // 全局并发上限（跨站点 SemaphoreSlim）
+    "GlobalConcurrentFetches": 8,        // 全局并发上限（仅校验，站点顺序执行）
     "FetchTimeoutSeconds": 60,          // 单次抓取超时
     "MaxItemsPerRun": 200,              // 每站点每次抓取条目数上限
     "Retry": {
@@ -403,17 +409,19 @@ Note: the endpoint extension method `MapPriceCrawlerAdminEndpoints(this IEndpoin
     },
     "CircuitBreaker": { "FailureThreshold": 10, "CooldownMinutes": 60 },
     "Robots": { "Enabled": true, "CacheHours": 24, "FailOpen": true },
-    "UserAgent": "DoggoPriceBot/1.0 (+https://<host>/price-crawler)",
+    "UserAgent": "DoggoPriceBot/1.0 (+price-crawler)",  // 默认 UA（可换成 <host> 形式，但需自定）
     "NightWindowUtc": { "Enabled": false, "Start": "02:00", "End": "06:00" },
     "Discover": { "IntervalHours": 24, "RunAtUtc": "04:00" },
     "DedupWindowMinutes": 60,
     "SuspectThresholdPct": 50,
     "RollingMedianPoints": 20,
     "MaxPriceCents": 10000000000,
+    "RawRetentionDays": 90,
     "Sites": [
-      { "Key": "example-market", "Enabled": true, "IntervalMinutes": 60, "RobotsEnabled": true }
-    ],
-    "SeedDefaultSites": true
+      { "Key": "example-market", "Enabled": true, "IntervalMinutes": 60, "RobotsEnabled": true,
+        "MaxItemsPerRun": 200, "Games": [], "MarketHashNames": [],
+        "Html": { "BaseUrl": "https://example-market.example" } }
+    ]
   }
 }
 ```

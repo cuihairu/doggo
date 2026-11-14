@@ -58,7 +58,7 @@
 | 抓取抽象 | `IPageFetcher` / `HttpPageFetcher` | 直接注入复用；超时/重试逻辑已在其中 |
 | Playwright 抓取 | `PlaywrightPageFetcher` | 待拍板（见 10.4）；启用则注册到 crawler |
 | 适配器注册表 | `SourceAdapterRegistry` | 同模式新建 `SiteAdapterRegistry`（`IEnumerable` 注入 + 字典查找） |
-| 熔断/失败计数思路 | `ScraperScheduler` | 同思路在新调度器实现；失败计数存自己的表 |
+| 熔断/失败计数思路 | `ScraperScheduler` | 同思路在新调度器实现；失败计数落在 `PriceCrawlSiteState`（`ConsecutiveFailures` / `CircuitOpenUntilUtc`） |
 | 指纹去重思路 | `NewsFingerprint` | 模式参考；价格去重新建（窗口语义不同） |
 | EF/审计约定 | `DoggoDbContext` | 新实体沿用 Guid v7 + `CreatedAtUtc`/`UpdatedAtUtc` + varchar(255) |
 | Dockerfile.worker | PROJECT 参数 | 一期不改；拆离时加 PROJECT |
@@ -70,7 +70,7 @@
 | 组件 | 职责 |
 | --- | --- |
 | `ISiteAdapter` + 站点适配器 | 每站点一个实现：发现条目、抓取价格、唯一键、币种、限速建议 |
-| `PriceCrawlerWorker` / Scheduler | 每站点独立循环、错峰、全局并发闸、失败退避、熔断 |
+| `PriceCrawlerWorker` / Scheduler | 每轮按顺序遍历站点、失败退避、熔断（错峰与跨站点并发闸见 §5.1，未实现） |
 | `RobotsChecker` + 缓存 | robots.txt 抓取/解析/缓存/Disallow 判定/Crawl-delay |
 | `PriceFingerprint` | 页面指纹与去重键（URL 归一化 + 窗口键，参考 `NewsFingerprint` 模式） |
 | 清洗管道 | 解析校验、币种归一、窗口去重、异常值标记、换算落库 |
@@ -98,23 +98,26 @@ namespace Doggo.PriceCrawler;
 public interface ISiteAdapter
 {
     string SiteKey { get; }                       // 站点标识，如 "example-market"
+    string AdapterVersion { get; }                // 抓痕行上记录的适配器版本
+    string RobotsUrl { get; }                     // 调度器在运行前与 robots.txt 核对的入口 URL
     IReadOnlyList<string> SupportedCurrencyCodes { get; } // 站点价格币种（ISO 4217）
-    SiteRateLimit SuggestedRateLimit { get; }     // 适配器建议的间隔/并发/时段
 
     // 发现：按查询条件找出站点上的外部条目（站内已有 MarketItem 驱动）
-    Task<IReadOnlyList<ExternalItemRef>> DiscoverAsync(DiscoveryQuery query, CancellationToken ct);
+    Task<IReadOnlyList<ExternalItemRef>> DiscoverAsync(DiscoveryQuery query, CancellationToken cancellationToken);
 
     // 抓取：按外部标识批量取当前报价
-    Task<IReadOnlyList<ExternalPriceFetch>> FetchPricesAsync(IReadOnlyList<string> externalIds, CancellationToken ct);
+    Task<IReadOnlyList<ExternalPriceFetch>> FetchPricesAsync(IReadOnlyList<string> externalIds, CancellationToken cancellationToken);
 }
-
-public sealed record SiteRateLimit(int MinIntervalSeconds, int MaxConcurrent, string? AllowedWindowUtc);
 
 public sealed record DiscoveryQuery(string? MarketHashName, string? ClassId, string? Keyword);
 
 public sealed record ExternalItemRef(string ExternalId, string Title, string DetailUrl);
 
-public sealed record ExternalPriceFetch(string ExternalId, long PriceCents, string CurrencyCode, DateTimeOffset ObservedAtUtc);
+// PriceCents 以站点币种的次级单位为计；适配器不做货币换算。
+// RawPriceText / PageFingerprint 是可选的来源信息，供原始抓痕表使用。
+public sealed record ExternalPriceFetch(
+    string ExternalId, long PriceCents, string CurrencyCode, DateTimeOffset ObservedAtUtc,
+    string? RawPriceText = null, string? PageFingerprint = null);
 ```
 
 约定：
@@ -151,6 +154,7 @@ public sealed record ExternalPriceFetch(string ExternalId, long PriceCents, stri
 | `PriceCrawlRaw` | 原始抓取记录（原始价、币种、HTTP 状态、页面指纹） |
 | `PriceCrawlSeries` | 清洗后价格序列（原始价 + CNY 换算价，窗口去重，异常标记） |
 | `PriceCrawlTrend`（可选） | 日级趋势指标物化表（默认不启用，见 4.5） |
+| `PriceCrawlSiteState` | 每站点调度状态：上次抓取/发现时间、连续失败次数、熔断截止时间、最近 robots Crawl-delay |
 
 通用约定（沿用 `DoggoDbContext`）：主键 Guid v7 应用侧生成；`CreatedAtUtc`/`UpdatedAtUtc` 由 `SaveChanges` 自动覆盖；string 默认 varchar(255)；时间 UTC。实体放 `Doggo.Domain/Price/`，配置与迁移在 `Doggo.Infrastructure`（`ApplyConfigurationsFromAssembly` 自动应用 `IEntityTypeConfiguration`）。
 
@@ -179,7 +183,7 @@ public sealed record ExternalPriceFetch(string ExternalId, long PriceCents, stri
 | ExternalId | string(255) | 条目标识 | 同上 |
 | PriceCents | long? | 解析后的原始价（站点币种，分）；解析失败 null | |
 | CurrencyCode | string(8) | ISO 币种 | |
-| RawPriceText | string(64) | 页面原始价文本（含符号，便于回溯） | |
+| RawPriceText | string(512) | 页面原始价文本（含符号，便于回溯） | |
 | PageFingerprint | string(64) | 归一化页面 SHA-256（`PriceFingerprint`） | |
 | HttpStatusCode | int | 最近一次请求状态码 | |
 | ObservedAtUtc | DateTime | 观察时间 | 同上 |
@@ -195,18 +199,18 @@ public sealed record ExternalPriceFetch(string ExternalId, long PriceCents, stri
 | Id | Guid | PK | PK |
 | MapId | Guid | 关联映射 | IX(MapId) |
 | MarketItemId | Guid | 站内商品（仅 Confirmed 映射落序列） | IX(MarketItemId, ObservedAtUtc) |
-| SiteKey | string(32) | 站点标识 | UQ(SiteKey, ExternalId, WindowKey) |
+| SiteKey | string(32) | 站点标识 | UQ(MapId, WindowKey) |
 | ExternalId | string(255) | 条目标识 | 同上 |
 | PriceCents | long | 清洗后原始价（站点币种，分） | |
 | CurrencyCode | string(8) | ISO 币种 | |
 | ConvertedCents | long? | 换算 CNY 价；汇率缺失 null | |
 | ExchangeRate | decimal? | 所用汇率（原值留存） | |
 | ObservedAtUtc | DateTime | 观察时间（窗口对齐） | |
-| WindowKey | string(32) | 去重窗口键（yyyyMMddHHmm，按 DedupWindowMinutes 对齐） | UQ(SiteKey, ExternalId, WindowKey) |
+| WindowKey | string(16) | 去重窗口键（yyyyMMddHHmm，按 DedupWindowMinutes 对齐） | UQ(MapId, WindowKey) |
 | IsSuspect | bool | 异常值标记（偏离滚动中位数） | |
 | CreatedAtUtc | DateTime | 审计自动 | |
 
-去重口径：UQ(SiteKey, ExternalId, WindowKey) 保证同一条目同一窗口只有一条，"取最后值"由清洗管道保证（见第 6 章）。
+去重口径：UQ(MapId, WindowKey) 保证同一映射同一窗口只有一条，"取最后值"由清洗管道保证（见第 6 章）。ExternalId 不进唯一键——映射行本身已固定一个外部条目。
 
 ### 4.5 PriceCrawlTrend（趋势指标，可选物化）
 
@@ -243,10 +247,10 @@ public sealed record ExternalPriceFetch(string ExternalId, long PriceCents, stri
 
 | 项 | 设计 |
 | --- | --- |
-| 模型 | 每站点一个独立异步循环（站点队列），站点内串行，站点间受全局并发闸限制 |
+| 模型 | 每轮扫描按顺序遍历站点一次（**已实现**；并非每站点一个独立异步循环） |
 | 站点间隔 | 每站点独立 IntervalMinutes（默认 60），配置项 |
-| 全局并发 | SemaphoreSlim 跨站点共享，默认 8（配置项） |
-| 错峰 | 首次唤醒延迟 = 站点索引 × 分散秒数 + 随机抖动，避免整点并发 |
+| 全局并发 | 设计为 SemaphoreSlim 跨站点共享、默认 8（配置项）；**实际实现更简单**——不存在 SemaphoreSlim，站点顺序执行，`GlobalConcurrentFetches` 只校验不生效（`PriceCrawlerScheduler.cs:7-11`） |
+| 错峰 | 设计为首次唤醒延迟 = 站点索引 × 分散秒数 + 随机抖动；**未实现**——单一 `PeriodicTimer` 在同一 tick 扫描全部站点，唯一错峰来自各站点自身的 `IntervalMinutes` 到期判断（`PriceCrawlerWorker.cs:17-20`） |
 | 发现节奏 | 每站点每日一次（默认 04:00 UTC 前后，可配置），与抓取循环解耦 |
 | 站点级熔断 | 连续失败 ≥ 阈值 → 冷却期内跳过（见 5.2） |
 | 优雅退出 | CancellationToken 贯通；每轮 scope 独立，异常不扩散到其他站点 |
@@ -279,7 +283,7 @@ public sealed record ExternalPriceFetch(string ExternalId, long PriceCents, stri
 
 ### 5.4 UA 声明与抓取时段
 
-- UA：`DoggoPriceBot/1.0 (+https://<站点域名>/price-crawler; contact: <管理邮箱>)`，可配置；不伪装成浏览器。
+- UA：可配置,默认 `DoggoPriceBot/1.0 (+price-crawler)`(`PriceCrawlerOptions.cs:84`);必须表明机器人身份,不伪装成浏览器。
 - 时段窗口：默认不限制；可选 NightWindowUtc（如 02:00–06:00）暂停抓取，避开目标站点高峰。窗口内站点循环休眠。
 
 ## 6. 清洗去重口径
@@ -288,7 +292,7 @@ public sealed record ExternalPriceFetch(string ExternalId, long PriceCents, stri
 | --- | --- |
 | 解析校验 | PriceCents 必须 > 0 且 ≤ 上限（默认 10,000,000,000 分，配置项）；否则视为解析失败，不进入序列，计入原始记录的 HTTP 状态/错误 |
 | 币种归一 | 站点声明币种 → ISO 4217 大写三字母；未知/缺失 → 默认丢弃并计数（待拍板 10.6 可改保留原值） |
-| 窗口去重 | 同 (SiteKey, ExternalId) 按 DedupWindowMinutes（默认 60）对齐 WindowKey，窗口内取最后一条（FetchedAtUtc 最大） |
+| 窗口去重 | 同一映射按 DedupWindowMinutes（默认 60）对齐 WindowKey，窗口内取最后一条（FetchedAtUtc 最大），由 UQ(MapId, WindowKey) 约束 |
 | 异常值 | 滚动中位数（过去 N=20 个清洗点）偏离 ±SuspectThresholdPct（默认 50%）→ IsSuspect=true，保留不丢弃；价差报告默认排除，查询可含 |
 | 换算 | ConvertedCents = round(PriceCents × Rate)（汇率存在时）；缺失 → null |
 | 跨站点 | 不合并：不同站点是不同行，对照按站点维度分别进行 |
@@ -359,20 +363,22 @@ var points = await db.PriceCrawlSeries
 路由组 `/api/admin/price-crawl`（沿用 Admin 策略）。已实现（maps 列表与审阅、prices 序列、spread-report 比价），鉴权沿用 Admin 策略。
 
 ```
-GET /api/admin/price-crawl/maps?siteKey=&mapStatus=&page=&pageSize=
-→ { total, items: [ { mapId, siteKey, externalId, externalTitle, externalUrl,
-                     marketItemId, marketHashName, mapStatus, matchSource, updatedAtUtc } ] }
+GET /api/admin/price-crawl/maps?status=&skip=&take=        (status 默认空、skip 0、take 50,take 上限 200)
+→ [ { id, siteKey, externalId, externalTitle, externalUrl, marketItemId, mapStatus,
+      matchSource, createdAtUtc, updatedAtUtc } ]          (裸数组:没有 total 分页信封)
 
-GET /api/admin/price-crawl/prices/{marketItemId}?from=&to=&includeSuspect=
+GET /api/admin/price-crawl/prices/{marketItemId}?from=&to=
 → { marketItemId, points: [ { siteKey, observedAtUtc, priceCents, currencyCode,
-                              convertedCents, isSuspect } ] }
+                              convertedCents, isSuspect } ],
+    daily, trend, periodChange7dPct }
+   (可疑点由 store 侧过滤,因此没有 includeSuspect 开关)
 
-GET /api/admin/price-crawl/spread-report?from=&to=&siteKey=
-→ { rows: [ { marketItemId, marketHashName, date, crawlCents, stationCents,
-             spreadCents, spreadPct } ] }
+GET /api/admin/price-crawl/spread-report?days=             (days 默认 7,上限 90)
+→ [ { marketItemId, siteCount, minCents, maxCents, spreadCents, spreadPct } ]
+   (价差口径是窗口内单条目的站外 min/max 区间,不是"站外 vs 站内"对照)
 
-POST /api/admin/price-crawl/maps/{mapId}/confirm   { } → 200 { mapId, mapStatus: "Confirmed" }
-POST /api/admin/price-crawl/maps/{mapId}/reject    { } → 200 { mapId, mapStatus: "Rejected" }
+POST /api/admin/price-crawl/maps/{mapId}/confirm   { } → 200(map 实体,mapStatus 为 Confirmed)
+POST /api/admin/price-crawl/maps/{mapId}/reject    { } → 200(map 实体,mapStatus 为 Rejected)
 ```
 
 说明：endpoint 扩展方法 `MapPriceCrawlerAdminEndpoints(this IEndpointRouteBuilder)` 放 `Doggo.PriceCrawler`；`Doggo.Api` 在 AdminEndpoints 组内一行注册（或独立组）。鉴权沿用 Admin policy。
@@ -384,7 +390,7 @@ POST /api/admin/price-crawl/maps/{mapId}/reject    { } → 200 { mapId, mapStatu
   "PriceCrawler": {
     "Enabled": true,                    // 模块总开关
     "ScanIntervalSeconds": 300,         // 调度器重新检查间隔
-    "GlobalConcurrentFetches": 8,        // 全局并发上限（跨站点 SemaphoreSlim）
+    "GlobalConcurrentFetches": 8,        // 全局并发上限（仅校验，站点顺序执行）
     "FetchTimeoutSeconds": 60,          // 单次抓取超时
     "MaxItemsPerRun": 200,              // 每站点每次抓取条目数上限
     "Retry": {
@@ -393,17 +399,19 @@ POST /api/admin/price-crawl/maps/{mapId}/reject    { } → 200 { mapId, mapStatu
     },
     "CircuitBreaker": { "FailureThreshold": 10, "CooldownMinutes": 60 },
     "Robots": { "Enabled": true, "CacheHours": 24, "FailOpen": true },
-    "UserAgent": "DoggoPriceBot/1.0 (+https://<host>/price-crawler)",
+    "UserAgent": "DoggoPriceBot/1.0 (+price-crawler)",  // 默认 UA（可换成 <host> 形式，但需自定）
     "NightWindowUtc": { "Enabled": false, "Start": "02:00", "End": "06:00" },
     "Discover": { "IntervalHours": 24, "RunAtUtc": "04:00" },
     "DedupWindowMinutes": 60,
     "SuspectThresholdPct": 50,
     "RollingMedianPoints": 20,
     "MaxPriceCents": 10000000000,
+    "RawRetentionDays": 90,
     "Sites": [
-      { "Key": "example-market", "Enabled": true, "IntervalMinutes": 60, "RobotsEnabled": true }
-    ],
-    "SeedDefaultSites": true
+      { "Key": "example-market", "Enabled": true, "IntervalMinutes": 60, "RobotsEnabled": true,
+        "MaxItemsPerRun": 200, "Games": [], "MarketHashNames": [],
+        "Html": { "BaseUrl": "https://example-market.example" } }
+    ]
   }
 }
 ```
