@@ -23,7 +23,7 @@ prototypes/
 ├── web/              web 前台：home / product / checkout / account / states
 ├── miniapp/          小程序（真机框 375×780）：home / product / market / order / profile / states
 ├── mobile/           手机端（同组件层）：home / product / market / order / profile / states
-└── admin/            后台：dashboard / products / orders / funnel / settings
+└── admin/            后台：dashboard / products / orders / funnel / settings / states
 ```
 
 ## 截图验收清单
