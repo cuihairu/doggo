@@ -47,7 +47,7 @@ The legacy platform had only one generic article module; multi-source CS2 / Dota
 | Inventory management | Seat state machine (selling → … → done), batch optimistic locks, skipped / rolled-back steps rejected | done |
 | Skin claim | Delivered via Steam trade offer, trade-link validation | done (vapor integration pending vapor) |
 | Product list and search | `GET /api/products` (keyword, type, paging, listed products only); the web store page has a keyword search box, type filters and "load more" paging, the miniapp and mobile product lists have keyword search and load more | done |
-| Roll rooms | Template-based rooms (8 rule kinds: claim on login / per-order participation / invite code and so on), join validation, draw on expiry (AliasMethod weighted draw), item or points payout, auto-roll to the next round per template, `GET /api/roll/rooms`, `GET /api/roll/rooms/{id}` | done (item prizes record first, real delivery goes through the claim flow; vapor integration pending vapor) |
+| Roll rooms | Template-based rooms (8 rule kinds: claim on login / per-order participation / invite code and so on), join validation, draw on expiry (AliasMethod weighted draw), item or coin payout, auto-roll to the next round per template, `GET /api/roll/rooms`, `GET /api/roll/rooms/{id}` | done (item prizes record first, real delivery goes through the claim flow; vapor integration pending vapor) |
 
 ## Steam bot (based on vapor)
 
@@ -67,7 +67,7 @@ The legacy platform had only one generic article module; multi-source CS2 / Dota
 | Orders | State machine (pending payment → pending settlement → pending claim → claiming → done, cancel / refund), timeout cancellation, reconciliation and compensation (auto-refund for stuck orders, retry for failed claims) | done |
 | Trade links and skin claims | Trade-link CRUD and format validation (bindable from the user center on web, mobile and miniapp), claims initiated through vapor, completion / failure callbacks advance the order | done (vapor integration pending vapor) |
 | Payment | Pluggable payment interface with a built-in mock channel (payment link, callback signature check, idempotency, refund); real channels wired in as needed | done (mock channel) |
-| Points / coupons | Coin ledger (itemised on all three clients, full view in an admin drawer), coupon claim and deduction, expiry policy, coupon centre (claimable from the user center on all three clients), redemption codes for points or coupons (entry in the user center on web / miniapp / mobile) | done |
+| Coins / coupons | Coin ledger (itemised on all three clients, full view in an admin drawer), coupon claim and deduction, expiry policy, coupon centre (claimable from the user center on all three clients), redemption codes for coins or coupons (entry in the user center on web / miniapp / mobile) | done |
 | Invites and check-in | Invite rebates (`GET /api/invites` for one's own rebate detail and total, visible on web / miniapp / mobile), weekly cyclic check-in | done |
 
 ## Admin console
