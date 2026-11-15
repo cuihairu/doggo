@@ -45,8 +45,16 @@ public static class AdminOrderEndpoints
             [FromServices] OrderService orders,
             CancellationToken cancellationToken) =>
         {
-            var refunded = await orders.RefundOrderAsync(id, request.Reason, cancellationToken);
-            return refunded ? Results.Ok(new { refunded }) : Results.Problem("Order cannot be refunded.", statusCode: StatusCodes.Status400BadRequest);
+            try
+            {
+                var refunded = await orders.RefundOrderAsync(id, request.Reason, cancellationToken);
+                return refunded ? Results.Ok(new { refunded })
+                    : Results.Problem("Order cannot be refunded.", statusCode: StatusCodes.Status400BadRequest);
+            }
+            catch (OrderNotFoundException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
+            }
         });
         admin.MapGet("/orders/{id:guid}/prizes", async (Guid id, DoggoDbContext db, CancellationToken cancellationToken) =>
             Results.Ok(await db.UserPrizes.AsNoTracking()

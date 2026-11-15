@@ -192,7 +192,7 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer", logged.GetProperty("accessToken").GetString());
 
-        return await admin.PostAsJsonAsync($"/api/orders/{orderId}/refund", new { reason });
+        return await admin.PostAsJsonAsync($"/api/admin/orders/{orderId}/refund", new { reason });
     }
 
     [Fact]
@@ -256,7 +256,7 @@ public class OrderApiTests(ApiFactory factory) : ApiTestBase(factory)
         pay.EnsureSuccessStatusCode();
         (await PayCallbackAsync(client, orderId, 10000)).EnsureSuccessStatusCode();
 
-        var refund = await client.PostAsJsonAsync($"/api/orders/{orderId}/refund", new { reason = "customer complaint" });
+        var refund = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/refund", new { reason = "customer complaint" });
 
         Assert.Equal(System.Net.HttpStatusCode.Forbidden, refund.StatusCode);
         var pending = await GetOrderAsync(client, orderId);
