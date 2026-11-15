@@ -399,6 +399,39 @@ public class GroupBuyingServiceTests
     }
 
     [Fact]
+    public async Task Claim_conflict_clears_the_context_so_a_retry_in_the_same_scope_works()
+    {
+        var store = $"gb-claim-retry-{Guid.NewGuid():N}";
+        var seed = CreateDb(store);
+        var batch = await SeedBatchAsync(seed);
+        var first = await SeedValidOrderAsync(seed, batch.ProductId);
+        var second = await SeedValidOrderAsync(seed, batch.ProductId);
+        seed.ChangeTracker.Clear();
+        await seed.DisposeAsync();
+
+        using var db = CreateDb(store);
+        var (service, _) = CreateService(db);
+        await service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, first.Id));
+
+        // A rival worker sold from the same batch snapshot: it bumps the batch version while
+        // db still holds its claim (stale SoldCount, seat 2 still OnSale in the store), so
+        // the next claim passes the stale status guard and conflicts on the batch version.
+        using var rivalDb = CreateDb(store);
+        var rivalBatch = rivalDb.GroupBuyings.First(b => b.Id == batch.Id);
+        rivalBatch.Version++;
+        await rivalDb.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<BatchSoldOutException>(
+            () => service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, second.Id)));
+
+        // The losing writes were dropped, so the same scope can retry right away: the fresh
+        // read resolves the claim on current state instead of rethrowing the old conflict.
+        Assert.All(db.ChangeTracker.Entries(), e => Assert.NotEqual(EntityState.Modified, e.State));
+        await Assert.ThrowsAsync<BatchSoldOutException>(
+            () => service.ClaimSeatAsync(new ClaimSeatCommand(batch.Id, second.Id)));
+    }
+
+    [Fact]
     public async Task Mutations_reject_foreign_user_seats_inside_the_service()
     {
         var otherUserId = Guid.CreateVersion7();

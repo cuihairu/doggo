@@ -205,7 +205,10 @@ public sealed partial class GroupBuyingService(
         }
         catch (DbUpdateConcurrencyException)
         {
-            // Another worker sold from the same batch snapshot; to this claim the seat is gone.
+            // Another worker sold from the same batch snapshot; drop this context's stale
+            // writes so a follow-up save in the same scope re-reads fresh state instead of
+            // rethrowing the same conflict. To this claim the seat is gone either way.
+            db.ChangeTracker.Clear();
             throw new BatchSoldOutException($"Batch {command.BatchId} has no seats left.");
         }
 
