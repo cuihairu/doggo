@@ -601,7 +601,7 @@
 
 ## 审核修复：巡检单 2026-10-20 P1 批次（2026-11-12）
 
-来源：/home/cui/audit-batch2-6repos-2026-11-11.md doggo 节 P1。P1 按余力推进，逐条一个 commit 推送 origin/main；测试总数 582→595。
+来源：/home/cui/audit-batch2-6repos-2026-11-11.md doggo 节 P1。P1 按余力推进，逐条一个 commit 推送 origin/main；测试总数 582→595。（2026-11-15 标注：各条「server dotnet test N 绿」均为修复当时在本开发机全量跑出的即时快照——本机 127.0.0.1:6379 有 Redis、测试库走 InMemory——N 随用例增删持续变化，不可当作可复现的固定基线去别处复核；复核以当次 `dotnet test server/Doggo.slnx` 的实际输出为准。）
 
 - [x] 审核发现：PromotionPlan 领取库存「读 Stock>0 → Stock-- → Save」无并发令牌/乐观锁，两个并发订单可同时读过最后一单位库存并都扣减，导致超卖。(属实：PromotionPlan 加 Version 并发令牌，ClaimPromotionAsync 改 3 次尝试循环——冲突后 detach 重读库存复检，无库存返回 null；RestorePromotionAsync 同步 3 次尝试 + 冲突 Clear 重读补回；证据:bb8e7cb;ModelConfigurations.cs:127;OrderService.cs:626,655;server dotnet test 583 绿)
 - [x] 审核发现：支付回调结算保存失败时不区分真实失败与重复回调，重放回调可能把已结算订单再处理。(属实：结算 catch 改先重查幂等键——已存在则按重放返回，否则 rethrow；新增 SaveFailedRecordAsync 同模式；证据:1a3c092;ModelConfigurations.cs:153;OrderService.cs:50;OrderServiceTests.cs;server dotnet test 585 绿)
@@ -635,10 +635,10 @@
   - Doggo.Scraper 进程同时挂载 PriceCrawler 库，程序集名表达资讯，进程实际承担两类采集生命周期；分离依赖未造成部署困难，但命名未表达运行组合。（server/src/Doggo.Scraper/Program.cs:38）
 ## Codex 深审发现（2026-11-12，luna profile 近5 commit 审核，0C/2M/3m，待修）
 
-- [ ] [M] ClaimSeatAsync 并发清理同型残留（server/src/Doggo.Infrastructure/Cases/GroupBuyingService.cs:202-210）——DbUpdateConcurrencyException 处理与已修项同型
-- [ ] [M] 订单退款双入口收敛（server/src/Doggo.Api/Endpoints/OrderEndpoints.cs:196、AdminOrderEndpoints.cs:44）——业务逻辑重复暴露
-- [ ] [m] CI 基础设施 Redis 硬依赖解耦（.github/workflows/daily.yml:47、DoggoInfrastructureExtensions.cs:36）
-- [ ] [m] todo.md:613 测试总数验证标注环境限制
+- [x] [M] ClaimSeatAsync 并发清理同型残留（server/src/Doggo.Infrastructure/Cases/GroupBuyingService.cs:202-210）——DbUpdateConcurrencyException 处理与已修项同型(属实：catch 内先 `ChangeTracker.Clear()` 再抛 BatchSoldOutException，输掉的写全部丢弃，同一 scope 内紧接的重试重读新状态而非重抛旧冲突；新增双 context 回归测试——rival 仅 bump 批次 Version 保持座位 OnSale 构造「同批次快照被并发售出」，断言无 Modified 残留且重试经新鲜售罄读解析；证据:b8dcf11;GroupBuyingService.cs:211;GroupBuyingServiceTests.cs:402;GroupBuyingServiceTests.cs Claim_conflict_clears_the_context_so_a_retry_in_the_same_scope_works;server dotnet test 596 绿)
+- [x] [M] 订单退款双入口收敛（server/src/Doggo.Api/Endpoints/OrderEndpoints.cs:196、AdminOrderEndpoints.cs:44）——业务逻辑重复暴露(属实：删除 OrderEndpoints 用户组重复入口 `/api/orders/{id}/refund`（路由、处理器与 RefundRequest DTO 一并移除），唯一入口收敛为 AdminOrderEndpoints.cs:42 的 `POST /api/admin/orders/{id}/refund`（`/api/admin` 组级 Admin policy）并补上其缺失的 OrderNotFoundException→404 映射；admin 前端与小程序本就只打 admin 路径，无客户端受影响；测试助手 RefundAsAdminAsync 改指 admin 路径，非管理员打 admin 路径 403 的断言保持；审计账本两行旧引用补过时注记；证据:2ca306f;OrderEndpoints.cs:178;AdminOrderEndpoints.cs:42;OrderApiTests.cs:195,248;server dotnet test 596 绿)
+- [x] [m] CI 基础设施 Redis 硬依赖解耦（.github/workflows/daily.yml:47、DoggoInfrastructureExtensions.cs:36）(属实：DI 注册改 `ConfigurationOptions.Parse` + `AbortOnConnectFail=false`——原同步 `Connect` 连不上直接抛异常击穿启动，与 webhook 幂等存储「Redis 挂时降级内存」的既定设计相悖；连不上的实例操作抛 RedisConnectionException（RedisException 子类）正中存储的 fallback catch，healthz 本就 catch 全部异常报 degraded；daily.yml 与 ci.yml 撤掉 redis:7-alpine service 容器；RedisWebhookIdempotencyStoreTests 7 用例改自定义 RedisFactAttribute（发现期 TCP 探测 127.0.0.1:6379，不通置 Skip），无 Redis 环境其余套件照跑；本机 Redis 在跑故 7 用例实跑全绿，无 Redis 跳过路径由推送后 CI 复核；证据:a2f80a8;DoggoInfrastructureExtensions.cs:36;RedisWebhookIdempotencyStoreTests.cs:182;server dotnet test 596 绿)
+- [x] [m] todo.md:613 测试总数验证标注环境限制(属实：P1 批次头部补环境限制标注——各条「server dotnet test N 绿」为修复当时在本开发机全量跑出的即时快照（本机 127.0.0.1:6379 有 Redis、测试库走 InMemory），N 随用例增删持续变化，不可当作可复现的固定基线去别处复核，复核以当次 `dotnet test server/Doggo.slnx` 实际输出为准；证据:todo.md 审核修复 P1 批次头部;无代码改动)
 ## 文档站语言自动切换（2026-11-14 舰队 G2 审计轮）
 
 - [ ] [P2] 文档站语言自动识别不生效——`docs/index.md`（英文根页）无任何探测脚本；`docs/zh/index.md:43-68` 的 `<script setup>` 虽含 navigator.language 逻辑，但被编译进 /zh/ 页，guard `if (p !== ROOT_PATH ...) return` 恒为真直接返回，主用例「中文浏览器落在 / 跳 /zh/」永不触发；同块点击监听写 localStorage `doggo-lang-auto-picked`，全站无读取方。「手动切换 + 显式链接」为受规基线，自动识别属增强项；修复形为双页对称脚本（root 页 guard ROOT_PATH 跳 /zh/，zh 页对称回跳；舰队已验证形见 pomelo 原始 commit 与 redis-streaming 83ed243），是否启用待用户拍板。（docs/index.md 无 script；docs/zh/index.md:43-68；docs/.vitepress/config.mts:20-78；线上探针 / → 200 en-US 首屏 CJK 4，/zh/ → 200 zh-CN 首屏 CJK 32）
