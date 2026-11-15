@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using Doggo.Infrastructure.Vapor;
 using Microsoft.Extensions.Logging.Abstractions;
 using StackExchange.Redis;
@@ -8,8 +9,8 @@ namespace Doggo.Infrastructure.Tests;
 /// The Redis-backed store against a real Redis: two-phase claim/replay semantics, the
 /// memory fallback while Redis is down (a disposed multiplexer makes every operation
 /// throw RedisConnectionException), and the rule that a memory-sourced claim never
-/// touches a Redis key another instance may own. Needs a Redis on 127.0.0.1:6379; CI
-/// provides one as a service container.
+/// touches a Redis key another instance may own. Needs a Redis on 127.0.0.1:6379; skips
+/// where none is listening so environments without Redis still run the whole suite.
 /// </summary>
 public class RedisWebhookIdempotencyStoreTests : IClassFixture<RedisFixture>
 {
@@ -22,7 +23,7 @@ public class RedisWebhookIdempotencyStoreTests : IClassFixture<RedisFixture>
 
     private string NewKey() => $"doggo-tests:webhook:{Guid.NewGuid():N}";
 
-    [Fact]
+    [RedisFact]
     public async Task Claim_wins_once_then_reports_in_flight_duplicates()
     {
         var key = NewKey();
@@ -38,7 +39,7 @@ public class RedisWebhookIdempotencyStoreTests : IClassFixture<RedisFixture>
         Assert.Equal(WebhookClaimState.Processing, second.State);
     }
 
-    [Fact]
+    [RedisFact]
     public async Task Completed_key_is_reported_as_a_replay()
     {
         var key = NewKey();
@@ -53,7 +54,7 @@ public class RedisWebhookIdempotencyStoreTests : IClassFixture<RedisFixture>
         Assert.Equal(WebhookClaimState.Completed, replay.State);
     }
 
-    [Fact]
+    [RedisFact]
     public async Task Released_key_is_reclaimable_from_redis()
     {
         var key = NewKey();
@@ -67,7 +68,7 @@ public class RedisWebhookIdempotencyStoreTests : IClassFixture<RedisFixture>
         Assert.True((await store.TryClaimAsync(key, Processing, Completed)).Claimed);
     }
 
-    [Fact]
+    [RedisFact]
     public async Task Redis_outage_claims_in_memory_and_the_release_stays_off_redis()
     {
         var key = NewKey();
@@ -89,7 +90,7 @@ public class RedisWebhookIdempotencyStoreTests : IClassFixture<RedisFixture>
         Assert.False(db.KeyExists(key));
     }
 
-    [Fact]
+    [RedisFact]
     public async Task Memory_sourced_release_leaves_another_instances_redis_claim_alone()
     {
         var key = NewKey();
@@ -112,7 +113,7 @@ public class RedisWebhookIdempotencyStoreTests : IClassFixture<RedisFixture>
         Assert.False((await liveStore.TryClaimAsync(key, Processing, Completed)).Claimed);
     }
 
-    [Fact]
+    [RedisFact]
     public async Task Memory_sourced_complete_lands_in_memory_only()
     {
         var key = NewKey();
@@ -130,7 +131,7 @@ public class RedisWebhookIdempotencyStoreTests : IClassFixture<RedisFixture>
             .TryClaimAsync(key, Processing, Completed)).Claimed);
     }
 
-    [Fact]
+    [RedisFact]
     public async Task Redis_outage_during_complete_is_swallowed_and_the_key_stays_retryable()
     {
         var key = NewKey();
@@ -174,5 +175,23 @@ public sealed class RedisFixture : IAsyncLifetime
     {
         _multiplexer!.Dispose();
         _multiplexer = await ConnectionMultiplexer.ConnectAsync("127.0.0.1:6379,abortConnect=false");
+    }
+}
+
+/// <summary>Skip reason for tests that need a live Redis on 127.0.0.1:6379.</summary>
+public sealed class RedisFactAttribute : FactAttribute
+{
+    public RedisFactAttribute()
+    {
+        try
+        {
+            using var probe = new TcpClient();
+            probe.ConnectAsync("127.0.0.1", 6379).Wait(200);
+            Skip = probe.Connected ? null : "needs a Redis on 127.0.0.1:6379";
+        }
+        catch
+        {
+            Skip = "needs a Redis on 127.0.0.1:6379";
+        }
     }
 }

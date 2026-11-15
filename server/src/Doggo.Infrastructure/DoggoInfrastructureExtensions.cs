@@ -34,7 +34,16 @@ public static class DoggoInfrastructureExtensions
         services.AddDbContext<Persistence.DoggoDbContext>(options => options.UseMySQL(connectionString));
 
         var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
-        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnectionString));
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+        {
+            // A synchronous connect throws when Redis is down, which would fail host boot even
+            // though the webhook idempotency store is designed to degrade to in-memory claims.
+            // Let the multiplexer come up in the background instead; operations against a not
+            // yet connected instance throw RedisConnectionException, the store's fallback trigger.
+            var options = ConfigurationOptions.Parse(redisConnectionString);
+            options.AbortOnConnectFail = false;
+            return ConnectionMultiplexer.Connect(options);
+        });
 
         return services;
     }
