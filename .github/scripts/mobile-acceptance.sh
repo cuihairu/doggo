@@ -167,7 +167,9 @@ shot 08-login 3
 # keystroke), so batched `input text` drops characters — type one char at a
 # time and let React keep up.
 field_text() { # text currently shown in EditText #$1 (per the uiautomator dump)
-  dump | grep -oE 'class="android.widget.EditText"[^>]*text="[^"]*"' \
+  # text= sits before class= inside the node tag, so anchor on the whole tag
+  # instead of assuming the attribute order.
+  dump | grep -oE '<node[^>]*class="android\.widget\.EditText"[^>]*>' \
     | sed -n "$(( $1 + 1 ))p" | grep -oE 'text="[^"]*"' | cut -d'"' -f2
 }
 
