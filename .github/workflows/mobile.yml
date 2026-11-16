@@ -87,6 +87,9 @@ jobs:
           MYSQL_PASSWORD: ci-doggo-password
           AUTH_SECRET_KEY: ci-acceptance-secret-key-0123456789abcdef0123456789abcdef
           API_PORT: '5077'
+          # Mock payment is acceptance-only: the stack must not run Production,
+          # where the provider guard rejects Mock and crashes the API at startup.
+          ASPNETCORE_ENVIRONMENT: Development
         run: |
           docker compose -f docker-compose.prod.yml up -d --build mysql redis migrator api
           for i in $(seq 1 60); do

@@ -52,7 +52,9 @@ services:
       target: app
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      # Parameterized so an acceptance stack can run Development with the mock
+      # payment provider; the compose default keeps the production hard-fail.
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ConnectionStrings__Default: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-doggo};User=${MYSQL_USER:-doggo};Password=${MYSQL_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379"
       Auth__SecretKey: ${AUTH_SECRET_KEY:?AUTH_SECRET_KEY is required}
