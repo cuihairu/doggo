@@ -166,13 +166,43 @@ shot 08-login 3
 # Login with the seeded account. RN TextInputs are controlled (setState per
 # keystroke), so batched `input text` drops characters — type one char at a
 # time and let React keep up.
-type_slow() {
-  local text=$1 i
-  for ((i = 0; i < ${#text}; i++)); do
-    adb shell input text "${text:$i:1}"
-    sleep 0.2
-  done
+field_text() { # text currently shown in EditText #$1 (per the uiautomator dump)
+  dump | grep -oE 'class="android.widget.EditText"[^>]*text="[^"]*"' \
+    | sed -n "$(( $1 + 1 ))p" | grep -oE 'text="[^"]*"' | cut -d'"' -f2
 }
+
+fill_field() { # tap EditText #$1, clear it, type $2 char by char, verify, retry
+  local idx=$1 want=$2 expect=$3 got i try dots
+  for try in 1 2 3; do
+    tap_edit "$idx"
+    # The first keystroke after a tap can land before RN focus settles (seen
+    # live: account picked up the password's leading "P"). Give the focus
+    # time, then clear anything that slipped in before typing.
+    sleep 1.5
+    adb shell input keyevent KEYCODE_MOVE_END
+    for i in $(seq 1 24); do adb shell input keyevent KEYCODE_DEL; done
+    for ((i = 0; i < ${#want}; i++)); do
+      adb shell input text "${want:$i:1}"
+      sleep 0.3
+    done
+    sleep 0.5
+    got=$(field_text "$idx")
+    if [ "$expect" = "dots" ]; then
+      # masked fields echo one bullet per character
+      dots=$(printf '%s' "$got" | grep -o "•" | wc -l)
+      [ "$dots" -eq ${#want} ] && return 0
+    elif [ "$got" = "$expect" ]; then
+      return 0
+    fi
+    echo "fill retry $try: field #$idx shows '$got'"
+  done
+  echo "field #$idx never took the value (last: '$got')"
+  dump > "$SHOTS/ui-fill-fail.xml" || true
+  exit 1
+}
+
+fill_field 0 "13800000001" "13800000001"
+fill_field 1 "Passw0rd123" "dots"
 # A tap issued while the IME window is up can be swallowed — close the
 # keyboard (back only hides the IME when it is shown) before tapping submit.
 hide_keyboard() {
@@ -181,10 +211,6 @@ hide_keyboard() {
     sleep 1
   fi
 }
-tap_edit 0
-type_slow "13800000001"
-tap_edit 1
-type_slow "Passw0rd123"
 shot 08b-login-filled 1
 hide_keyboard
 tap_text "登录"
