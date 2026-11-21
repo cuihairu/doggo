@@ -380,8 +380,8 @@
 
 ## 未完成项
 
-- [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号 — BLOCKED 缺可用的 vapor 实例与 Steam 账号　复核注记：2026-11-04 复核仍缺外部条件
-- [ ] 小程序提审:需主体资质、正式 AppID 与合法域名 — BLOCKED 缺主体资质、正式 AppID 与合法域名　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] vapor 联调:需可用的 vapor 实例与 Steam 账号 — BLOCKED 缺可用的 vapor 实例与 Steam 账号　复核注记：2026-11-04 复核仍缺外部条件;2026-11-21 复核(实测):appsettings.json:14-15 Vapor BaseUrl/ApiKey 均仍为空字符串,仓库无 vapor 实例或 Steam 账号可用——仍缺外部条件,联调无法进行
+- [ ] 小程序提审:需主体资质、正式 AppID 与合法域名 — BLOCKED 缺主体资质、正式 AppID 与合法域名　复核注记：2026-11-04 复核仍缺外部条件;2026-11-21 复核(实测):miniapp/project.config.json:2 appid 仍为占位 "touristappid",无主体资质与正式 AppID,合法域名未配置——仍缺外部条件,无法提审
 - [x] docs 双语补齐
 - [x] docs/ 根目录:审计-文档一致性.md 已配 docs/en/审计-文档一致性.md(真实英译)
 - [x] docs/index.md:用户已代决=站点级 i18n(config.mts 加 `locales.{root,en}`,英文首页挂 /en/;home 页不塞逐页切换器,语言切换走站点级导航 `VPNavBarTranslations`,两个 locale 各声明 label 即出现)。复核注:home 布局正文实际会渲染(dist/index.html 的 `.vp-doc` 内含「界面预览」与截图 `<img>`),原「不渲染正文、切换器无处放」的判断有误;按代决执行,不影响验收
@@ -472,7 +472,7 @@
 - [x] 深审 P3 卫生:mysqladmin 密码作 CLI 参数(证据:docker-compose.yml:17、docker-compose.prod.yml:19 改 `--defaults-extra-file=<(printf '[client]...')`;docker compose config 通过,容器 healthy,dotnet test 184+107 全绿)
 <!-- 审核发现:CI 硬编码凭据(mobile.yml:86-88、104-106)不属实:该凭据仅为 CI 验收 runner 内临时 MySQL/API 的测试夹具与 seed 数据,非真实生产凭据,无泄露风险,无需改 -->
 - [x] 深审 P3 卫生:小程序 RichText 注入(证据:miniapp/src/pages/newsdetail/newsdetail.tsx:58、miniapp/package.json:35 xss@^1.0.17;filterXSS stripIgnoreTagBody 剥离 script/iframe/svg 等,typecheck+build 绿)
-- [ ] 深审 P3 卫生:小程序 urlCheck false(project.config.json:8) — BLOCKED 缺正式 AppID 与微信后台合法域名配置(改 true 需同批上线域名,属用户侧资产,todo.md:384 提审已 BLOCKED)　复核注记：2026-11-04 复核仍缺外部条件
+- [ ] 深审 P3 卫生:小程序 urlCheck false(project.config.json:8) — BLOCKED 缺正式 AppID 与微信后台合法域名配置(改 true 需同批上线域名,属用户侧资产,todo.md:384 提审已 BLOCKED)　复核注记：2026-11-04 复核仍缺外部条件;2026-11-21 复核(实测):miniapp/project.config.json:8 urlCheck 仍 false,改 true 需合法域名已上线且与 384 提审同批,384 仍 BLOCKED(无正式 AppID)——仍缺外部条件
 - [x] 深审 P3 卫生:http 默认 API base(证据:shared/src/client.ts:8 默认空+rawRequest fail-closed、miniapp/config/index.ts:20 env 注入 TARO_APP_API_BASE;miniapp build 注入 http://127.0.0.1:8082,typecheck+build 绿;mobile 保留模拟器默认经 setApiBase)
 - [x] 深审 P3 卫生:nginx 缺安全头(证据:doggo.conf.template:48-50、doggo.conf.template:82-84 add_header nosniff/referrer-policy/frame-deny;nginx -t 语法 ok,curl 实测三头均返回)
 - [x] 深审 P3 卫生:inspectLink 无 scheme 白名单(CaseOpeningPage.tsx:108)(证据:a69c6a7,CaseOpeningPage.tsx:108、web/src/lib/url.ts:3)
