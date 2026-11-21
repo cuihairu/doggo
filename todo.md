@@ -565,6 +565,7 @@
 - [x] 审核发现：Redis 故障时获得的内存认领在释放时仍无条件删除 Redis 同名键，若 Redis 已恢复且另一实例已认领该事件，会删除对方的认领并允许重复处理（server/src/Doggo.Infrastructure/Vapor/WebhookIdempotencyStore.cs:76）(属实：`_claimedInRedis` 记录认领来源，释放/完成时内存来源分支只清内存兜底、绝不触碰 Redis；`In_flight_duplicate_is_reported_as_processing` 覆盖重复投递判定，证据:faa0b60;WebhookIdempotencyStore.cs:152-158,176-182;server dotnet test 536 绿)
 - [x] 审核发现：回滚只捕获并发异常，数据库访问失败或请求取消时回滚异常会覆盖原始 VaporClientException，且座位可能停留在 Opening（server/src/Doggo.Infrastructure/Cases/GroupBuyingService.cs:306）(属实：`RollBackOpeningSeatAsync` 新增非并发异常分支，记录日志后返回，回滚自身的故障不再覆盖原始 vapor 异常；座位保持 Opening 供后续 retry（Opening→Paid 为合法迁移）；`SubmitOpening_preserves_the_dispatch_error_when_rollback_fails` 模拟数据库故障断言原异常透传且重新读取的持久化状态仍为 Opening，证据:1480048;GroupBuyingService.cs:470-476;GroupBuyingServiceTests.cs:462-506;server dotnet test 536 绿)
 - [x] 审核发现：事件尚在处理时并发到达的重复投递会立即收到成功响应，若原投递随后失败并释放认领，发送方可能已因该成功响应停止重试而丢失事件（server/src/Doggo.Api/Endpoints/VaporEndpoints.cs:75）(属实：未认领且状态为 Processing 时改返回 503 可重试信号，只有 Completed 才按重复回 200；证据:faa0b60;VaporEndpoints.cs:81-91;WebhookIdempotencyStoreTests.cs:66-75;server dotnet test 536 绿)
+- [x] 审核发现：本轮 README 计数滞后——README.md:83 / README.zh.md:83 仍写「381 of 408」，但 2026-11-21 会话勾选 449/451/452/470（及复核注记）后 todo.md 实际为 `[x]`=401、`[ ]`=4、合计 405；原 408 总数也随审核行增补而变动，故按惯例两版 README 计数随本行同步重算为「401 of 405」并改写未完成枚举（vapor 集成 383、小程序审核 384/475、文档语言自动识别决策 644、源码分层 LAY-002/003/004）。(证据:本提交, todo.md, README.md:83, README.zh.md:83, docs-only 免编译)
 
 ## 审核记录：深审 BLOCKED 项复核（2026-11-09）
 
