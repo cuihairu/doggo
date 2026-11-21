@@ -420,24 +420,27 @@ public sealed partial class OrderService(
         }
 
         var previousStatus = order.Status;
-        var refunded = await payment.RefundAsync(order.PayTradeNo ?? string.Empty, order.TotalCostCents, reason, cancellationToken);
-        if (!refunded)
-        {
-            LogRefundRejected(logger, order.OrderNo);
-            return false;
-        }
 
-        // A concurrent callback or retrieval move makes the refund obsolete.
-        var fresh = await db.UserOrders.FirstAsync(o => o.Id == orderId, cancellationToken);
-        if (fresh.Status != previousStatus)
-        {
-            return false;
-        }
-
+        // Claim the refund on the order's concurrency token BEFORE the payout: a duplicate
+        // refund request loses here and never pays twice. The claim is saved on its own —
+        // a losing batch must carry nothing else, because providers without transactions
+        // apply the rows before the conflict surfaces and a refund that never happened
+        // must not leave an audit row behind. A crash between this save and the record
+        // insert below leaves a refunded order with no payout on the books: the safe side.
         order.Status = OrderStatus.Refunded;
         order.Error = reason;
+        order.Version++;
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return false;
+        }
 
-        db.RefundRecords.Add(new RefundRecord
+        var refundRecord = new RefundRecord
         {
             Id = Guid.CreateVersion7(),
             OrderId = orderId,
@@ -445,8 +448,27 @@ public sealed partial class OrderService(
             ProviderRefundNo = $"R-{order.OrderNo}",
             AmountCents = order.TotalCostCents,
             Reason = reason,
-            Status = PaymentStatus.Refunded
-        });
+            // Created while the payout is in flight; flipped to Refunded/Failed below.
+            Status = PaymentStatus.Created
+        };
+        db.RefundRecords.Add(refundRecord);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var refunded = await payment.RefundAsync(order.PayTradeNo ?? string.Empty, order.TotalCostCents, reason, cancellationToken);
+        if (!refunded)
+        {
+            // The channel refused, so the order goes back where it was and the attempt stays
+            // on the books as Failed rather than vanishing.
+            order.Status = previousStatus;
+            order.Error = null;
+            order.Version++;
+            refundRecord.Status = PaymentStatus.Failed;
+            await db.SaveChangesAsync(cancellationToken);
+            LogRefundRejected(logger, order.OrderNo);
+            return false;
+        }
+
+        refundRecord.Status = PaymentStatus.Refunded;
         await db.SaveChangesAsync(cancellationToken);
 
         await RestoreDeductionsAsync(order, "order_refund", cancellationToken);

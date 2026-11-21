@@ -75,9 +75,56 @@ public class OrderServiceTests
         }
     }
 
+    /// <summary>
+    /// Counts channel refund calls so a race test can prove the loser never pays out twice.
+    /// </summary>
+    private sealed class CountingPaymentProvider : IPaymentProvider
+    {
+        private readonly MockPaymentProvider _inner = new();
+
+        public int RefundCalls { get; private set; }
+
+        public PaymentProvider Provider => _inner.Provider;
+
+        public Task<PaymentCreation> CreatePaymentAsync(UserOrder order, CancellationToken cancellationToken = default) =>
+            _inner.CreatePaymentAsync(order, cancellationToken);
+
+        public Task<PaymentCallbackResult?> VerifyCallbackAsync(
+            string payload, IReadOnlyDictionary<string, string> headers, CancellationToken cancellationToken = default) =>
+            _inner.VerifyCallbackAsync(payload, headers, cancellationToken);
+
+        public Task<bool> RefundAsync(string providerTradeNo, long amountCents, string reason, CancellationToken cancellationToken = default)
+        {
+            RefundCalls++;
+            return _inner.RefundAsync(providerTradeNo, amountCents, reason, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// A channel that refuses the payout, so the refund claim must be rolled back and the
+    /// attempt recorded as Failed rather than silently dropped.
+    /// </summary>
+    private sealed class RejectingPaymentProvider : IPaymentProvider
+    {
+        private readonly MockPaymentProvider _inner = new();
+
+        public PaymentProvider Provider => _inner.Provider;
+
+        public Task<PaymentCreation> CreatePaymentAsync(UserOrder order, CancellationToken cancellationToken = default) =>
+            _inner.CreatePaymentAsync(order, cancellationToken);
+
+        public Task<PaymentCallbackResult?> VerifyCallbackAsync(
+            string payload, IReadOnlyDictionary<string, string> headers, CancellationToken cancellationToken = default) =>
+            _inner.VerifyCallbackAsync(payload, headers, cancellationToken);
+
+        public Task<bool> RefundAsync(string providerTradeNo, long amountCents, string reason, CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
+    }
+
     private static (OrderService Orders, StubHandler Handler) CreateService(
         DoggoDbContext db,
-        Func<HttpRequestMessage, Task<HttpResponseMessage>>? vaporResponder = null)
+        Func<HttpRequestMessage, Task<HttpResponseMessage>>? vaporResponder = null,
+        IPaymentProvider? payment = null)
     {
         var handler = new StubHandler
         {
@@ -95,7 +142,7 @@ public class OrderServiceTests
 
         var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
         var coupons = new CouponService(db, ledger, NullLogger<CouponService>.Instance);
-        return (new OrderService(db, Options.Create(new OrderOptions()), new MockPaymentProvider(), client, coupons, ledger, new InviteService(db, ledger, Options.Create(new InviteOptions()), NullLogger<InviteService>.Instance), NewRecorder(db), NullLogger<OrderService>.Instance), handler);
+        return (new OrderService(db, Options.Create(new OrderOptions()), payment ?? new MockPaymentProvider(), client, coupons, ledger, new InviteService(db, ledger, Options.Create(new InviteOptions()), NullLogger<InviteService>.Instance), NewRecorder(db), NullLogger<OrderService>.Instance), handler);
     }
 
     private static HttpResponseMessage Response(HttpStatusCode code, string json) =>
@@ -1079,6 +1126,54 @@ public class OrderServiceTests
 
         Assert.Equal(OrderStatus.Refunded, (await db.UserOrders.SingleAsync()).Status);
         Assert.Equal(1, await db.RefundRecords.CountAsync());
+    }
+
+    [Fact]
+    public async Task Refund_racing_a_duplicate_pays_the_channel_once()
+    {
+        var store = $"order-service-tests-{Guid.NewGuid():N}";
+        var payment = new CountingPaymentProvider();
+        using var db = CreateDb(store);
+        var (orders, _) = CreateService(db, payment: payment);
+        var product = await SeedProductAsync(db);
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+        await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), null);
+
+        // A rival service instance refunds from its own context while this one still holds
+        // the stale tracked row: the stale refund passes the state-machine gate but loses
+        // on the order's concurrency token, so it must never reach the channel.
+        using (var rivalDb = CreateDb(store))
+        {
+            var (rivalOrders, _) = CreateService(rivalDb, payment: payment);
+            Assert.True(await rivalOrders.RefundOrderAsync(result.OrderId, "customer complaint"));
+        }
+
+        Assert.False(await orders.RefundOrderAsync(result.OrderId, "customer complaint"));
+
+        var fresh = await db.UserOrders.AsNoTracking().SingleAsync(o => o.Id == result.OrderId);
+        Assert.Equal(OrderStatus.Refunded, fresh.Status);
+        Assert.Equal(1, payment.RefundCalls);
+        Assert.Equal(1, await db.RefundRecords.AsNoTracking().CountAsync());
+        Assert.Equal(PaymentStatus.Refunded, (await db.RefundRecords.AsNoTracking().SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Refund_rejected_by_the_channel_leaves_a_failed_record_and_the_order_untouched()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db, payment: new RejectingPaymentProvider());
+        var product = await SeedProductAsync(db, finalPriceCents: 9000);
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+        await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId, 9000), null);
+
+        Assert.False(await orders.RefundOrderAsync(result.OrderId, "channel says no"));
+
+        var fresh = await db.UserOrders.AsNoTracking().SingleAsync();
+        Assert.Equal(OrderStatus.PendingSettlement, fresh.Status);
+        Assert.Null(fresh.Error);
+        var record = await db.RefundRecords.AsNoTracking().SingleAsync();
+        Assert.Equal(PaymentStatus.Failed, record.Status);
+        Assert.Equal("channel says no", record.Reason);
     }
 
     [Fact]
