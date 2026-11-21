@@ -244,9 +244,29 @@ public sealed partial class AuthService(
         }
 
         var (newRaw, newHash) = NewRefreshToken();
+
+        // Revoke first, mint second: the revoke is the batch that carries the concurrency
+        // token, so a losing concurrent refresh dies on a batch that contains nothing else —
+        // its staged successor is never written even on providers whose failed saves are not
+        // transactional. A crash between the two saves leaves the old token revoked with no
+        // successor, which sends the user back to login: the safe direction for auth.
         row.RevokedAtUtc = DateTime.UtcNow;
         row.ReplacedByTokenHash = newHash;
         row.LastSeenAtUtc = DateTime.UtcNow;
+        row.Version++;
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Two concurrent refreshes with one token both pass the revoked pre-check; the
+            // token's version settles it. The loser mints nothing and is refused like any
+            // other replay of a rotated token.
+            db.ChangeTracker.Clear();
+            throw new AuthException("Refresh token was revoked.");
+        }
+
         db.UserRefreshTokens.Add(new UserRefreshToken
         {
             Id = Guid.CreateVersion7(),
@@ -273,7 +293,18 @@ public sealed partial class AuthService(
         }
 
         row.RevokedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
+        row.Version++;
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A rotation revoked this token first; logout's goal (the token is dead) already
+            // holds, so the conflict is not an error.
+            db.ChangeTracker.Clear();
+        }
+
         LogLogout(row.UserId);
     }
 

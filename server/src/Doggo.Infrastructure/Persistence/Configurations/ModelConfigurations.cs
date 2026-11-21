@@ -29,6 +29,8 @@ public class UserRefreshTokenConfiguration : IEntityTypeConfiguration<UserRefres
     {
         builder.HasIndex(x => x.TokenHash).IsUnique();
         builder.HasIndex(x => x.UserId);
+        // The rotation write is the token's one-shot guard; the token settles who rotates it.
+        builder.Property(x => x.Version).IsConcurrencyToken();
     }
 }
 

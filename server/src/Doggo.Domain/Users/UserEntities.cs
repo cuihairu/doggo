@@ -219,6 +219,10 @@ public class UserRefreshToken : Entity
     public Guid? ReplacedByTokenId { get; set; }
     public string? ReplacedByTokenHash { get; set; }
     public DateTime? LastSeenAtUtc { get; set; }
+
+    /// <summary>Concurrency token for the rotation write: two concurrent refreshes with one
+    /// token must not both pass the revoked pre-check and end up with two live tokens.</summary>
+    public long Version { get; set; } = 1;
 }
 
 public class UserVisitLog : Entity

@@ -17,6 +17,11 @@ public class AuthServiceTests
             .UseInMemoryDatabase($"auth-tests-{Guid.NewGuid():N}")
             .Options);
 
+    private static DoggoDbContext CreateDb(string store) =>
+        new(new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store)
+            .Options);
+
     private sealed class StubWechatClient(WechatSession? session) : IWechatSessionClient
     {
         public Task<WechatSession> ExchangeAsync(string code, CancellationToken cancellationToken = default) =>
@@ -202,6 +207,31 @@ public class AuthServiceTests
         Assert.Single(await db.UserRefreshTokens.Where(t => t.RevokedAtUtc != null).ToListAsync());
 
         await Assert.ThrowsAsync<AuthException>(() => service.RefreshAsync(registered.RefreshToken));
+    }
+
+    [Fact]
+    public async Task Refresh_RacingTheSameToken_MintsOneNewToken()
+    {
+        var store = $"auth-refresh-race-{Guid.NewGuid():N}";
+        await using var db = CreateDb(store);
+        var service = CreateService(db);
+        var registered = await RegisterAsync(service);
+        await db.SaveChangesAsync();
+
+        // The rival service rotates the same token from its own context while this side still
+        // holds the stale unrevoked row, so this rotation must lose on the version token and
+        // mint nothing.
+        await using var rivalDb = CreateDb(store);
+        var rival = CreateService(rivalDb);
+        var rivalResult = await rival.RefreshAsync(registered.RefreshToken);
+        Assert.NotEqual(registered.RefreshToken, rivalResult.RefreshToken);
+
+        var ex = await Assert.ThrowsAsync<AuthException>(() => service.RefreshAsync(registered.RefreshToken));
+        Assert.Equal("Refresh token was revoked.", ex.Message);
+
+        await using var fresh = CreateDb(store);
+        Assert.Equal(2, await fresh.UserRefreshTokens.CountAsync());
+        Assert.Single(await fresh.UserRefreshTokens.Where(t => t.RevokedAtUtc == null).ToListAsync());
     }
 
     [Fact]
