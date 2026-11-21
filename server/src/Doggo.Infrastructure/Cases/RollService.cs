@@ -143,6 +143,26 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
     /// </summary>
     public async Task<DrawResult> DrawAsync(Guid roomId, CancellationToken cancellationToken = default)
     {
+        // Two sweep workers can pick the same due room before either has saved. The room's
+        // concurrency token makes the loser's write fail; a re-read then goes through the
+        // status guard in DrawOnceAsync and reports the winner the winner established.
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                return await DrawOnceAsync(roomId, cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < 2)
+            {
+                db.ChangeTracker.Clear();
+            }
+        }
+
+        throw new InvalidOperationException("Roll draw keeps conflicting on the room's concurrency token.");
+    }
+
+    private async Task<DrawResult> DrawOnceAsync(Guid roomId, CancellationToken cancellationToken = default)
+    {
         var room = await db.RollRooms
             .FirstOrDefaultAsync(r => r.Id == roomId, cancellationToken)
             ?? throw new RollRoomNotFoundException($"Roll room {roomId} was not found.");
@@ -177,6 +197,7 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
             room.Status = RollRoomStatus.Drawn;
             RollRoomStateMachine.RequireTransition(RollRoomStatus.Drawn, RollRoomStatus.Finished);
             room.Status = RollRoomStatus.Finished;
+            room.Version++;
             await db.SaveChangesAsync(cancellationToken);
             LogDrawnNoWinner(room.Title);
             return new DrawResult(room.Id, room.Status, null, null, null);
@@ -191,6 +212,7 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
         RollRoomStateMachine.RequireTransition(RollRoomStatus.Drawing, RollRoomStatus.Drawn);
         room.Status = RollRoomStatus.Drawn;
         winner.WonPrizeId = prize.Id;
+        room.Version++;
         await db.SaveChangesAsync(cancellationToken);
         LogDrawn(room.Title, winner.UserId, prize.Title);
         return new DrawResult(room.Id, room.Status, winner.UserId, prize.Id, prize.Title);
@@ -260,6 +282,8 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
         // Reserve the claim slot before granting anything. Two concurrent claims for the same
         // winner both read ClaimedAtUtc null; the participant Version concurrency token makes
         // the second writer's save fail, so the prize is granted exactly once.
+        // The room token is deliberately not bumped here: one room can hold several winners,
+        // and their claims must be able to land independently.
         RollRoomStateMachine.RequireTransition(room.Status, RollRoomStatus.Claiming);
         room.Status = RollRoomStatus.Claiming;
         participant.ClaimedAtUtc = DateTime.UtcNow;

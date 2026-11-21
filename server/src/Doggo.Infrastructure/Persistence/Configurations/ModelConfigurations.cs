@@ -198,6 +198,16 @@ public class UserPrizeConfiguration : IEntityTypeConfiguration<UserPrize>
     }
 }
 
+/// <summary>The draw guard runs on a tracked room row, so the token is what stops two sweep
+/// workers from each recording their own winner for one room.</summary>
+public class RollRoomConfiguration : IEntityTypeConfiguration<RollRoom>
+{
+    public void Configure(EntityTypeBuilder<RollRoom> builder)
+    {
+        builder.Property(x => x.Version).IsConcurrencyToken();
+    }
+}
+
 public class RollRoomParticipantConfiguration : IEntityTypeConfiguration<RollRoomParticipant>
 {
     public void Configure(EntityTypeBuilder<RollRoomParticipant> builder)

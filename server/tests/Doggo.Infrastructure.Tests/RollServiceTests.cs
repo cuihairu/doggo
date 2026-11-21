@@ -484,4 +484,35 @@ public class RollServiceTests
         Assert.Equal(0, rolled);
         Assert.Equal(1, await db.RollRooms.CountAsync(r => r.TemplateId == template.Id));
     }
+    [Fact]
+    public async Task Two_workers_drawing_the_same_room_record_one_winner()
+    {
+        var store = $"roll-service-tests-{Guid.NewGuid():N}";
+        using var db = CreateDb(store);
+        var service = CreateService(db);
+        var template = await SeedTemplateAsync(db);
+        var created = await service.CreateRoomFromTemplateAsync(template.Id);
+        var room = await db.RollRooms.SingleAsync(r => r.Id == created.RoomId);
+        room.EndAtUtc = DateTime.UtcNow.AddMinutes(-1);
+        await db.SaveChangesAsync();
+
+        var prize = await SeedPrizeAsync(db, room.Id, RollPrizeType.CoinGrant, coinAmount: 500);
+        var participant = await SeedParticipantAsync(db, room.Id, UserId);
+
+        // A rival worker draws the room from its own context while this one still holds the
+        // stale row it read before the rival's draw.
+        using (var rivalDb = CreateDb(store))
+        {
+            var rival = CreateService(rivalDb);
+            var rivalResult = await rival.DrawAsync(room.Id);
+            Assert.Equal(participant.UserId, rivalResult.WinnerUserId);
+        }
+
+        // The stale status passes this side's guard, so the conflict on the room's
+        // concurrency token must end in a re-read, not a second winner.
+        var result = await service.DrawAsync(room.Id);
+        Assert.Equal(RollRoomStatus.Drawn, result.Status);
+        Assert.Equal(participant.UserId, result.WinnerUserId);
+        Assert.Single(await db.RollRoomParticipants.AsNoTracking().Where(p => p.WonPrizeId == prize.Id).ToListAsync());
+    }
 }

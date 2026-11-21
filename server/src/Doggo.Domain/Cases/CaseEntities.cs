@@ -137,6 +137,10 @@ public class RollRoom : Entity
     public string Title { get; set; } = string.Empty;
     public RollRuleType RuleType { get; set; }
     public RollRoomStatus Status { get; set; } = RollRoomStatus.Creating;
+
+    /// <summary>Concurrency token: two sweep workers picking the same due room resolve the
+    /// draw instead of both recording their own winner.</summary>
+    public long Version { get; set; } = 1;
     public string? InviteCode { get; set; }
     public string? CoverUrl { get; set; }
     public long MaxPrizeValueCents { get; set; }
