@@ -143,6 +143,7 @@ public class UserOrderConfiguration : IEntityTypeConfiguration<UserOrder>
     {
         builder.HasIndex(x => x.OrderNo).IsUnique();
         builder.HasIndex(x => new { x.UserId, x.Status });
+        builder.Property(x => x.Version).IsConcurrencyToken();
     }
 }
 

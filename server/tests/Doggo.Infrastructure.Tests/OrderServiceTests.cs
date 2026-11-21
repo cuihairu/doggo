@@ -877,6 +877,64 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task Cancel_loses_the_race_to_a_settling_callback_and_never_overwrites_it()
+    {
+        var store = $"order-service-tests-{Guid.NewGuid():N}";
+        using var db = CreateDb(store);
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db);
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+
+        // A rival service instance settles the order from its own context while this one
+        // still holds the stale row it tracked at creation: the stale cancel passes the
+        // in-memory gate but conflicts on the order's concurrency token.
+        using (var rivalDb = CreateDb(store))
+        {
+            var (rivalOrders, _) = CreateService(rivalDb);
+            Assert.True(await rivalOrders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), "{payload}"));
+        }
+
+        Assert.False(await orders.CancelUnpaidAsync(result.OrderId, "user cancel"));
+
+        var fresh = await db.UserOrders.AsNoTracking().SingleAsync(o => o.Id == result.OrderId);
+        Assert.Equal(OrderStatus.PendingSettlement, fresh.Status);
+        Assert.Equal(PaymentStatus.Success, (await db.PaymentRecords.AsNoTracking().SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Callback_loses_the_race_to_a_cancelled_order_and_records_rejection()
+    {
+        var store = $"order-service-tests-{Guid.NewGuid():N}";
+        using var db = CreateDb(store);
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db);
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+
+        // The order is cancelled by a rival service instance while this context still holds
+        // its tracked copy, so the stale callback passes the pending-payment gate but
+        // conflicts on the version.
+        using (var rivalDb = CreateDb(store))
+        {
+            var (rivalOrders, _) = CreateService(rivalDb);
+            Assert.True(await rivalOrders.CancelUnpaidAsync(result.OrderId, "user cancel"));
+        }
+
+        Assert.False(await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), "{payload}"));
+
+        // The cancellation survives: the losing delivery never resurrects the order, and
+        // the channel sees the rejection on record to reconcile or refund.
+        var fresh = await db.UserOrders.AsNoTracking().SingleAsync(o => o.Id == result.OrderId);
+        Assert.Equal(OrderStatus.Cancelled, fresh.Status);
+        // On MySQL the whole conflicting save batch rolls back, so exactly one rejected
+        // record remains. The InMemory provider applies a failing batch without a
+        // transaction, so the batched success row may linger; the invariant is the
+        // rejected delivery being on record.
+        Assert.True(await db.PaymentRecords.AsNoTracking()
+            .AnyAsync(r => r.IdempotencyKey == Callback(result.OrderId).IdempotencyKey
+                           && r.Status == PaymentStatus.Failed));
+    }
+
+    [Fact]
     public async Task CancelUnpaid_returns_promotion_stock()
     {
         using var db = CreateDb();

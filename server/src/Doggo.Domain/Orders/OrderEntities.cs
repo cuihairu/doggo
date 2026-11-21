@@ -70,6 +70,11 @@ public class UserOrder : Entity
     public long CashbackCents { get; set; }
 
     public OrderStatus Status { get; set; } = OrderStatus.PendingPayment;
+
+    /// <summary>Concurrency token: a cancel and a payment callback racing on the same
+    /// order resolve it instead of both writing their own status over the other's.</summary>
+    public long Version { get; set; } = 1;
+
     public ServiceMode ServiceMode { get; set; }
     public FulfillmentType FulfillmentType { get; set; }
     public Guid? TradeUrlId { get; set; }

@@ -231,6 +231,7 @@ public sealed partial class OrderService(
         order.PayType = payment.Provider;
         order.PayTradeNo = callback.ProviderTradeNo;
         order.PaidAtUtc = now;
+        order.Version++;
 
         var record = new PaymentRecord
         {
@@ -253,6 +254,25 @@ public sealed partial class OrderService(
         try
         {
             await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A rival request (the order being cancelled while this payment was in flight)
+            // saved the row first. Drop the stale settle and re-read: an order that is no
+            // longer pending payment must not settle, so the delivery is recorded as
+            // rejected for the channel to reconcile or refund. A still-pending conflict
+            // is a real store failure and keeps throwing. This must run before the
+            // DbUpdateException catch below, which rethrows conflicts it cannot explain.
+            db.ChangeTracker.Clear();
+            var fresh = await db.UserOrders.AsNoTracking()
+                .SingleAsync(o => o.Id == orderId, cancellationToken);
+            if (fresh.Status != OrderStatus.PendingPayment)
+            {
+                await SaveFailedRecordAsync(callback, payload, orderId, cancellationToken);
+                return false;
+            }
+
+            throw;
         }
         catch (DbUpdateException)
         {
@@ -316,19 +336,38 @@ public sealed partial class OrderService(
     /// <summary>Cancels an unpaid order and returns the promotion unit it held.</summary>
     public async Task<bool> CancelUnpaidAsync(Guid orderId, string reason, CancellationToken cancellationToken = default)
     {
-        var order = await LoadOrderAsync(orderId, cancellationToken);
-        if (!await CanCancelOrderAsync(order, cancellationToken))
+        // The order row carries a concurrency token: a payment callback settling this very
+        // order while a cancel is in flight can save first. A conflict re-reads the row — a
+        // settled order is no longer cancellable and nothing is given back — while an order
+        // still pending payment is retried on the fresh read.
+        for (var attempt = 0; attempt < 3; attempt++)
         {
-            return false;
+            var order = await LoadOrderAsync(orderId, cancellationToken);
+            if (!await CanCancelOrderAsync(order, cancellationToken))
+            {
+                return false;
+            }
+
+            order.Status = OrderStatus.Cancelled;
+            order.Error = reason;
+            order.Version++;
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < 2)
+            {
+                // The rival write won this round; drop the stale cancel and retry.
+                db.ChangeTracker.Clear();
+                continue;
+            }
+
+            await RestorePromotionAsync(order.PromotionId, cancellationToken);
+            await RestoreDeductionsAsync(order, "order_cancel", cancellationToken);
+            return true;
         }
 
-        order.Status = OrderStatus.Cancelled;
-        order.Error = reason;
-        await db.SaveChangesAsync(cancellationToken);
-
-        await RestorePromotionAsync(order.PromotionId, cancellationToken);
-        await RestoreDeductionsAsync(order, "order_cancel", cancellationToken);
-        return true;
+        return false;
     }
 
     /// <summary>Cancels every unpaid order past its payment deadline.</summary>
