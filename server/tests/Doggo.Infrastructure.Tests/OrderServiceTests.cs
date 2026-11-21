@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Doggo.Domain.Analytics;
@@ -455,6 +456,44 @@ public class OrderServiceTests
         // The spend drains the whole balance FIFO; the coupon instance is used now.
         Assert.Equal(0, (await db.UserCoins.SingleAsync()).Balance);
         Assert.Equal(UserCouponStatus.Used, (await db.UserCoupons.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Create_with_a_failing_coin_spend_restores_the_coupon_and_leaves_no_order()
+    {
+        using var db = CreateDb();
+        var (orders, _) = CreateService(db);
+        var product = await SeedProductAsync(db, finalPriceCents: 1000);
+
+        // The requested deduction fits the order total but not the balance, so the spend
+        // itself fails after the coupon was consumed.
+        var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
+        var coupons = new CouponService(db, ledger, NullLogger<CouponService>.Instance);
+        await ledger.GrantAsync(UserId, 10, "promo", null);
+        var coupon = await db.Coupons.AddAsync(new Coupon
+        {
+            Id = Guid.CreateVersion7(),
+            Title = "Minus 2 yuan",
+            Type = CouponType.AmountOff,
+            AmountOffCents = 200,
+            MinOrderCents = 0,
+            Scope = CouponScope.All
+        });
+        await db.SaveChangesAsync();
+        var claimed = await coupons.ClaimCouponAsync(UserId, coupon.Entity.Id);
+
+        await Assert.ThrowsAsync<CoinValidationException>(() => orders.CreateOrderAsync(new CreateOrderCommand(
+            UserId, product.Id, null, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Coin,
+            CoinDeduction: 500, UserCouponId: claimed.Id)));
+
+        // Nothing from the failed order survives: no order row, the coupon instance is back
+        // to unused, and the balance is untouched. On the in-memory store the step-by-step
+        // restore does this; on MySQL the order-wide transaction rolls the batch back.
+        Assert.Empty(await db.UserOrders.ToListAsync());
+        var restored = await db.UserCoupons.SingleAsync();
+        Assert.Equal(UserCouponStatus.Unused, restored.Status);
+        Assert.Null(restored.UsedOrderId);
+        Assert.Equal(10, (await db.UserCoins.SingleAsync()).Balance);
     }
 
     [Fact]
@@ -1349,5 +1388,88 @@ public class OrderServiceTests
         Assert.False(await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId, success: false), null));
 
         Assert.False(await db.AnalyticsEvents.AnyAsync(e => e.EventName == "order_paid"));
+    }
+
+    private const string MySqlConnectionString =
+        "Server=127.0.0.1;Port=13306;Database=doggo;User=doggo;Password=ci-doggo-password;AllowUserVariables=true";
+
+    private static DoggoDbContext CreateMysqlDb()
+    {
+        var db = new DoggoDbContext(new DbContextOptionsBuilder<DoggoDbContext>().UseMySQL(MySqlConnectionString).Options);
+        db.Database.MigrateAsync().GetAwaiter().GetResult();
+        return db;
+    }
+
+    /// <summary>
+    /// The in-memory suite has no transactions, so only a real MySQL can show the order
+    /// creation transaction rolling a rejected spend back together with the consumed coupon.
+    /// Runs against the local verify instance; skipped when it is not reachable.
+    /// </summary>
+    [MySqlFact]
+    public async Task CreateOrder_on_mysql_rolls_back_the_consumed_coupon_with_a_failed_spend()
+    {
+        var userId = Guid.CreateVersion7();
+        var productId = Guid.Empty;
+        using var db = CreateMysqlDb();
+        try
+        {
+            var (orders, _) = CreateService(db);
+            var product = await SeedProductAsync(db, finalPriceCents: 1000);
+            productId = product.Id;
+
+            // A balance far below the requested deduction: the spend fails after the coupon
+            // instance was marked used, so the transaction must unwind both.
+            var ledger = new CoinService(db, NullLogger<CoinService>.Instance);
+            var coupons = new CouponService(db, ledger, NullLogger<CouponService>.Instance);
+            await ledger.GrantAsync(userId, 10, "promo", null);
+            var coupon = await db.Coupons.AddAsync(new Coupon
+            {
+                Id = Guid.CreateVersion7(),
+                Title = "rollback probe",
+                Type = CouponType.AmountOff,
+                AmountOffCents = 200,
+                MinOrderCents = 0,
+                Scope = CouponScope.All
+            });
+            await db.SaveChangesAsync();
+            var claimed = await coupons.ClaimCouponAsync(userId, coupon.Entity.Id);
+
+            await Assert.ThrowsAsync<CoinValidationException>(() => orders.CreateOrderAsync(new CreateOrderCommand(
+                userId, product.Id, null, null, OrderEntry.Case, ServiceMode.CloudOpen, FulfillmentType.Spot, PaymentProvider.Coin,
+                CoinDeduction: 500, UserCouponId: claimed.Id)));
+
+            Assert.Empty(await db.UserOrders.Where(o => o.UserId == userId).ToListAsync());
+            Assert.Equal(UserCouponStatus.Unused, (await db.UserCoupons.SingleAsync(c => c.Id == claimed.Id)).Status);
+            Assert.Equal(10, (await db.UserCoins.SingleAsync(c => c.UserId == userId)).Balance);
+            Assert.Equal(0, await db.AnalyticsEvents.CountAsync(e => e.UserId == userId));
+        }
+        finally
+        {
+            await db.UserOrders.Where(o => o.UserId == userId).ExecuteDeleteAsync();
+            await db.UserCoupons.Where(c => c.UserId == userId).ExecuteDeleteAsync();
+            await db.Coupons.Where(c => c.Title == "rollback probe").ExecuteDeleteAsync();
+            await db.UserCoins.Where(c => c.UserId == userId).ExecuteDeleteAsync();
+            await db.UserCoinBatches.Where(b => b.UserId == userId).ExecuteDeleteAsync();
+            await db.UserCoinLogs.Where(l => l.UserId == userId).ExecuteDeleteAsync();
+            await db.AnalyticsEvents.Where(e => e.UserId == userId).ExecuteDeleteAsync();
+            await db.Products.Where(p => p.Id == productId).ExecuteDeleteAsync();
+        }
+    }
+}
+
+public sealed class MySqlFactAttribute : FactAttribute
+{
+    public MySqlFactAttribute()
+    {
+        try
+        {
+            using var probe = new TcpClient();
+            probe.ConnectAsync("127.0.0.1", 13306).Wait(200);
+            Skip = probe.Connected ? null : "needs a MySQL on 127.0.0.1:13306";
+        }
+        catch
+        {
+            Skip = "needs a MySQL on 127.0.0.1:13306";
+        }
     }
 }

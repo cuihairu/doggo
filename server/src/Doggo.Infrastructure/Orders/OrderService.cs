@@ -119,6 +119,14 @@ public sealed partial class OrderService(
             total = promotion.DiscountPriceCents * quantity;
         }
 
+        // The promotion stock, the coupon, the coin ledger and the order row each save on
+        // their own, so a rejected spend would otherwise leave the earlier deductions behind.
+        // One transaction on a relational store rolls all of them back together; the in-memory
+        // store has no transactions and keeps the step-by-step restores below.
+        await using var transaction = db.Database.IsRelational()
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         var cashback = PriceCalculator.CashbackCents(total, plan?.CashbackBps ?? 0);
 
         var order = new UserOrder
@@ -181,6 +189,10 @@ public sealed partial class OrderService(
         analytics.EnqueueOrderCreated(order);
 
         await db.SaveChangesAsync(cancellationToken);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
 
         LogOrderCreated(logger, order.OrderNo, command.UserId, promotion is not null);
         return new CreateOrderResult(order.Id, order.OrderNo, total, order.TotalCostCents, cashback, promotion is not null, order.PayDeadlineUtc!.Value);
