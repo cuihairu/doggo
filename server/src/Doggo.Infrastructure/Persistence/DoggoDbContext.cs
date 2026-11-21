@@ -123,6 +123,28 @@ public class DoggoDbContext(DbContextOptions<DoggoDbContext> options) : DbContex
                 modelBuilder.Entity(entityType.ClrType).HasQueryFilter(Expression.Lambda(body, parameter));
             }
         }
+
+        // Phone and Email use string.Empty as the "absent" sentinel, so a plain unique index
+        // would make every empty cell collide with every other. These generated columns map
+        // an empty cell to NULL, which a unique index treats as distinct: registration
+        // uniqueness becomes a database constraint instead of the check-then-insert in
+        // RegisterAsync. Generated columns and indexes exist only on a relational store; the
+        // unit-test InMemory store has neither, so the model stays clean there.
+        if (Database.IsRelational())
+        {
+            modelBuilder.Entity<UserAccount>(builder =>
+            {
+                builder.Property<string>("PhoneUnique")
+                    .HasColumnType("varchar(255)")
+                    .HasComputedColumnSql("NULLIF(`Phone`, '')", stored: false);
+                builder.HasIndex("PhoneUnique").IsUnique();
+
+                builder.Property<string>("EmailUnique")
+                    .HasColumnType("varchar(255)")
+                    .HasComputedColumnSql("NULLIF(`Email`, '')", stored: false);
+                builder.HasIndex("EmailUnique").IsUnique();
+            });
+        }
     }
 
     public override int SaveChanges()

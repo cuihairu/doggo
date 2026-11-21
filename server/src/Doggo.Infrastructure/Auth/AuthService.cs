@@ -125,7 +125,28 @@ public sealed partial class AuthService(
             UserAgent = userAgent,
             Success = true
         });
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Two concurrent registrations of the same phone or email both pass the read
+            // check; the functional unique index on the NULLIF generated column settles the
+            // race. If the account is on the books now, this delivery lost and the caller
+            // gets the same error the pre-check would have raised; anything else (e.g. an
+            // InviteCode collision, whose re-check below comes back clean) is a real store
+            // failure and keeps throwing.
+            db.ChangeTracker.Clear();
+            var taken = await db.UserAccounts.AsNoTracking()
+                .AnyAsync(u => (!isPhone && u.Email == account) || (isPhone && u.Phone == account), cancellationToken);
+            if (taken)
+            {
+                throw new AccountExistsException("This account is already registered.");
+            }
+
+            throw;
+        }
 
         LogRegistered(user.Nickname);
         return new AuthResult(user.Id, user.Nickname, accessToken, expiresAt, refreshToken);

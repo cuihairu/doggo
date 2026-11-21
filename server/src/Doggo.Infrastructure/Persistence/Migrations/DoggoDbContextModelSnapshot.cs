@@ -2374,6 +2374,11 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("EmailUnique")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("varchar(255)")
+                        .HasComputedColumnSql("NULLIF(`Email`, '')", false);
+
                     b.Property<string>("InviteCode")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -2403,6 +2408,11 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("PhoneUnique")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("varchar(255)")
+                        .HasComputedColumnSql("NULLIF(`Phone`, '')", false);
+
                     b.Property<bool>("RealNameVerified")
                         .HasColumnType("tinyint(1)");
 
@@ -2423,10 +2433,16 @@ namespace Doggo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Email");
 
+                    b.HasIndex("EmailUnique")
+                        .IsUnique();
+
                     b.HasIndex("InviteCode")
                         .IsUnique();
 
                     b.HasIndex("Phone");
+
+                    b.HasIndex("PhoneUnique")
+                        .IsUnique();
 
                     b.HasIndex("WechatOpenId")
                         .IsUnique();

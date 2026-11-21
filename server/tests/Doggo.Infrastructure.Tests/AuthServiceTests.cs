@@ -22,6 +22,59 @@ public class AuthServiceTests
             .UseInMemoryDatabase(store)
             .Options);
 
+    private static DbContextOptions<DoggoDbContext> CreateOptions(string store) =>
+        new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store)
+            .Options;
+
+    /// <summary>
+    /// Simulates a rival registration committing the same phone or email while this
+    /// instance's save is in flight: the next SaveChanges writes the rival's account from
+    /// a sibling context and then fails with a store-level unique-index conflict, so the
+    /// catch path in <see cref="AuthService.RegisterAsync"/> re-checks against committed rows.
+    /// </summary>
+    private sealed class RivalCommittingDbContext(DbContextOptions<DoggoDbContext> options, string store)
+        : DoggoDbContext(options)
+    {
+        public Action<DoggoDbContext>? OnRivalSave { get; set; }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            if (OnRivalSave is not null)
+            {
+                var rival = OnRivalSave;
+                OnRivalSave = null;
+                await using var rivalDb = CreateDb(store);
+                rival(rivalDb);
+                await rivalDb.SaveChangesAsync(cancellationToken);
+                throw new DbUpdateException("duplicate entry", new InvalidOperationException("1062"));
+            }
+
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private const string MySqlConnectionString =
+        "Server=127.0.0.1;Port=13306;Database=doggo;User=doggo;Password=ci-doggo-password;AllowUserVariables=true";
+
+    private static DoggoDbContext CreateMysqlDb()
+    {
+        var db = new DoggoDbContext(new DbContextOptionsBuilder<DoggoDbContext>().UseMySQL(MySqlConnectionString).Options);
+        db.Database.MigrateAsync().GetAwaiter().GetResult();
+        return db;
+    }
+
+    private static UserAccount NewAccount(string phone, string email) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        Phone = phone,
+        Email = email,
+        PasswordHash = "x",
+        Nickname = "account",
+        InviteCode = Guid.NewGuid().ToString("N"),
+        Status = UserStatus.Active
+    };
+
     private sealed class StubWechatClient(WechatSession? session) : IWechatSessionClient
     {
         public Task<WechatSession> ExchangeAsync(string code, CancellationToken cancellationToken = default) =>
@@ -362,4 +415,59 @@ public class AuthServiceTests
 
     private static string Hash(string token) =>
         Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
+
+    [Fact]
+    public async Task Register_racing_the_same_account_loses_on_the_unique_index()
+    {
+        var store = $"auth-tests-{Guid.NewGuid():N}";
+        await using var db = new RivalCommittingDbContext(CreateOptions(store), store);
+        var service = CreateService(db);
+
+        // A rival registration of the same phone lands while this instance's save is in
+        // flight: the read check already passed against an empty store, so only the unique
+        // index stops the loser, and the catch path reports it as the account existing.
+        db.OnRivalSave = rival => rival.UserAccounts.Add(NewAccount(Account, "rival@example.com"));
+
+        await Assert.ThrowsAsync<AccountExistsException>(() => RegisterAsync(service));
+        Assert.Equal(1, await db.UserAccounts.AsNoTracking().CountAsync());
+    }
+
+    [MySqlFact]
+    public async Task Register_on_mysql_functional_index_rejects_duplicate_phone_and_email()
+    {
+        const string phone = "13800000003";
+        const string email = "unique-452@example.com";
+        using var db = CreateMysqlDb();
+        try
+        {
+            // Direct inserts bypass the service's read check, so the test proves the
+            // database constraint itself stops a duplicate — not the application pre-check.
+            db.UserAccounts.Add(NewAccount(phone, email));
+            await db.SaveChangesAsync();
+
+            // Same phone, different email: the NULLIF phone index must reject it.
+            db.UserAccounts.Add(NewAccount(phone, "other@example.com"));
+            await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+            db.ChangeTracker.Clear();
+
+            // Same email, different phone: the NULLIF email index must reject it.
+            db.UserAccounts.Add(NewAccount("13800000004", email));
+            await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+            db.ChangeTracker.Clear();
+
+            // Empty phone/email are NULL via NULLIF, so two accounts with no phone and no
+            // email must NOT collide (absent is distinct under the functional index).
+            db.UserAccounts.Add(NewAccount(string.Empty, string.Empty));
+            await db.SaveChangesAsync();
+            db.UserAccounts.Add(NewAccount(string.Empty, string.Empty));
+            await db.SaveChangesAsync();
+            db.ChangeTracker.Clear();
+        }
+        finally
+        {
+            db.UserAccounts.RemoveRange(db.UserAccounts
+                .Where(u => u.Phone == phone || u.Email == email || u.Nickname == "account"));
+            await db.SaveChangesAsync();
+        }
+    }
 }
