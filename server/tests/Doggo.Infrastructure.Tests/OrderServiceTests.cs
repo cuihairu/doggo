@@ -1108,6 +1108,38 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task SubmitRetrieval_racing_a_duplicate_dispatches_one_offer()
+    {
+        var store = $"order-retrieval-race-{Guid.NewGuid():N}";
+        using var db = CreateDb(store);
+        var captured = new List<string>();
+        var (orders, _) = CreateService(db, VaporStub(capturedBodies: captured));
+        var product = await SeedProductAsync(db);
+        var link = await SeedTradeUrlAsync(db);
+        var result = await orders.CreateOrderAsync(Command(product.Id));
+        await orders.ApplyPaymentCallbackAsync(result.OrderId, Callback(result.OrderId), null);
+        await SeedPrizeAsync(db, result.OrderId);
+
+        // A duplicate submission dispatches from its own context while this side still holds
+        // the stale pre-retrieval row, so its claim must fail on the order's concurrency
+        // token before any second trade offer goes out.
+        using (var rivalDb = CreateDb(store))
+        {
+            var (rivalOrders, _) = CreateService(rivalDb, VaporStub(capturedBodies: captured));
+            var (rivalAccepted, _, rivalError) = await rivalOrders.SubmitRetrievalAsync(result.OrderId, link.Id);
+            Assert.True(rivalAccepted);
+            Assert.Null(rivalError);
+        }
+
+        var (accepted, offerId, error) = await orders.SubmitRetrievalAsync(result.OrderId, link.Id);
+
+        Assert.False(accepted);
+        Assert.Null(offerId);
+        Assert.Contains("already being retrieved", error);
+        Assert.Single(captured);
+    }
+
+    [Fact]
     public async Task SubmitRetrieval_rejects_an_order_with_no_prizes()
     {
         using var db = CreateDb();

@@ -560,10 +560,21 @@ public sealed partial class OrderService(
         }
 
         // Move to Retrieving before the dispatch so a concurrent sweep cannot refund the
-        // order mid-flight; the failure paths below roll it back.
+        // order mid-flight; the failure paths below roll it back. The order's version token
+        // makes this the one-shot claim on retrieval: a duplicate submit racing this one fails
+        // its save and never dispatches a second trade offer.
         order.Status = OrderStatus.Retrieving;
         order.TradeUrlId = tradeUrl.Id;
-        await db.SaveChangesAsync(cancellationToken);
+        order.Version++;
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return (false, null, $"Order {order.OrderNo} is already being retrieved.");
+        }
 
         string? offerId;
         try
@@ -583,6 +594,7 @@ public sealed partial class OrderService(
         }
 
         order.TradeOfferId = offerId;
+        order.Version++;
         await db.SaveChangesAsync(cancellationToken);
 
         LogRetrievalSubmitted(logger, order.OrderNo, offerId);
@@ -606,6 +618,7 @@ public sealed partial class OrderService(
         order.TradeOfferId = offerId;
         order.CompletedAtUtc = DateTime.UtcNow;
         order.Error = null;
+        order.Version++;
         await db.SaveChangesAsync(cancellationToken);
 
         // The invitee's first completed order pays the inviter; the service keeps its own
@@ -626,6 +639,7 @@ public sealed partial class OrderService(
 
         order.Status = OrderStatus.PendingRetrieval;
         order.Error = reason;
+        order.Version++;
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -752,6 +766,7 @@ public sealed partial class OrderService(
 
         order.Status = OrderStatus.PendingRetrieval;
         order.Error = reason;
+        order.Version++;
         await db.SaveChangesAsync(cancellationToken);
     }
 
