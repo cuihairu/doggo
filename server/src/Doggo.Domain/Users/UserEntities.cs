@@ -181,6 +181,11 @@ public class RedeemCode : Entity
     public long CoinAmount { get; set; }
     public int MaxRedemptions { get; set; } = 1;
     public int RedeemedCount { get; set; }
+
+    /// <summary>Concurrency token for the RedeemedCount read-modify-write: without it, N
+    /// users redeeming one limited code at once each bump the count, but only the last write
+    /// survives, so the code is granted more than MaxRedemptions times.</summary>
+    public long Version { get; set; } = 1;
     public RedeemCodeStatus Status { get; set; } = RedeemCodeStatus.Active;
     public DateTime? ExpiresAtUtc { get; set; }
 }

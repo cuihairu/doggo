@@ -130,6 +130,41 @@ public class CouponServiceTests
     }
 
     [Fact]
+    public async Task Redeem_racing_a_different_user_for_the_last_slot_does_not_over_redeem()
+    {
+        var store = $"redeem-cap-race-{Guid.NewGuid():N}";
+        await using var db = new RivalWinsDbContext(store, new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store).Options);
+        var (coupons, _) = CreateServices(db);
+        var redeemCode = await SeedCoinCodeAsync(db);
+        var otherUserId = Guid.CreateVersion7();
+
+        // A different user takes the code's only slot while this call is in flight. Both passed
+        // the "not fully redeemed" pre-check, so only the concurrency token on the counter can
+        // stop the second grant.
+        db.OnRivalSave = rival =>
+        {
+            rival.UserRedeemRecords.Add(new UserRedeemRecord
+            {
+                Id = Guid.CreateVersion7(),
+                RedeemCodeId = redeemCode.Id,
+                UserId = otherUserId,
+                RedeemedAtUtc = DateTime.UtcNow
+            });
+            rival.RedeemCodes.Find(redeemCode.Id)!.RedeemedCount = redeemCode.MaxRedemptions;
+        };
+
+        var ex = await Assert.ThrowsAsync<CouponValidationException>(() => coupons.RedeemAsync(UserId, "COIN100"));
+        Assert.Equal("This redeem code is fully redeemed.", ex.Message);
+
+        await using var fresh = new DoggoDbContext(new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store).Options);
+        Assert.Empty(await fresh.UserCoins.ToListAsync());
+        Assert.Equal(redeemCode.MaxRedemptions, (await fresh.RedeemCodes.SingleAsync()).RedeemedCount);
+        Assert.Single(await fresh.UserRedeemRecords.ToListAsync());
+    }
+
+    [Fact]
     public async Task Redeem_coupon_code_issues_a_coupon_instance()
     {
         await using var db = CreateDb();

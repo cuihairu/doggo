@@ -96,6 +96,7 @@ public sealed partial class CouponService(DoggoDbContext db, CoinService coins, 
         }
 
         redeemCode.RedeemedCount++;
+        redeemCode.Version++;
         db.UserRedeemRecords.Add(new UserRedeemRecord
         {
             Id = Guid.CreateVersion7(),
@@ -109,15 +110,27 @@ public sealed partial class CouponService(DoggoDbContext db, CoinService coins, 
         }
         catch (DbUpdateException)
         {
+            // The grant above is only staged in the context, so this failed save rolls it back
+            // with the record: a loser never keeps the coins or the coupon instance.
+            db.ChangeTracker.Clear();
+
             // Two concurrent redemptions of the same code by the same user both pass the
-            // already-redeemed pre-check; the (code, user) unique index settles the race and
-            // the loser's coins or coupon instance roll back with the record.
+            // already-redeemed pre-check; the (code, user) unique index settles that race.
             var alreadyRedeemed = await db.UserRedeemRecords.AsNoTracking()
                 .AnyAsync(r => r.RedeemCodeId == redeemCode.Id && r.UserId == userId, cancellationToken);
             if (alreadyRedeemed)
             {
-                db.ChangeTracker.Clear();
                 throw new CouponValidationException("You have already redeemed this code.");
+            }
+
+            // A different user took the last slot; the code's own counter now says so.
+            var soldOut = await db.RedeemCodes.AsNoTracking()
+                .Where(c => c.Id == redeemCode.Id)
+                .Select(c => c.RedeemedCount >= c.MaxRedemptions)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (soldOut)
+            {
+                throw new CouponValidationException("This redeem code is fully redeemed.");
             }
 
             throw;

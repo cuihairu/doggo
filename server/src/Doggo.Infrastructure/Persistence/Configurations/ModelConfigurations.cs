@@ -51,7 +51,12 @@ public class UserCoinConfiguration : IEntityTypeConfiguration<UserCoin>
 
 public class RedeemCodeConfiguration : IEntityTypeConfiguration<RedeemCode>
 {
-    public void Configure(EntityTypeBuilder<RedeemCode> builder) => builder.HasIndex(x => x.Code).IsUnique();
+    public void Configure(EntityTypeBuilder<RedeemCode> builder)
+    {
+        builder.HasIndex(x => x.Code).IsUnique();
+        // The redeem counter is a read-modify-write; the token settles who gets the last slot.
+        builder.Property(x => x.Version).IsConcurrencyToken();
+    }
 }
 
 public class UserRedeemRecordConfiguration : IEntityTypeConfiguration<UserRedeemRecord>
