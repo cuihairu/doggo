@@ -144,6 +144,21 @@ public class DoggoDbContext(DbContextOptions<DoggoDbContext> options) : DbContex
                     .HasComputedColumnSql("NULLIF(`Email`, '')", stored: false);
                 builder.HasIndex("EmailUnique").IsUnique();
             });
+
+            // One live room per template: a template whose previous periods all finished
+            // legitimately owns several finished rooms, so the unique constraint must cover
+            // only the not-yet-finished ones. The generated column is the TemplateId when
+            // the room is live and NULL otherwise (NULLs are distinct under a unique index),
+            // which also matches the sweep's own "live = not finished" definition.
+            modelBuilder.Entity<RollRoom>(builder =>
+            {
+                builder.Property<Guid?>("LiveTemplateId")
+                    .HasColumnType("char(36)")
+                    .HasComputedColumnSql(
+                        "CASE WHEN `Status` <> 5 AND `TemplateId` IS NOT NULL THEN `TemplateId` ELSE NULL END",
+                        stored: false);
+                builder.HasIndex("LiveTemplateId").IsUnique();
+            });
         }
     }
 

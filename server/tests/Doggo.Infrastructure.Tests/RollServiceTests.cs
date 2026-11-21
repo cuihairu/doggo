@@ -22,6 +22,59 @@ public class RollServiceTests
             .UseInMemoryDatabase(store)
             .Options);
 
+    private static DbContextOptions<DoggoDbContext> CreateOptions(string store) =>
+        new DbContextOptionsBuilder<DoggoDbContext>()
+            .UseInMemoryDatabase(store)
+            .Options;
+
+    /// <summary>
+    /// Simulates a rival worker committing a live room for the same template while this
+    /// instance's save is in flight: the next SaveChanges writes the rival's room from a
+    /// sibling context and then fails with a store-level unique-index conflict, so the
+    /// catch path in <see cref="RollService.CreateRoomFromTemplateAsync"/> re-checks.
+    /// </summary>
+    private sealed class RivalCommittingDbContext(DbContextOptions<DoggoDbContext> options, string store)
+        : DoggoDbContext(options)
+    {
+        public Action<DoggoDbContext>? OnRivalSave { get; set; }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            if (OnRivalSave is not null)
+            {
+                var rival = OnRivalSave;
+                OnRivalSave = null;
+                await using var rivalDb = CreateDb(store);
+                rival(rivalDb);
+                await rivalDb.SaveChangesAsync(cancellationToken);
+                throw new DbUpdateException("duplicate entry", new InvalidOperationException("1062"));
+            }
+
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private const string MySqlConnectionString =
+        "Server=127.0.0.1;Port=13306;Database=doggo;User=doggo;Password=ci-doggo-password;AllowUserVariables=true";
+
+    private static DoggoDbContext CreateMysqlDb()
+    {
+        var db = new DoggoDbContext(new DbContextOptionsBuilder<DoggoDbContext>().UseMySQL(MySqlConnectionString).Options);
+        db.Database.MigrateAsync().GetAwaiter().GetResult();
+        return db;
+    }
+
+    private static RollRoom NewRoom(Guid templateId, RollRoomStatus status) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        TemplateId = templateId,
+        Title = "MySQL roll",
+        Status = status,
+        MaxPrizeValueCents = 100_00,
+        StartAtUtc = DateTime.UtcNow,
+        EndAtUtc = DateTime.UtcNow.AddMinutes(1)
+    };
+
     private static RollService CreateService(DoggoDbContext db) =>
         new(db, new CoinService(db, NullLogger<CoinService>.Instance), NullLogger<RollService>.Instance);
 
@@ -302,7 +355,21 @@ public class RollServiceTests
         var template = await SeedTemplateAsync(db);
         var service = CreateService(db);
         var due = (await service.CreateRoomFromTemplateAsync(template.Id)).RoomId;
-        var future = (await service.CreateRoomFromTemplateAsync(template.Id)).RoomId;
+        // A second (still running) room for the same template, seeded directly: the service
+        // now refuses a second live room, but legacy or edge data may still hold one.
+        var futureRoom = new RollRoom
+        {
+            Id = Guid.CreateVersion7(),
+            TemplateId = template.Id,
+            Title = template.Title,
+            Status = RollRoomStatus.Running,
+            MaxPrizeValueCents = template.MaxPrizeValueCents,
+            StartAtUtc = DateTime.UtcNow,
+            EndAtUtc = DateTime.UtcNow.AddMinutes(1)
+        };
+        db.RollRooms.Add(futureRoom);
+        await db.SaveChangesAsync();
+        var future = futureRoom.Id;
         await SeedParticipantAsync(db, due, UserId);
         await SeedPrizeAsync(db, due, RollPrizeType.CoinGrant, 100);
         var overdue = await db.RollRooms.FirstAsync(r => r.Id == due);
@@ -455,13 +522,103 @@ public class RollServiceTests
         await service.DrawAsync(roomId);
         await service.ClaimAsync(roomId, UserId);
 
-        // A second (still running) room from the same template means the period is still live.
-        await service.CreateRoomFromTemplateAsync(template.Id);
+        // A second (still running) room from the same template means the period is still
+        // live. It is seeded directly, because CreateRoomFromTemplateAsync now refuses a
+        // second live room — the guard this setup is meant to exercise around.
+        db.RollRooms.Add(new RollRoom
+        {
+            Id = Guid.CreateVersion7(),
+            TemplateId = template.Id,
+            Title = template.Title,
+            Status = RollRoomStatus.Running,
+            MaxPrizeValueCents = template.MaxPrizeValueCents,
+            StartAtUtc = DateTime.UtcNow,
+            EndAtUtc = DateTime.UtcNow.AddMinutes(1)
+        });
+        await db.SaveChangesAsync();
 
         var rolled = await service.OpenNextPeriodsAsync();
 
         Assert.Equal(0, rolled);
         Assert.Equal(2, await db.RollRooms.CountAsync(r => r.TemplateId == template.Id));
+    }
+
+    [Fact]
+    public async Task CreateRoomFromTemplateAsync_refuses_a_second_live_room()
+    {
+        await using var db = CreateDb();
+        var template = await SeedTemplateAsync(db);
+        var service = CreateService(db);
+
+        var first = await service.CreateRoomFromTemplateAsync(template.Id);
+        Assert.Equal(RollRoomStatus.Running, first.Status);
+
+        await Assert.ThrowsAsync<RollValidationException>(() => service.CreateRoomFromTemplateAsync(template.Id));
+        Assert.Equal(1, await db.RollRooms.CountAsync());
+
+        // Finishing the live room frees the template for its next period.
+        var room = await db.RollRooms.SingleAsync(r => r.Id == first.RoomId);
+        room.Status = RollRoomStatus.Finished;
+        await db.SaveChangesAsync();
+
+        var next = await service.CreateRoomFromTemplateAsync(template.Id);
+        Assert.Equal(RollRoomStatus.Running, next.Status);
+    }
+
+    [Fact]
+    public async Task CreateRoomFromTemplateAsync_loses_the_race_to_a_rival_live_room()
+    {
+        var store = $"roll-service-tests-{Guid.NewGuid():N}";
+        await using var db = new RivalCommittingDbContext(CreateOptions(store), store);
+        var service = CreateService(db);
+        var template = await SeedTemplateAsync(db);
+
+        // A rival worker opens the same template's period while this instance's save is in
+        // flight: the read check already passed against an empty store, so only the unique
+        // index stops the loser, and the catch path reports the template as live.
+        db.OnRivalSave = rival => rival.RollRooms.Add(NewRoom(template.Id, RollRoomStatus.Running));
+
+        await Assert.ThrowsAsync<RollValidationException>(() => service.CreateRoomFromTemplateAsync(template.Id));
+        Assert.Equal(1, await db.RollRooms.AsNoTracking().CountAsync());
+    }
+
+    [MySqlFact]
+    public async Task CreateRoom_on_mysql_functional_index_rejects_a_second_live_room()
+    {
+        using var db = CreateMysqlDb();
+        var templateId = Guid.CreateVersion7();
+        try
+        {
+            db.RollRoomTemplates.Add(new RollRoomTemplate
+            {
+                Id = templateId,
+                Title = "MySQL roll",
+                RuleType = RollRuleType.LoginEntry,
+                DurationMinutes = 60,
+                EntryDeadlineMinutes = 5,
+                MaxPrizeValueCents = 100_00,
+                Enabled = true
+            });
+            await db.SaveChangesAsync();
+
+            // A finished period and a live one from the same template coexist: the index
+            // constrains only not-yet-finished rooms, so the finished one is NULL.
+            db.RollRooms.Add(NewRoom(templateId, RollRoomStatus.Finished));
+            await db.SaveChangesAsync();
+            db.RollRooms.Add(NewRoom(templateId, RollRoomStatus.Running));
+            await db.SaveChangesAsync();
+            db.ChangeTracker.Clear();
+
+            // A second live room from the same template is rejected by the index.
+            db.RollRooms.Add(NewRoom(templateId, RollRoomStatus.Running));
+            await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        }
+        finally
+        {
+            db.RollRooms.RemoveRange(db.RollRooms.Where(r => r.TemplateId == templateId));
+            db.RollRoomTemplates.RemoveRange(db.RollRoomTemplates.Where(t => t.Id == templateId));
+            await db.SaveChangesAsync();
+        }
     }
 
     [Fact]

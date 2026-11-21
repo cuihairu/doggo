@@ -63,6 +63,16 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
             throw new RollValidationException($"Roll template {template.Title} is disabled.");
         }
 
+        // A template with a live room must not open a second period: the same template
+        // cannot run two rooms at once. The read check is the fast path; the functional
+        // unique index below is the authoritative guard under a concurrent race.
+        var liveExists = await db.RollRooms.AsNoTracking()
+            .AnyAsync(r => r.TemplateId == templateId && r.Status != RollRoomStatus.Finished, cancellationToken);
+        if (liveExists)
+        {
+            throw new RollValidationException($"Roll template {template.Title} already has a live room.");
+        }
+
         var now = DateTime.UtcNow;
         var room = new RollRoom
         {
@@ -76,7 +86,26 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
             EntryDeadlineUtc = now.AddMinutes(Math.Max(template.EntryDeadlineMinutes, 0))
         };
         db.RollRooms.Add(room);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Two creators raced and both passed the read check; the functional unique
+            // index on the live-template generated column settles it. If a live room is on
+            // the books now this delivery lost; anything else is a real store failure.
+            db.ChangeTracker.Clear();
+            var live = await db.RollRooms.AsNoTracking()
+                .AnyAsync(r => r.TemplateId == templateId && r.Status != RollRoomStatus.Finished, cancellationToken);
+            if (live)
+            {
+                throw new RollValidationException($"Roll template {template.Title} already has a live room.");
+            }
+
+            throw;
+        }
+
         LogRoomCreated(room.Title, room.EndAtUtc.Value);
         return new CreateRoomResult(room.Id, room.Status, room.EndAtUtc.Value, room.EntryDeadlineUtc.Value);
     }
@@ -373,8 +402,18 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
         var rolled = 0;
         foreach (var templateId in enabledTemplateIds.Except(liveTemplateIds))
         {
-            await CreateRoomFromTemplateAsync(templateId, cancellationToken);
-            rolled++;
+            try
+            {
+                await CreateRoomFromTemplateAsync(templateId, cancellationToken);
+                rolled++;
+            }
+            catch (RollValidationException)
+            {
+                // A concurrent worker opened this template's next period between the read
+                // above and the insert: the unique index rejected ours, so skip the template
+                // and keep the rest of the sweep running instead of aborting the tick.
+                LogSkippedLive(templateId);
+            }
         }
 
         if (rolled > 0)
@@ -507,4 +546,7 @@ public sealed partial class RollService(DoggoDbContext db, CoinService coins, IL
 
     [LoggerMessage(Level = LogLevel.Information, Message = "{Count} roll rooms rolled into the next period")]
     private partial void LogRolled(int count);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "roll template {TemplateId} already has a live room opened by a concurrent worker")]
+    private partial void LogSkippedLive(Guid templateId);
 }

@@ -254,6 +254,11 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<Guid?>("LiveTemplateId")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("char(36)")
+                        .HasComputedColumnSql("CASE WHEN `Status` <> 5 AND `TemplateId` IS NOT NULL THEN `TemplateId` ELSE NULL END", false);
+
                     b.Property<long>("MaxPrizeValueCents")
                         .HasColumnType("bigint");
 
@@ -282,6 +287,9 @@ namespace Doggo.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("LiveTemplateId")
+                        .IsUnique();
 
                     b.ToTable("RollRooms");
                 });
